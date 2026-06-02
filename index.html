@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>威灵T · Tracks & Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   TRACKS & NOTES — 个人音乐博客 v2
+   Magazine-Enhanced Edition
+   ═══════════════════════════════════════ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --serif: 'Playfair Display', 'Noto Serif SC', Georgia, serif;
+  --sans: 'Inter', 'Noto Sans SC', 'PingFang SC', -apple-system, sans-serif;
+  --mono: 'SF Mono', 'Fira Code', monospace;
+  --black: #0a0a0a;
+  --gray-900: #1a1a1a;
+  --gray-700: #3d3d3d;
+  --gray-600: #555;
+  --gray-500: #777;
+  --gray-400: #999;
+  --gray-300: #bbb;
+  --gray-200: #ddd;
+  --gray-150: #e8e5e0;
+  --gray-100: #f4f1ec;
+  --gray-50: #faf8f5;
+  --white: #fefdfb;
+  --accent: #c23b22;
+  --accent-light: #e8563f;
+  --gold: #b8884a;
+  --gold-light: #d4a85c;
+  --max-w: 1120px;
+  --gutter: clamp(1.2rem, 4vw, 2.5rem);
+}
+
+html { font-size:16px; scroll-behavior:smooth; }
+body {
+  font-family:var(--sans); color:var(--black);
+  background:var(--gray-100);
+  line-height:1.7; -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(194,59,34,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(184,132,74,0.04) 0%, transparent 50%);
+}
+a { color:inherit; text-decoration:none; }
+ul,ol { list-style:none; }
+button { font:inherit; cursor:pointer; border:none; background:none; color:inherit; }
+input,textarea,select { font:inherit; color:inherit; }
+::selection { background:var(--accent); color:var(--white); }
+
+/* ── Top Bar ── */
+.top-bar {
+  background:var(--black); color:var(--gray-400);
+  padding:0.5rem var(--gutter);
+  font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase;
+  display:flex; justify-content:space-between; align-items:center;
+  border-bottom:1px solid rgba(184,132,74,0.3);
+}
+.top-bar__left { display:flex; gap:1.5rem; align-items:center; }
+.top-bar__brand { color:var(--gold); font-weight:600; letter-spacing:0.25em; }
+.top-bar__divider { color:var(--gray-600); }
+.top-bar__issue { color:var(--gray-500); font-style:italic; font-family:var(--serif); letter-spacing:0.08em; text-transform:none; }
+
+/* ── Masthead ── */
+.masthead {
+  background:var(--black);
+  padding:2.5rem var(--gutter) 2rem;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.masthead__wave {
+  position:absolute; bottom:0; left:0; width:100%;
+  opacity:0.06;
+}
+.masthead__inner { position:relative; z-index:1; }
+.masthead__vinyl {
+  width:60px; height:60px; margin:0 auto 1.2rem;
+  border-radius:50%;
+  background:radial-gradient(circle, var(--gold) 0%, var(--gold) 14%, transparent 15%),
+    radial-gradient(circle, var(--black) 0%, var(--black) 50%, transparent 51%),
+    conic-gradient(from 0deg, #1a1a1a, #333, #1a1a1a, #2a2a2a, #1a1a1a, #333, #1a1a1a, #2a2a2a, #1a1a1a);
+  animation:spin 10s linear infinite;
+  box-shadow:0 0 0 3px var(--gold), 0 4px 20px rgba(0,0,0,0.5);
+}
+@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+.masthead__title {
+  font-family:var(--serif);
+  font-size:clamp(2.2rem, 6vw, 4rem);
+  font-weight:900; letter-spacing:-0.03em; line-height:1;
+  color:var(--white);
+}
+.masthead__title em { font-style:italic; color:var(--accent-light); }
+.masthead__tagline {
+  margin-top:0.8rem; font-size:0.7rem;
+  color:var(--gray-500); letter-spacing:0.3em; text-transform:uppercase;
+}
+.masthead__ornament {
+  margin-top:1rem; color:var(--gold); font-size:0.9rem;
+  letter-spacing:0.5em; opacity:0.6;
+}
+.masthead__edge {
+  height:4px;
+  background:repeating-linear-gradient(90deg, var(--accent) 0px, var(--accent) 8px, var(--gold) 8px, var(--gold) 16px, var(--black) 16px, var(--black) 24px);
+}
+
+/* ── Nav ── */
+.nav {
+  background:var(--white);
+  display:flex; justify-content:center; gap:3rem;
+  padding:0.9rem var(--gutter);
+  border-bottom:1px solid var(--gray-200);
+  font-size:0.72rem; letter-spacing:0.14em; text-transform:uppercase;
+  position:sticky; top:0;
+  background:rgba(254,253,251,0.97);
+  backdrop-filter:blur(12px);
+  z-index:50;
+}
+.nav button {
+  color:var(--gray-500);
+  padding:0.3rem 0;
+  position:relative;
+  transition:color 0.25s;
+  font-weight:500;
+}
+.nav button:hover { color:var(--black); }
+.nav button.active { color:var(--black); font-weight:700; }
+.nav button.active::after {
+  content:''; position:absolute; bottom:-13px; left:50%; transform:translateX(-50%);
+  width:24px; height:2.5px; background:var(--accent); border-radius:2px;
+}
+.nav button::before {
+  content:''; position:absolute; bottom:-13px; left:50%; transform:translateX(-50%);
+  width:0; height:2.5px; background:var(--gray-300); border-radius:2px;
+  transition:width 0.25s;
+}
+.nav button:hover::before { width:16px; }
+
+/* ── Sub Nav（作品分类） ── */
+.sub-nav {
+  display:flex; justify-content:center; gap:1.6rem;
+  margin:0 auto 2rem;
+  padding:0.4rem 0;
+  border-bottom:1px solid var(--gray-200);
+  font-family:var(--serif);
+}
+.sub-nav button {
+  background:none; border:none; cursor:pointer;
+  font-family:var(--serif); font-size:1.05rem; font-weight:600;
+  color:var(--gray-400);
+  padding:0.4rem 0.2rem;
+  position:relative;
+  transition:color 0.2s;
+  letter-spacing:0.05em;
+}
+.sub-nav button:hover { color:var(--black); }
+.sub-nav button.active { color:var(--accent); }
+.sub-nav button.active::after {
+  content:''; position:absolute; bottom:-1px; left:0; right:0;
+  height:2px; background:var(--accent);
+}
+.sub-nav__count {
+  display:inline-block; margin-left:0.3rem;
+  font-family:var(--sans); font-size:0.62rem; font-weight:500;
+  color:var(--gray-400); vertical-align:middle;
+  padding:1px 6px; border:1px solid var(--gray-300); border-radius:8px;
+}
+.sub-nav button.active .sub-nav__count {
+  border-color:var(--accent); color:var(--accent);
+}
+
+/* ── Page ── */
+.page { display:none; padding:3rem var(--gutter) 5rem; max-width:var(--max-w); margin:0 auto; }
+.page.active { display:block; animation:pageIn 0.5s ease; }
+@keyframes pageIn { from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none} }
+
+.page-header {
+  display:flex; justify-content:space-between; align-items:flex-end;
+  margin-bottom:2.5rem; flex-wrap:wrap; gap:1rem;
+  padding-bottom:1.5rem;
+  border-bottom:1px solid var(--gray-200);
+  position:relative;
+}
+.page-header::after {
+  content:''; position:absolute; bottom:-1px; left:0; width:60px; height:3px;
+  background:var(--accent);
+}
+.page-header__left { flex:1; min-width:240px; }
+.page-header__label {
+  font-size:0.62rem; letter-spacing:0.25em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:0.4rem;
+  display:flex; align-items:center; gap:0.6rem;
+}
+.page-header__label::before {
+  content:''; display:inline-block; width:20px; height:1px; background:var(--accent);
+}
+.page-header__title {
+  font-family:var(--serif); font-size:2.2rem; font-weight:900;
+  letter-spacing:-0.02em;
+}
+.page-header__desc {
+  font-size:0.85rem; color:var(--gray-500); margin-top:0.5rem;
+  font-weight:300;
+}
+
+/* ── Buttons ── */
+.btn {
+  display:inline-flex; align-items:center; gap:0.4rem;
+  padding:0.65rem 1.3rem;
+  font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase;
+  font-weight:600;
+  border:2px solid var(--black);
+  background:var(--black); color:var(--white);
+  transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+  position:relative; overflow:hidden;
+}
+.btn::before {
+  content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transition:left 0.5s;
+}
+.btn:hover::before { left:100%; }
+.btn:hover { background:var(--accent); border-color:var(--accent); transform:translateY(-1px); box-shadow:3px 3px 0 var(--gray-300); }
+.btn--ghost { background:transparent; color:var(--black); }
+.btn--ghost:hover { background:var(--black); color:var(--white); border-color:var(--black); box-shadow:3px 3px 0 var(--gray-300); }
+.btn--danger { background:transparent; color:var(--accent); border-color:var(--accent); }
+.btn--danger:hover { background:var(--accent); color:var(--white); box-shadow:3px 3px 0 rgba(194,59,34,0.2); }
+.btn--sm { padding:0.4rem 0.85rem; font-size:0.68rem; }
+
+/* ── Featured Work ── */
+.featured {
+  margin-bottom:2.5rem;
+  background:var(--white);
+  border:1px solid var(--gray-200);
+  overflow:hidden;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  min-height:340px;
+  position:relative;
+  transition:box-shadow 0.3s;
+}
+.featured:hover { box-shadow:8px 8px 0 var(--gray-200); }
+.featured__cover {
+  background:linear-gradient(135deg, var(--gray-200), var(--gray-100));
+  background-size:cover; background-position:center;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; min-height:300px;
+  overflow:hidden;
+}
+.featured__cover-placeholder {
+  font-family:var(--serif); font-size:6rem;
+  color:var(--gray-300);
+  text-shadow:2px 2px 0 var(--gray-200);
+}
+.featured__play {
+  position:absolute; bottom:1.5rem; right:1.5rem;
+  width:56px; height:56px; border-radius:50%;
+  background:var(--accent); color:var(--white);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.3rem; text-decoration:none;
+  box-shadow:0 4px 20px rgba(194,59,34,0.4);
+  transition:transform 0.25s, box-shadow 0.25s;
+}
+.featured__play:hover { transform:scale(1.08); box-shadow:0 6px 24px rgba(194,59,34,0.5); }
+.featured__play.playing { background:var(--black); }
+.featured__badge {
+  position:absolute; top:1.2rem; left:1.2rem;
+  background:var(--accent); color:var(--white);
+  font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase;
+  padding:0.3rem 0.8rem; font-weight:700;
+}
+.featured__del {
+  position:absolute; top:1rem; right:1rem;
+  width:30px; height:30px; border-radius:50%;
+  background:rgba(255,255,255,0.9); color:var(--accent);
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.85rem; opacity:0; transition:opacity 0.2s;
+  z-index:2;
+}
+.featured:hover .featured__del { opacity:1; }
+.featured__del:hover { background:var(--accent); color:var(--white); }
+.featured__edit {
+  position:absolute; top:1rem; right:3.4rem;
+  width:30px; height:30px; border-radius:50%;
+  background:rgba(255,255,255,0.9); color:var(--gold);
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.8rem; opacity:0; transition:opacity 0.2s;
+  z-index:2;
+}
+.featured:hover .featured__edit { opacity:1; }
+.featured__edit:hover { background:var(--gold); color:var(--white); }
+/* 排序按钮 - Featured */
+.featured__move {
+  position:absolute; top:1rem; left:1rem;
+  display:flex; gap:0.4rem;
+  opacity:0; transition:opacity 0.2s;
+  z-index:2;
+}
+.featured:hover .featured__move { opacity:1; }
+.featured__move-btn {
+  width:30px; height:30px; border-radius:50%;
+  background:rgba(255,255,255,0.9); color:var(--black); border:none;
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.95rem; cursor:pointer; transition:all 0.2s;
+}
+.featured__move-btn:hover:not(:disabled) { background:var(--gold); color:var(--white); }
+.featured__move-btn:disabled { opacity:0.35; cursor:not-allowed; }
+.featured__info {
+  padding:2.5rem 2rem;
+  display:flex; flex-direction:column; justify-content:center;
+}
+.featured__genre {
+  font-size:0.6rem; letter-spacing:0.2em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:0.8rem;
+  display:flex; align-items:center; gap:0.5rem;
+}
+.featured__genre::after { content:''; flex:1; height:1px; background:var(--gray-200); }
+.featured__title {
+  font-family:var(--serif); font-size:1.8rem; font-weight:900;
+  line-height:1.2; letter-spacing:-0.01em; margin-bottom:0.5rem;
+}
+.featured__artist {
+  font-size:0.95rem; color:var(--gray-600); margin-bottom:0.3rem;
+}
+.featured__arranger { font-size:0.8rem; color:var(--gray-400); font-style:italic; }
+.featured__note {
+  font-size:0.88rem; color:var(--gray-600); margin-top:1.2rem;
+  line-height:1.8; padding-left:1rem;
+  border-left:2px solid var(--accent);
+  font-style:italic;
+}
+.featured__meta {
+  font-size:0.72rem; color:var(--gray-400); margin-top:1.2rem;
+  letter-spacing:0.05em;
+}
+.featured__audio { width:100%; margin-top:1rem; }
+.featured__audio[hidden] { display:none; }
+
+/* ── Section Divider ── */
+.section-divider {
+  display:flex; align-items:center; gap:1rem;
+  margin:2rem 0;
+  font-size:0.6rem; letter-spacing:0.2em; text-transform:uppercase;
+  color:var(--gray-400);
+}
+.section-divider::before, .section-divider::after {
+  content:''; flex:1; height:1px;
+  background:linear-gradient(90deg, transparent, var(--gray-200), transparent);
+}
+.section-divider__icon { color:var(--gold); font-size:0.8rem; }
+
+/* ── Works Grid ── */
+.works {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+  gap:1.5rem;
+}
+.work {
+  background:var(--white);
+  border:1px solid var(--gray-200);
+  overflow:hidden;
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s;
+  display:flex; flex-direction:column;
+  position:relative;
+}
+.work:hover { transform:translateY(-5px); box-shadow:6px 6px 0 var(--gray-200); }
+.work__cover {
+  width:100%; aspect-ratio:1/1;
+  background:linear-gradient(135deg, var(--gray-150), var(--gray-100));
+  background-size:cover; background-position:center;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; overflow:hidden;
+}
+.work__cover::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(to top, rgba(0,0,0,0.03) 0%, transparent 40%);
+  pointer-events:none;
+}
+.work__cover-placeholder {
+  font-family:var(--serif); font-size:3.5rem;
+  color:var(--gray-300);
+  text-shadow:1px 1px 0 var(--gray-200);
+}
+.work__num {
+  position:absolute; top:0.8rem; left:0.8rem;
+  font-family:var(--serif); font-size:0.65rem;
+  color:var(--gray-400); font-style:italic;
+  background:rgba(255,255,255,0.85); padding:0.15rem 0.5rem;
+  backdrop-filter:blur(4px);
+}
+.work__play {
+  position:absolute; bottom:1rem; right:1rem;
+  width:48px; height:48px; border-radius:50%;
+  background:var(--white); color:var(--black);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.1rem; text-decoration:none;
+  box-shadow:0 4px 16px rgba(0,0,0,0.2);
+  opacity:0; transform:translateY(10px);
+  transition:all 0.25s;
+}
+.work:hover .work__play { opacity:1; transform:translateY(0); }
+.work__play:hover { background:var(--accent); color:var(--white); }
+.work__play.playing { opacity:1; transform:translateY(0); background:var(--accent); color:var(--white); }
+.work__info { padding:1.1rem 1.3rem 1.3rem; flex:1; display:flex; flex-direction:column; }
+.work__genre {
+  font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:0.4rem;
+}
+.work__title { font-family:var(--serif); font-size:1.1rem; font-weight:700; line-height:1.3; margin-bottom:0.3rem; }
+.work__artist { font-size:0.82rem; color:var(--gray-600); }
+.work__arranger { font-size:0.75rem; color:var(--gray-400); font-style:italic; margin-top:0.15rem; }
+.work__meta { font-size:0.7rem; color:var(--gray-400); margin-top:0.5rem; display:flex; gap:0.8rem; }
+.work__note {
+  font-size:0.78rem; color:var(--gray-500); margin-top:0.7rem;
+  line-height:1.7;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  padding-left:0.7rem; border-left:2px solid var(--gray-200);
+}
+.work__del {
+  position:absolute; top:0.6rem; right:0.6rem;
+  width:28px; height:28px; border-radius:50%;
+  background:rgba(255,255,255,0.9); color:var(--accent);
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.85rem; opacity:0; transition:opacity 0.2s;
+  z-index:2;
+}
+.work:hover .work__del { opacity:1; }
+.work__del:hover { background:var(--accent); color:var(--white); }
+.work__edit {
+  position:absolute; top:0.6rem; right:2.8rem;
+  width:28px; height:28px; border-radius:50%;
+  background:rgba(255,255,255,0.9); color:var(--gold);
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.78rem; opacity:0; transition:opacity 0.2s;
+  z-index:2;
+}
+.work:hover .work__edit { opacity:1; }
+.work__edit:hover { background:var(--gold); color:var(--white); }
+/* 排序按钮 - 普通卡片 */
+.work__move {
+  position:absolute; top:0.6rem; left:0.6rem;
+  display:flex; flex-direction:column; gap:0.3rem;
+  opacity:0; transition:opacity 0.2s;
+  z-index:2;
+}
+.work:hover .work__move { opacity:1; }
+.work__move-btn {
+  width:26px; height:26px; border-radius:50%;
+  background:rgba(255,255,255,0.92); color:var(--black); border:none;
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.85rem; cursor:pointer; transition:all 0.2s;
+}
+.work__move-btn:hover:not(:disabled) { background:var(--gold); color:var(--white); }
+.work__move-btn:disabled { opacity:0.35; cursor:not-allowed; }
+/* 拖拽视觉反馈 */
+.work, .featured { cursor:grab; }
+.work.dragging, .featured.dragging { cursor:grabbing; opacity:0.45; }
+.work.drag-over { box-shadow:inset 0 0 0 2px var(--gold); }
+.featured.drag-over { box-shadow:inset 0 0 0 3px var(--gold); }
+
+/* 分享按钮 */
+.btn--share {
+  background:transparent; color:var(--black); border:1px solid var(--gray-300);
+}
+.btn--share:hover { background:var(--gold); color:var(--white); border-color:var(--gold); }
+
+/* ── 访客模式：隐藏所有写操作 UI ── */
+body.viewer-mode .js-write-action,
+body.viewer-mode .btn--share,
+body.viewer-mode .work__edit,
+body.viewer-mode .work__del,
+body.viewer-mode .work__move,
+body.viewer-mode .featured__edit,
+body.viewer-mode .featured__del,
+body.viewer-mode .featured__move,
+body.viewer-mode .log__del,
+body.viewer-mode #autofillStatus { display:none !important; }
+body.viewer-mode .work, body.viewer-mode .featured { cursor:default; }
+body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { pointer-events:auto; }
+.work__audio { width:100%; margin-top:0.8rem; }
+.work__audio[hidden] { display:none; }
+
+/* ── Logs ── */
+.logs { display:flex; flex-direction:column; gap:0; }
+
+.log {
+  background:var(--white);
+  border:1px solid var(--gray-200);
+  padding:2rem 2.2rem;
+  position:relative;
+  transition:border-color 0.25s, box-shadow 0.25s;
+  margin-bottom:-1px;
+}
+.log:hover { border-color:var(--gray-400); z-index:1; box-shadow:4px 4px 0 var(--gray-200); }
+.log__marker {
+  position:absolute; left:0; top:0; bottom:0; width:4px;
+  background:linear-gradient(to bottom, var(--accent), var(--gold));
+  opacity:0; transition:opacity 0.25s;
+}
+.log:hover .log__marker { opacity:1; }
+.log__head {
+  display:flex; justify-content:space-between; align-items:baseline;
+  margin-bottom:1rem; gap:1rem; flex-wrap:wrap;
+}
+.log__title {
+  font-family:var(--serif); font-size:1.5rem; font-weight:700;
+  line-height:1.3; flex:1; min-width:200px;
+}
+.log__date {
+  font-size:0.7rem; color:var(--gray-400); letter-spacing:0.08em;
+  font-variant-numeric:tabular-nums;
+  background:var(--gray-50); padding:0.2rem 0.6rem;
+  border:1px solid var(--gray-200);
+}
+.log__content {
+  font-size:0.92rem; color:var(--gray-700); line-height:1.9;
+  white-space:pre-wrap;
+}
+.log__content.drop-cap::first-letter {
+  font-family:var(--serif);
+  font-size:3.5em; float:left; line-height:0.75;
+  margin:0.05em 0.12em 0 0; color:var(--accent);
+  font-weight:900;
+}
+.log__content.collapsed { display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+.log__tags { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:1.2rem; }
+.log__tag {
+  font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase;
+  padding:0.2rem 0.65rem; background:var(--gray-50); color:var(--gray-500);
+  border:1px solid var(--gray-200);
+  transition:all 0.2s;
+}
+.log__tag:hover { border-color:var(--accent); color:var(--accent); }
+.log__actions { display:flex; gap:0.6rem; margin-top:1.2rem; align-items:center; }
+.log__expand {
+  font-size:0.72rem; color:var(--accent);
+  border-bottom:1px solid transparent;
+  padding:0 0 1px 0; transition:border-color 0.2s;
+}
+.log__expand:hover { border-bottom-color:var(--accent); }
+
+/* ── Empty State ── */
+.empty {
+  text-align:center; padding:5rem 1rem;
+  color:var(--gray-400);
+  border:2px dashed var(--gray-200);
+  background:var(--white);
+}
+.empty__icon { font-size:3.5rem; margin-bottom:1rem; opacity:0.35; }
+.empty__text { font-family:var(--serif); font-size:1.2rem; font-style:italic; color:var(--gray-500); }
+.empty__hint { font-size:0.8rem; margin-top:0.5rem; color:var(--gray-400); }
+
+/* ── About ── */
+.about {
+  background:var(--white);
+  padding:3rem;
+  border:1px solid var(--gray-200);
+  position:relative;
+}
+.about::before {
+  content:'"'; position:absolute; top:-0.3rem; left:1.5rem;
+  font-family:var(--serif); font-size:6rem; color:var(--gray-200);
+  line-height:1; pointer-events:none;
+}
+.about__intro {
+  font-family:var(--serif); font-size:1.35rem; line-height:1.8;
+  color:var(--gray-900); margin-bottom:1.5rem;
+  position:relative;
+}
+.about__intro::first-letter {
+  font-size:3.5em; float:left; line-height:0.75;
+  margin:0.05em 0.1em 0 0; color:var(--accent);
+  font-weight:900;
+}
+.about__body p { margin-bottom:1rem; color:var(--gray-700); line-height:1.8; }
+.about__quote {
+  margin:2rem 0; padding:1.5rem 2rem;
+  border-left:3px solid var(--accent);
+  background:var(--gray-50);
+  font-family:var(--serif); font-style:italic;
+  font-size:1.05rem; color:var(--gray-700);
+  line-height:1.8;
+}
+.about__stats {
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem;
+  margin-top:2.5rem; padding-top:2rem; border-top:1px solid var(--gray-200);
+}
+.about__stat { text-align:center; padding:1rem 0; }
+.about__stat-num {
+  font-family:var(--serif); font-size:2.5rem; color:var(--accent); font-weight:900;
+  line-height:1;
+}
+.about__stat-label {
+  font-size:0.62rem; letter-spacing:0.18em; text-transform:uppercase;
+  color:var(--gray-500); margin-top:0.5rem;
+}
+
+/* ── Modal ── */
+.modal {
+  position:fixed; inset:0;
+  background:rgba(10,10,10,0.65); backdrop-filter:blur(6px);
+  display:none; align-items:center; justify-content:center;
+  padding:1rem; z-index:200;
+}
+.modal.open { display:flex; animation:modalIn 0.25s ease; }
+@keyframes modalIn { from{opacity:0} to{opacity:1} }
+.modal__panel {
+  background:var(--white);
+  width:100%; max-width:520px; max-height:90vh; overflow-y:auto;
+  padding:2rem;
+  border:2px solid var(--black);
+  box-shadow:10px 10px 0 var(--accent);
+  position:relative;
+  animation:panelSlide 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes panelSlide { from{transform:translateY(20px); opacity:0} to{transform:none; opacity:1} }
+.modal__title {
+  font-family:var(--serif); font-size:1.5rem; font-weight:900;
+  margin-bottom:1.5rem; padding-bottom:0.8rem;
+  border-bottom:2px solid var(--black);
+  display:flex; align-items:center; gap:0.5rem;
+}
+.modal__close {
+  position:absolute; top:1rem; right:1rem;
+  width:32px; height:32px; border-radius:50%;
+  background:var(--gray-50); display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--gray-200);
+  transition:all 0.2s;
+}
+.modal__close:hover { background:var(--accent); color:var(--white); border-color:var(--accent); }
+.modal__actions { display:flex; justify-content:flex-end; gap:0.6rem; margin-top:1.8rem; }
+
+/* ── Form ── */
+.field { margin-bottom:1.1rem; }
+.field label {
+  display:block; font-size:0.65rem;
+  letter-spacing:0.14em; text-transform:uppercase;
+  color:var(--gray-500); margin-bottom:0.35rem; font-weight:600;
+}
+.field input, .field textarea, .field select {
+  width:100%; padding:0.75rem 1rem;
+  background:var(--gray-50); border:1.5px solid var(--gray-200);
+  font-size:0.92rem; transition:border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  outline:none; border-color:var(--black); background:var(--white);
+  box-shadow:0 0 0 3px rgba(10,10,10,0.06);
+}
+.field textarea { resize:vertical; min-height:120px; font-family:var(--sans); line-height:1.7; }
+.field__hint { font-size:0.68rem; color:var(--gray-400); margin-top:0.3rem; }
+.field__row { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
+
+/* ── 自动填充状态 ── */
+.autofill-status {
+  display:none; margin-top:0.5rem; padding:0.55rem 0.75rem;
+  font-size:0.72rem; line-height:1.5;
+  border-radius:4px; border-left:3px solid var(--gold);
+  background:#faf7f1; color:var(--gray-700);
+  font-family:var(--sans);
+}
+.autofill-status.show { display:block; animation:slideDown 0.25s ease; }
+.autofill-status.loading { border-left-color:var(--gold); }
+.autofill-status.success { border-left-color:#3a9b5c; background:#f0f9f3; color:#2a6b40; }
+.autofill-status.error { border-left-color:var(--accent); background:#fdf3f0; color:var(--accent); }
+.autofill-status strong { color:var(--black); font-weight:600; }
+.autofill-status.loading::before {
+  content:''; display:inline-block; width:10px; height:10px;
+  border:2px solid var(--gold); border-top-color:transparent;
+  border-radius:50%; margin-right:0.5rem; vertical-align:-1px;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes slideDown { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── Toast ── */
+.toast {
+  position:fixed; bottom:2rem; left:50%; transform:translateX(-50%);
+  background:var(--black); color:var(--white);
+  padding:0.75rem 1.8rem; font-size:0.82rem;
+  z-index:300; opacity:0; pointer-events:none;
+  transition:opacity 0.3s, transform 0.3s;
+  letter-spacing:0.03em;
+  box-shadow:0 4px 20px rgba(0,0,0,0.2);
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(-6px); }
+
+/* ── Footer ── */
+.footer {
+  background:var(--black); color:var(--gray-500);
+  padding:2.5rem var(--gutter);
+  text-align:center; font-size:0.68rem;
+  letter-spacing:0.1em;
+}
+.footer__logo {
+  font-family:var(--serif); font-size:1rem; color:var(--gold);
+  margin-bottom:0.6rem; font-style:italic;
+}
+.footer__rule {
+  width:40px; height:1px; background:var(--gray-600);
+  margin:0.8rem auto;
+}
+.footer__note { color:var(--gray-600); margin-top:0.4rem; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .featured { grid-template-columns:1fr; }
+  .featured__cover { min-height:220px; }
+  .works { grid-template-columns:1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .works { grid-template-columns:1fr; }
+  .page-header { flex-direction:column; align-items:flex-start; }
+  .about { padding:1.8rem; }
+  .about__stats { grid-template-columns:1fr; gap:1rem; }
+  .nav { gap:1.8rem; font-size:0.68rem; }
+  .field__row { grid-template-columns:1fr; }
+  .work__del { opacity:1; }
+  .work__edit { opacity:1; }
+  .work__move { opacity:1; }
+  .featured__del { opacity:1; }
+  .featured__edit { opacity:1; }
+  .featured__move { opacity:1; }
+  .featured__info { padding:1.5rem; }
+  .featured__title { font-size:1.4rem; }
+  .log { padding:1.4rem 1.2rem; }
+  .log__content.drop-cap::first-letter { font-size:2.8em; }
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:var(--gray-100); }
+::-webkit-scrollbar-thumb { background:var(--gray-300); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--gray-400); }
+
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-bar__left">
+    <span class="top-bar__brand">♪ TRACKS &amp; NOTES</span>
+    <span class="top-bar__divider">|</span>
+    <span class="top-bar__issue" id="topIssue">Vol. I, No. 1</span>
+  </div>
+  <span id="topDate"></span>
+</div>
+
+<header class="masthead">
+  <svg class="masthead__wave" viewBox="0 0 1200 120" preserveAspectRatio="none">
+    <path d="M0,60 Q30,20 60,60 T120,60 T180,60 T240,60 T300,60 T360,60 T420,60 T480,60 T540,60 T600,60 T660,60 T720,60 T780,60 T840,60 T900,60 T960,60 T1020,60 T1080,60 T1140,60 T1200,60 V120 H0 Z" fill="rgba(254,253,251,1)"/>
+  </svg>
+  <div class="masthead__inner">
+    <div class="masthead__vinyl"></div>
+    <h1 class="masthead__title">威灵<em>T</em> · 的音乐手记</h1>
+    <p class="masthead__tagline">RECORDS · WORDS · MOOD</p>
+    <div class="masthead__ornament">✦ ✦ ✦</div>
+  </div>
+</header>
+<div class="masthead__edge"></div>
+
+<nav class="nav">
+  <button data-page="works" class="active">作品</button>
+  <button data-page="logs">日志</button>
+  <button data-page="about">关于</button>
+</nav>
+
+<!-- 作品页 -->
+<main class="page active" id="page-works">
+  <div class="page-header">
+    <div class="page-header__left">
+      <div class="page-header__label">Discography</div>
+      <h2 class="page-header__title">作品</h2>
+      <p class="page-header__desc">收录我创作或分享的曲目</p>
+    </div>
+    <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+      <button class="btn btn--share" onclick="exportShareableHTML()" title="导出一个独立 HTML 文件，发给朋友双击就能看">📤 分享</button>
+      <button class="btn js-write-action" onclick="openWorkModal()">+ 添加作品</button>
+    </div>
+  </div>
+  <div class="sub-nav" id="worksCategoryNav">
+    <button data-cat="古风" class="active">古风<span class="sub-nav__count" id="cat-count-古风">0</span></button>
+    <button data-cat="流行">流行<span class="sub-nav__count" id="cat-count-流行">0</span></button>
+    <button data-cat="原创钢琴曲/改编">原创钢琴曲/改编<span class="sub-nav__count" id="cat-count-原创钢琴曲/改编">0</span></button>
+  </div>
+  <div id="featuredWork"></div>
+  <div class="section-divider"><span class="section-divider__icon">♩</span> MORE TRACKS</div>
+  <div id="worksList" class="works"></div>
+</main>
+
+<!-- 日志页 -->
+<main class="page" id="page-logs">
+  <div class="page-header">
+    <div class="page-header__left">
+      <div class="page-header__label">Journal</div>
+      <h2 class="page-header__title">日志</h2>
+      <p class="page-header__desc">关于音乐、创作与生活的文字</p>
+    </div>
+    <button class="btn js-write-action" onclick="openLogModal()">+ 写日志</button>
+  </div>
+  <div id="logsList" class="logs"></div>
+</main>
+
+<!-- 关于页 -->
+<main class="page" id="page-about">
+  <div class="page-header">
+    <div class="page-header__left">
+      <div class="page-header__label">About</div>
+      <h2 class="page-header__title">关于</h2>
+    </div>
+  </div>
+  <div class="about">
+    <p class="about__intro">嗨，我是威灵T。这里是我的音乐自留地——既存放正在听、正在做、正在想的曲目，也记录创作过程中那些转瞬即逝的灵感。</p>
+    <div class="about__body">
+      <p>音乐对我来说不是背景音，而是另一种语言。一段旋律往往能说出文字说不出的东西。</p>
+    </div>
+    <div class="about__quote">
+      "这个站没有评论、没有算法、没有广告。只有作品和文字。如果你恰好喜欢，那便是缘分。"
+    </div>
+    <div class="about__body">
+      <p>感谢你来到这里。愿你在此找到某种共鸣。</p>
+    </div>
+    <div class="about__stats">
+      <div class="about__stat"><div class="about__stat-num" id="statWorks">0</div><div class="about__stat-label">作品</div></div>
+      <div class="about__stat"><div class="about__stat-num" id="statLogs">0</div><div class="about__stat-label">日志</div></div>
+      <div class="about__stat"><div class="about__stat-num" id="statDays">0</div><div class="about__stat-label">天</div></div>
+    </div>
+  </div>
+</main>
+
+<!-- 作品 Modal -->
+<div class="modal" id="workModal">
+  <div class="modal__panel">
+    <button class="modal__close" onclick="closeModal('workModal')">×</button>
+    <h3 class="modal__title">♫ 添加作品</h3>
+    <div class="field">
+      <label>标题 *</label>
+      <input id="w-title" type="text" placeholder="如：Midnight Drive">
+    </div>
+    <div class="field__row">
+      <div class="field">
+        <label>艺术家</label>
+        <input id="w-artist" type="text" placeholder="留空则用我的名字">
+      </div>
+      <div class="field">
+        <label>编曲</label>
+        <input id="w-arranger" type="text" placeholder="默认：威灵T，可修改">
+      </div>
+    </div>
+    <div class="field__row">
+      <div class="field">
+        <label>分类 *</label>
+        <select id="w-category" style="width:100%; padding:0.7rem 0.9rem; font-family:var(--sans); font-size:0.92rem; border:1px solid var(--gray-300); background:var(--white); color:var(--black);">
+          <option value="古风">古风</option>
+          <option value="流行">流行</option>
+          <option value="原创钢琴曲/改编">原创钢琴曲/改编</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>年份</label>
+        <input id="w-year" type="number" placeholder="2026">
+      </div>
+    </div>
+    <div class="field">
+      <label>流派 / 标签</label>
+      <input id="w-genre" type="text" placeholder="如：宫商角徵羽 / Lo-fi / Jazz">
+    </div>
+    <div class="field">
+      <label>音频 / 作品 链接</label>
+      <input id="w-audio" type="url" placeholder="粘贴 YouTube / Spotify / SoundCloud / Bilibili / 网易云 / mp3 直链..." oninput="onAudioInput()" onpaste="onAudioPaste()">
+      <div class="field__hint">✨ 粘贴链接后自动识别填充（已填字段不会被覆盖）· mp3/wav/ogg 直链可在前端直接播放</div>
+      <div class="autofill-status" id="autofillStatus"></div>
+    </div>
+    <div class="field">
+      <label>封面图 URL</label>
+      <div style="display:flex; gap:0.5rem;">
+        <input id="w-cover" type="url" placeholder="https://..." style="flex:1;">
+        <button type="button" class="btn btn--ghost btn--sm" id="fetchCoverBtn" onclick="autoFetchCover()" style="white-space:nowrap;">🔍 自动抓取</button>
+      </div>
+      <div class="field__hint">填了音频链接后，点「自动抓取」会从该链接尝试获取封面</div>
+    </div>
+    <div class="field">
+      <label>说明</label>
+      <textarea id="w-note" rows="3" placeholder="一句话说明这首曲子..."></textarea>
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('workModal')">取消</button>
+      <button class="btn btn--sm" onclick="saveWork()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 日志 Modal -->
+<div class="modal" id="logModal">
+  <div class="modal__panel">
+    <button class="modal__close" onclick="closeModal('logModal')">×</button>
+    <h3 class="modal__title">✎ 写日志</h3>
+    <div class="field">
+      <label>标题 *</label>
+      <input id="l-title" type="text" placeholder="今天想说点什么">
+    </div>
+    <div class="field">
+      <label>正文 *</label>
+      <textarea id="l-content" rows="8" placeholder="想到哪写到哪..."></textarea>
+    </div>
+    <div class="field">
+      <label>标签</label>
+      <input id="l-tags" type="text" placeholder="用逗号分隔，如：思考, 创作, 灵感">
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('logModal')">取消</button>
+      <button class="btn btn--sm" onclick="saveLog()">发布</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除确认 Modal -->
+<div class="modal" id="confirmModal">
+  <div class="modal__panel" style="max-width:380px;">
+    <h3 class="modal__title">确认删除？</h3>
+    <p style="color:var(--gray-600); font-size:0.9rem;">删除后无法恢复。</p>
+    <div class="modal__actions">
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('confirmModal')">取消</button>
+      <button class="btn btn--danger btn--sm" id="confirmBtn">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<footer class="footer">
+  <div class="footer__logo">Tracks &amp; Notes</div>
+  <div>© 2026 威灵T</div>
+  <div class="footer__rule"></div>
+  <div class="footer__note">数据保存在本机浏览器 · 纯手写，零依赖</div>
+</footer>
+
+<script>
+// ═══════════════════════════════════════
+// TRACKS & NOTES — 应用脚本 v2
+// ═══════════════════════════════════════
+
+const STORAGE_KEY_WORKS = 'tn_works';
+const STORAGE_KEY_LOGS = 'tn_logs';
+const STORAGE_KEY_INIT = 'tn_init_v2';
+
+// ── 数据层 ──
+const Store = {
+  works: [],
+  logs: [],
+  load() {
+    // 访客模式：优先读取内嵌数据，不走 localStorage
+    if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) {
+      this.works = window.__EMBEDDED_DATA__.works || [];
+      this.logs = window.__EMBEDDED_DATA__.logs || [];
+      this.works.forEach(w => { if (!w.category) w.category = '古风'; });
+      return;
+    }
+    this.works = JSON.parse(localStorage.getItem(STORAGE_KEY_WORKS) || '[]');
+    this.logs = JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]');
+    // 兼容老数据：没有 category 的全部归到「古风」
+    let changed = false;
+    this.works.forEach(w => { if (!w.category) { w.category = '古风'; changed = true; } });
+    if (changed) this.saveWorks();
+  },
+  saveWorks() {
+    if (window.__VIEWER_MODE__) return; // 访客模式不写
+    localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(this.works));
+  },
+  saveLogs() {
+    if (window.__VIEWER_MODE__) return;
+    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(this.logs));
+  },
+  addWork(w) { if (!w.category) w.category = '古风'; this.works.unshift(w); this.saveWorks(); },
+  updateWork(id, patch) {
+    const i = this.works.findIndex(w => w.id === id);
+    if (i < 0) return false;
+    this.works[i] = { ...this.works[i], ...patch };
+    this.saveWorks();
+    return true;
+  },
+  getWork(id) { return this.works.find(w => w.id === id); },
+  delWork(id) { this.works = this.works.filter(w => w.id !== id); this.saveWorks(); },
+  // 同分类内上/下移一位
+  moveWork(id, direction) {
+    const idx = this.works.findIndex(w => w.id === id);
+    if (idx < 0) return false;
+    const cat = this.works[idx].category;
+    let targetIdx = -1;
+    if (direction === 'up') {
+      for (let i = idx - 1; i >= 0; i--) if (this.works[i].category === cat) { targetIdx = i; break; }
+    } else if (direction === 'down') {
+      for (let i = idx + 1; i < this.works.length; i++) if (this.works[i].category === cat) { targetIdx = i; break; }
+    }
+    if (targetIdx < 0) return false;
+    [this.works[idx], this.works[targetIdx]] = [this.works[targetIdx], this.works[idx]];
+    this.saveWorks();
+    return true;
+  },
+  // 拖拽：把 fromId 插到 toId 之前（同分类内）
+  reorderWorks(fromId, toId) {
+    const fromIdx = this.works.findIndex(w => w.id === fromId);
+    const toIdx = this.works.findIndex(w => w.id === toId);
+    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return false;
+    if (this.works[fromIdx].category !== this.works[toIdx].category) return false;
+    const [item] = this.works.splice(fromIdx, 1);
+    const newToIdx = this.works.findIndex(w => w.id === toId);
+    this.works.splice(newToIdx, 0, item);
+    this.saveWorks();
+    return true;
+  },
+  addLog(l) { this.logs.unshift(l); this.saveLogs(); },
+  delLog(id) { this.logs = this.logs.filter(l => l.id !== id); this.saveLogs(); }
+};
+
+// ── 示例数据（首次访问时填充）──
+function seedSampleData() {
+  if (localStorage.getItem(STORAGE_KEY_INIT)) return;
+  // 保留旧数据
+  if (localStorage.getItem('tn_init_v1') && Store.works.length > 0) {
+    localStorage.setItem(STORAGE_KEY_INIT, '1');
+    return;
+  }
+  localStorage.setItem(STORAGE_KEY_INIT, '1');
+  Store.addWork({
+    id: Date.now() - 3000,
+    title: 'Midnight Drive',
+    artist: '威灵T',
+    arranger: '',
+    year: 2026,
+    genre: 'Lo-fi / Chill',
+    cover: '',
+    audio: '',
+    note: '凌晨独自开车回家时录的一段哼唱，后来加了鼓和贝斯。',
+    createdAt: Date.now() - 3000
+  });
+  Store.addWork({
+    id: Date.now() - 2000,
+    title: 'Paper Boats',
+    artist: '威灵T',
+    arranger: '阿九',
+    year: 2026,
+    genre: 'Folk / Acoustic',
+    cover: '',
+    audio: '',
+    note: '献给童年那条流过的小河。',
+    createdAt: Date.now() - 2000
+  });
+  Store.addLog({
+    id: Date.now() - 1000,
+    title: '关于"留白"的一些想法',
+    content: '最近在做新曲，越来越觉得音乐里最难的不是音符，而是音符之间的间隙。\n\n好的音乐像呼吸，吸气和呼气之间必须有那一秒的停顿。塞得太满反而听不出感情。\n\n大概人和人之间也是这样吧。',
+    tags: ['创作', '思考'],
+    createdAt: Date.now() - 1000
+  });
+}
+
+// ── 渲染 ──
+function escapeHTML(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let currentCategory = '古风'; // 当前选中的分类
+
+function renderWorks() {
+  const featuredEl = document.getElementById('featuredWork');
+  const listEl = document.getElementById('worksList');
+
+  // 更新二级菜单计数
+  const counts = { '古风': 0, '流行': 0, '原创钢琴曲/改编': 0 };
+  Store.works.forEach(w => { if (counts[w.category] != null) counts[w.category]++; });
+  Object.keys(counts).forEach(cat => {
+    const el = document.getElementById('cat-count-' + cat);
+    if (el) el.textContent = counts[cat];
+  });
+
+  // 按当前分类筛选
+  const filtered = Store.works.filter(w => w.category === currentCategory);
+
+  if (filtered.length === 0) {
+    featuredEl.innerHTML = '';
+    listEl.innerHTML = `<div class="empty" style="grid-column:1/-1;">
+      <div class="empty__icon">♪</div>
+      <div class="empty__text">「${currentCategory}」分类下还没有作品</div>
+      <div class="empty__hint">点上方「+ 添加作品」开始收录</div>
+    </div>`;
+    return;
+  }
+
+  // Featured: 当前分类下最新作品
+  const fw = filtered[0];
+  const canFwDown = filtered.length > 1;
+  const fwCoverStyle = fw.cover
+    ? `background-image:url('${escapeHTML(fw.cover)}'); background-size:cover; background-position:center;`
+    : '';
+  const fwPlaceholder = fw.cover ? '' : `<div class="featured__cover-placeholder">${escapeHTML((fw.title||'?').charAt(0).toUpperCase())}</div>`;
+  const isDirectAudio_fw = fw.audio && /\.(mp3|wav|ogg|m4a|flac|aac|opus|webm)(\?|#|$)/i.test(fw.audio);
+  let fwPlay = '', fwAudio = '';
+  if (fw.audio) {
+    if (isDirectAudio_fw) {
+      fwPlay = `<button class="featured__play" onclick="togglePlay(${fw.id})" id="play-${fw.id}" title="播放">▶</button>`;
+      fwAudio = `<audio class="featured__audio" id="audio-${fw.id}" src="${escapeHTML(fw.audio)}" controls hidden onerror="toast('音频加载失败：链接不可访问或被跨域拦截')"></audio>`;
+    } else {
+      fwPlay = `<a class="featured__play" href="${escapeHTML(fw.audio)}" target="_blank" rel="noopener" title="在来源平台打开">↗</a>`;
+    }
+  }
+  featuredEl.innerHTML = `
+  <article class="featured" draggable="true" data-work-id="${fw.id}">
+    <div class="featured__move">
+      <button class="featured__move-btn" onclick="moveWork(${fw.id}, 'down')" title="下移一位" ${canFwDown ? '' : 'disabled'}>↓</button>
+    </div>
+    <button class="featured__edit" onclick="openWorkModal(${fw.id})" title="修改">✎</button>
+    <button class="featured__del" onclick="confirmDelete('work', ${fw.id})" title="删除">✕</button>
+    <div class="featured__badge">FEATURED</div>
+    <div class="featured__cover" style="${fwCoverStyle}">${fwPlaceholder}${fwPlay}</div>
+    <div class="featured__info">
+      ${fw.genre ? `<div class="featured__genre">${escapeHTML(fw.genre)}</div>` : ''}
+      <h3 class="featured__title">${escapeHTML(fw.title)}</h3>
+      <div class="featured__artist">${escapeHTML(fw.artist || '威灵T')}</div>
+      ${fw.arranger ? `<div class="featured__arranger">编曲 ${escapeHTML(fw.arranger)}</div>` : ''}
+      ${fw.note ? `<div class="featured__note">${escapeHTML(fw.note)}</div>` : ''}
+      ${fw.year ? `<div class="featured__meta">${escapeHTML(fw.year)}</div>` : ''}
+      ${fwAudio}
+    </div>
+  </article>`;
+
+  // 剩余作品
+  const rest = filtered.slice(1);
+  if (rest.length === 0) {
+    listEl.innerHTML = '';
+    return;
+  }
+  listEl.innerHTML = rest.map((w, i) => {
+    const coverStyle = w.cover
+      ? `background-image:url('${escapeHTML(w.cover)}'); background-size:cover; background-position:center;`
+      : '';
+    const placeholder = w.cover ? '' : `<div class="work__cover-placeholder">${escapeHTML((w.title||'?').charAt(0).toUpperCase())}</div>`;
+    const isDirectAudio = w.audio && /\.(mp3|wav|ogg|m4a|flac|aac|opus|webm)(\?|#|$)/i.test(w.audio);
+    let playBtn = '', audioEl = '';
+    if (w.audio) {
+      if (isDirectAudio) {
+        playBtn = `<button class="work__play" onclick="togglePlay(${w.id})" id="play-${w.id}" title="播放">▶</button>`;
+        audioEl = `<audio class="work__audio" id="audio-${w.id}" src="${escapeHTML(w.audio)}" controls hidden onerror="toast('音频加载失败：链接不可访问或被跨域拦截')"></audio>`;
+      } else {
+        playBtn = `<a class="work__play" href="${escapeHTML(w.audio)}" target="_blank" rel="noopener" title="在来源平台打开">↗</a>`;
+      }
+    }
+    const num = String(i + 2).padStart(2, '0');
+    // i 是 rest 中的索引；rest[i] 在 filtered 中位置是 i+1，filtered 总长 filtered.length
+    const canDown = (i + 1) < (filtered.length - 1);
+    return `
+    <article class="work" draggable="true" data-work-id="${w.id}">
+      <div class="work__move">
+        <button class="work__move-btn" onclick="moveWork(${w.id}, 'up')" title="上移一位">↑</button>
+        <button class="work__move-btn" onclick="moveWork(${w.id}, 'down')" title="下移一位" ${canDown ? '' : 'disabled'}>↓</button>
+      </div>
+      <button class="work__edit" onclick="openWorkModal(${w.id})" title="修改">✎</button>
+      <button class="work__del" onclick="confirmDelete('work', ${w.id})" title="删除">✕</button>
+      <div class="work__cover" style="${coverStyle}">
+        ${placeholder}
+        <span class="work__num">No. ${num}</span>
+        ${playBtn}
+      </div>
+      <div class="work__info">
+        ${w.genre ? `<div class="work__genre">${escapeHTML(w.genre)}</div>` : ''}
+        <h3 class="work__title">${escapeHTML(w.title)}</h3>
+        <div class="work__artist">${escapeHTML(w.artist || '威灵T')}</div>
+        ${w.arranger ? `<div class="work__arranger">编曲 ${escapeHTML(w.arranger)}</div>` : ''}
+        ${w.year ? `<div class="work__meta"><span>${escapeHTML(w.year)}</span></div>` : ''}
+        ${w.note ? `<p class="work__note">${escapeHTML(w.note)}</p>` : ''}
+        ${audioEl}
+      </div>
+    </article>`;
+  }).join('');
+
+  // 拖拽排序绑定
+  bindWorksDnD();
+}
+
+function renderLogs() {
+  const list = document.getElementById('logsList');
+  if (Store.logs.length === 0) {
+    list.innerHTML = `<div class="empty">
+      <div class="empty__icon">✎</div>
+      <div class="empty__text">还没有日志</div>
+      <div class="empty__hint">点上方「+ 写日志」开始记录</div>
+    </div>`;
+    return;
+  }
+  list.innerHTML = Store.logs.map(l => {
+    const date = new Date(l.createdAt);
+    const dateStr = `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')}`;
+    const tags = (l.tags || []).map(t => `<span class="log__tag">${escapeHTML(t)}</span>`).join('');
+    const long = (l.content || '').length > 200;
+    return `
+    <article class="log">
+      <div class="log__marker"></div>
+      <div class="log__head">
+        <h3 class="log__title">${escapeHTML(l.title)}</h3>
+        <span class="log__date">${dateStr}</span>
+      </div>
+      <div class="log__content drop-cap ${long ? 'collapsed' : ''}" id="lc-${l.id}">${escapeHTML(l.content)}</div>
+      ${tags ? `<div class="log__tags">${tags}</div>` : ''}
+      <div class="log__actions">
+        ${long ? `<button class="log__expand" onclick="toggleLog(${l.id}, this)">展开全文</button>` : ''}
+        <button class="btn btn--danger btn--sm" style="margin-left:auto;" onclick="confirmDelete('log', ${l.id})">删除</button>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function renderStats() {
+  document.getElementById('statWorks').textContent = Store.works.length;
+  document.getElementById('statLogs').textContent = Store.logs.length;
+  const all = [...Store.works, ...Store.logs].map(i => i.createdAt).filter(Boolean);
+  if (all.length) {
+    const earliest = Math.min(...all);
+    const days = Math.max(1, Math.ceil((Date.now() - earliest) / 86400000));
+    document.getElementById('statDays').textContent = days;
+  } else {
+    document.getElementById('statDays').textContent = 1;
+  }
+}
+
+function renderAll() { renderWorks(); renderLogs(); renderStats(); }
+
+// ── 排序：按钮 + 拖拽 ──
+function moveWork(id, direction) {
+  if (window.__VIEWER_MODE__) return;
+  if (Store.moveWork(id, direction)) {
+    renderWorks();
+    toast(direction === 'up' ? '已上移' : '已下移');
+  }
+}
+
+// ── 导出分享版 HTML（内嵌数据 + 访客模式）──
+async function exportShareableHTML() {
+  try {
+    toast('正在打包分享版…');
+    // 取当前页面完整 HTML
+    let html;
+    try {
+      const res = await fetch(location.href);
+      html = await res.text();
+    } catch(_) {
+      html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    }
+    // 构造注入脚本
+    const data = JSON.stringify({ works: Store.works, logs: Store.logs })
+      .replace(/</g, '\\u003c').replace(/>/g, '\\u003e'); // 防数据里含 \x3c/script\x3e 截断
+    const inject = `<script>window.__VIEWER_MODE__=true;window.__EMBEDDED_DATA__=${data};</` + `script>`;
+    if (html.includes('</head>')) {
+      html = html.replace('</head>', inject + '\n</head>');
+    } else {
+      html = inject + html;
+    }
+    // 触发下载
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const d = new Date();
+    const ts = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    a.href = url;
+    a.download = `威灵T的音乐博客_${ts}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('已导出 ✓ 直接发给朋友双击打开即可');
+  } catch (e) {
+    toast('导出失败：' + (e.message || e));
+  }
+}
+
+let _dragSrcId = null;
+function bindWorksDnD() {
+  if (window.__VIEWER_MODE__) return;
+  const cards = document.querySelectorAll('.featured[draggable="true"], .work[draggable="true"]');
+  cards.forEach(card => {
+    card.addEventListener('dragstart', e => {
+      _dragSrcId = Number(card.dataset.workId);
+      card.classList.add('dragging');
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(_dragSrcId)); } catch(_) {}
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      _dragSrcId = null;
+    });
+    card.addEventListener('dragover', e => {
+      if (_dragSrcId == null) return;
+      const tid = Number(card.dataset.workId);
+      if (tid === _dragSrcId) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = 'move'; } catch(_) {}
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const tid = Number(card.dataset.workId);
+      if (_dragSrcId == null || tid === _dragSrcId) return;
+      if (Store.reorderWorks(_dragSrcId, tid)) {
+        renderWorks();
+        toast('已调整顺序');
+      } else {
+        toast('只能在同分类内调整顺序');
+      }
+    });
+  });
+}
+
+// ── 交互 ──
+function toggleLog(id, btn) {
+  const el = document.getElementById('lc-' + id);
+  if (!el) return;
+  el.classList.toggle('collapsed');
+  btn.textContent = el.classList.contains('collapsed') ? '展开全文' : '收起';
+}
+
+let currentAudio = null;
+function togglePlay(id) {
+  const audio = document.getElementById('audio-' + id);
+  const btn = document.getElementById('play-' + id);
+  if (!audio) return;
+  if (currentAudio && currentAudio !== audio) {
+    currentAudio.pause();
+    const oldBtn = document.querySelector('.work__play.playing, .featured__play.playing');
+    if (oldBtn) { oldBtn.classList.remove('playing'); oldBtn.textContent = '▶'; }
+    currentAudio.hidden = true;
+  }
+  if (audio.paused) {
+    audio.hidden = false;
+    audio.play().catch(err => {
+      let msg = '音频播放失败';
+      if (err.name === 'NotAllowedError') msg = '浏览器阻止了自动播放，请再点一次';
+      else if (err.name === 'NotSupportedError') msg = '浏览器不支持此格式或链接无效';
+      else if (err.name === 'AbortError') msg = '播放被中断';
+      toast(msg);
+      btn.classList.remove('playing'); btn.textContent = '▶';
+    });
+    btn.classList.add('playing'); btn.textContent = '❚❚';
+    currentAudio = audio;
+  } else {
+    audio.pause();
+    btn.classList.remove('playing'); btn.textContent = '▶';
+  }
+  audio.onended = () => {
+    btn.classList.remove('playing'); btn.textContent = '▶';
+  };
+}
+
+// ── 自动抓取封面 ──
+async function fetchCoverFromUrl(url) {
+  if (!url) return null;
+  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+  if (yt) {
+    const maxRes = `https://img.youtube.com/vi/${yt[1]}/maxresdefault.jpg`;
+    const ok = await imageExists(maxRes);
+    return ok ? maxRes : `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`;
+  }
+  if (/open\.spotify\.com/.test(url)) {
+    try {
+      const r = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`);
+      if (r.ok) { const j = await r.json(); if (j.thumbnail_url) return j.thumbnail_url; }
+    } catch (e) {}
+  }
+  if (/soundcloud\.com/.test(url)) {
+    try {
+      const r = await fetch(`https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(url)}`);
+      if (r.ok) { const j = await r.json(); if (j.thumbnail_url) return j.thumbnail_url; }
+    } catch (e) {}
+  }
+  try {
+    const r = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&palette=false&audio=false&video=false`);
+    if (r.ok) {
+      const j = await r.json();
+      if (j.status === 'success') {
+        const img = j.data?.image?.url || j.data?.logo?.url;
+        if (img) return img;
+      }
+    }
+  } catch (e) {}
+  try {
+    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+    if (r.ok) {
+      const j = await r.json();
+      const html = j.contents || '';
+      const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+            || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
+            || html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
+      if (m) return m[1];
+    }
+  } catch (e) {}
+  return null;
+}
+
+function imageExists(src) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img.naturalWidth > 120);
+    img.onerror = () => resolve(false);
+    img.src = src;
+    setTimeout(() => resolve(false), 4000);
+  });
+}
+
+async function autoFetchCover() {
+  const audioUrl = document.getElementById('w-audio').value.trim();
+  const coverInput = document.getElementById('w-cover');
+  const btn = document.getElementById('fetchCoverBtn');
+  if (!audioUrl) { toast('先填一下音频链接'); return; }
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '🔄 抓取中...';
+  try {
+    const cover = await fetchCoverFromUrl(audioUrl);
+    if (cover) { coverInput.value = cover; toast('封面已获取 ✓'); }
+    else { toast('没找到封面，可能是平台不支持或链接无效'); }
+  } catch (e) {
+    toast('抓取失败：' + (e.message || '网络问题'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+// ── 自动填充：粘贴/输入链接后自动识别平台并填充 ──
+let _autofillTimer = null;
+let _lastAutofilledUrl = '';
+
+function onAudioPaste() {
+  // 粘贴后延迟触发，确保值已写入
+  setTimeout(() => onAudioInput(), 50);
+}
+
+function onAudioInput() {
+  clearTimeout(_autofillTimer);
+  const url = document.getElementById('w-audio').value.trim();
+  if (!url || url === _lastAutofilledUrl) return;
+  // 只对看起来像 URL 的内容触发
+  if (!/^https?:\/\//i.test(url)) { clearAutofillStatus(); return; }
+  // mp3 直链等不需要识别
+  if (/\.(mp3|wav|ogg|m4a|flac|aac|opus|webm)(\?|#|$)/i.test(url)) { clearAutofillStatus(); return; }
+  _autofillTimer = setTimeout(() => autoFillFromUrl(url), 800);
+}
+
+function setAutofillStatus(html, type) {
+  const el = document.getElementById('autofillStatus');
+  if (!el) return;
+  el.innerHTML = html;
+  el.className = 'autofill-status show ' + (type || '');
+}
+
+function clearAutofillStatus() {
+  const el = document.getElementById('autofillStatus');
+  if (!el) return;
+  el.innerHTML = '';
+  el.className = 'autofill-status';
+  _lastAutofilledUrl = '';
+}
+
+function smartFill(fieldId, value) {
+  if (!value) return;
+  const el = document.getElementById(fieldId);
+  if (el && !el.value.trim()) el.value = value;
+}
+
+function smartFillTitle(raw) {
+  if (!raw) return;
+  const parts = raw.split(/\s*[-–—|·]\s*/);
+  if (parts.length >= 2) {
+    smartFill('w-artist', parts[0].trim());
+    smartFill('w-title', parts.slice(1).join(' — ').trim());
+  } else {
+    smartFill('w-title', raw.trim());
+  }
+}
+
+function detectPlatform(url) {
+  if (/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)/i.test(url)) return 'YouTube';
+  if (/open\.spotify\.com/i.test(url)) return 'Spotify';
+  if (/soundcloud\.com\/(?!oembed)/i.test(url)) return 'SoundCloud';
+  if (/bilibili\.com/i.test(url)) return 'Bilibili';
+  if (/music\.163\.com|y\.music\.163\.com/i.test(url)) return '网易云音乐';
+  if (/bandcamp\.com/i.test(url)) return 'Bandcamp';
+  return null;
+}
+
+async function autoFillFromUrl(url) {
+  const platform = detectPlatform(url);
+  setAutofillStatus(`正在识别 ${platform ? '<strong>' + platform + '</strong>' : ''} 链接...`, 'loading');
+
+  let filled = [];
+
+  try {
+    // ── YouTube ──
+    if (platform === 'YouTube') {
+      const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+      if (yt) {
+        // oEmbed 拿标题和作者
+        try {
+          const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
+          if (r.ok) {
+            const j = await r.json();
+            smartFillTitle(j.title);
+            if (j.author_name) smartFill('w-artist', j.author_name);
+            filled.push('标题', '艺术家');
+          }
+        } catch (e) {}
+        // 封面
+        const maxRes = `https://img.youtube.com/vi/${yt[1]}/maxresdefault.jpg`;
+        const ok = await imageExists(maxRes);
+        const coverUrl = ok ? maxRes : `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`;
+        smartFill('w-cover', coverUrl);
+        filled.push('封面');
+      }
+    }
+
+    // ── Spotify ──
+    else if (platform === 'Spotify') {
+      try {
+        const r = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`);
+        if (r.ok) {
+          const j = await r.json();
+          smartFillTitle(j.title);
+          if (j.thumbnail_url) { smartFill('w-cover', j.thumbnail_url); filled.push('封面'); }
+          filled.push('标题');
+        }
+      } catch (e) {}
+    }
+
+    // ── SoundCloud ──
+    else if (platform === 'SoundCloud') {
+      try {
+        const r = await fetch(`https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(url)}`);
+        if (r.ok) {
+          const j = await r.json();
+          smartFillTitle(j.title);
+          if (j.thumbnail_url) { smartFill('w-cover', j.thumbnail_url.replace('-large', '-t300x300')); filled.push('封面'); }
+          if (j.author_name) smartFill('w-artist', j.author_name);
+          filled.push('标题', '艺术家');
+        }
+      } catch (e) {}
+    }
+
+    // ── Bilibili ──
+    else if (platform === 'Bilibili') {
+      // B站没有 oEmbed，用 microlink + og meta
+      try {
+        const r = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+        if (r.ok) {
+          const j = await r.json();
+          if (j.status === 'success' && j.data) {
+            smartFillTitle(j.data.title);
+            if (j.data.author) smartFill('w-artist', j.data.author);
+            if (j.data.image?.url) { smartFill('w-cover', j.data.image.url); filled.push('封面'); }
+            if (j.data.date) { const y = j.data.date.substring(0, 4); if (/^\d{4}$/.test(y)) smartFill('w-year', y); filled.push('年份'); }
+            filled.push('标题');
+          }
+        }
+      } catch (e) {}
+      // 备选：allorigins 抓 og meta
+      if (filled.length === 0) {
+        try {
+          const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+          if (r.ok) {
+            const html = (await r.json()).contents || '';
+            const titleM = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+                        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+            if (titleM) { smartFillTitle(titleM[1]); filled.push('标题'); }
+            const imgM = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+            if (imgM) { smartFill('w-cover', imgM[1]); filled.push('封面'); }
+          }
+        } catch (e) {}
+      }
+    }
+
+    // ── 网易云音乐 ──
+    else if (platform === '网易云音乐') {
+      const cleanUrl = url.replace('/#/', '/').replace('#/', '');
+      const songMatch = cleanUrl.match(/song\?id=(\d+)/);
+      const albumMatch = cleanUrl.match(/album\?id=(\d+)/);
+      const playlistMatch = cleanUrl.match(/playlist\?id=(\d+)/);
+
+      if (songMatch) {
+        // 单曲：通过 microlink 抓页面元信息
+        let gotInfo = false;
+        try {
+          const r = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(cleanUrl)}`);
+          if (r.ok) {
+            const j = await r.json();
+            if (j.status === 'success' && j.data) {
+              smartFillTitle(j.data.title);
+              if (j.data.author) smartFill('w-artist', j.data.author);
+              if (j.data.image?.url) { smartFill('w-cover', j.data.image.url); filled.push('封面'); }
+              filled.push('标题', '艺术家');
+              gotInfo = true;
+            }
+          }
+        } catch (e) {}
+        // 再试 allorigins
+        if (!gotInfo) {
+          try {
+            const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(cleanUrl)}`);
+            if (r.ok) {
+              const html = (await r.json()).contents || '';
+              const titleM = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+                          || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+              if (titleM) { smartFillTitle(titleM[1]); filled.push('标题'); }
+              const imgM = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+              if (imgM) { smartFill('w-cover', imgM[1]); filled.push('封面'); }
+            }
+          } catch (e) {}
+        }
+      } else if (albumMatch || playlistMatch) {
+        // 专辑/歌单：同上尝试 microlink + allorigins
+        try {
+          const r = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(cleanUrl)}`);
+          if (r.ok) {
+            const j = await r.json();
+            if (j.status === 'success' && j.data) {
+              smartFillTitle(j.data.title);
+              if (j.data.author) smartFill('w-artist', j.data.author);
+              if (j.data.image?.url) { smartFill('w-cover', j.data.image.url); filled.push('封面'); }
+              filled.push('标题', '艺术家');
+            }
+          }
+        } catch (e) {}
+        if (filled.length === 0) {
+          try {
+            const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(cleanUrl)}`);
+            if (r.ok) {
+              const html = (await r.json()).contents || '';
+              const titleM = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+                          || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+              if (titleM) { smartFillTitle(titleM[1]); filled.push('标题'); }
+              const imgM = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+              if (imgM) { smartFill('w-cover', imgM[1]); filled.push('封面'); }
+            }
+          } catch (e) {}
+        }
+      }
+    }
+
+    // ── Bandcamp ──
+    else if (platform === 'Bandcamp') {
+      try {
+        const r = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+        if (r.ok) {
+          const j = await r.json();
+          if (j.status === 'success' && j.data) {
+            smartFillTitle(j.data.title);
+            if (j.data.author) smartFill('w-artist', j.data.author);
+            if (j.data.image?.url) { smartFill('w-cover', j.data.image.url); filled.push('封面'); }
+            if (j.data.date) { const y = j.data.date.substring(0, 4); if (/^\d{4}$/.test(y)) smartFill('w-year', y); filled.push('年份'); }
+            filled.push('标题', '艺术家');
+          }
+        }
+      } catch (e) {}
+      if (filled.length === 0) {
+        try {
+          const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+          if (r.ok) {
+            const html = (await r.json()).contents || '';
+            const titleM = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+                        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+            if (titleM) { smartFillTitle(titleM[1]); filled.push('标题'); }
+            const imgM = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+            if (imgM) { smartFill('w-cover', imgM[1]); filled.push('封面'); }
+          }
+        } catch (e) {}
+      }
+    }
+
+    // ── 未识别平台：通用 og meta 抓取 ──
+    else {
+      setAutofillStatus('正在识别链接...', 'loading');
+      try {
+        const r = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+        if (r.ok) {
+          const j = await r.json();
+          if (j.status === 'success' && j.data) {
+            smartFillTitle(j.data.title);
+            if (j.data.author) smartFill('w-artist', j.data.author);
+            if (j.data.image?.url) { smartFill('w-cover', j.data.image.url); filled.push('封面'); }
+            if (j.data.date) { const y = j.data.date.substring(0, 4); if (/^\d{4}$/.test(y)) smartFill('w-year', y); }
+            filled.push('标题');
+          }
+        }
+      } catch (e) {}
+    }
+
+    // ── 去重 filled 列表 ──
+    filled = [...new Set(filled)];
+
+    if (filled.length > 0) {
+      _lastAutofilledUrl = url;
+      const icon = platform ? platform : '链接';
+      setAutofillStatus(`<strong>${icon}</strong> 已自动填充：${filled.join('、')}`, 'success');
+      // 3 秒后淡出
+      setTimeout(() => {
+        const el = document.getElementById('autofillStatus');
+        if (el) { el.style.transition = 'opacity 0.5s'; el.style.opacity = '0.4'; }
+      }, 3000);
+    } else {
+      setAutofillStatus(`未能获取到信息，可能是平台不支持或链接需要登录`, 'error');
+    }
+  } catch (e) {
+    setAutofillStatus(`识别失败：${e.message || '网络问题'}`, 'error');
+  }
+}
+
+// ── Modal ──
+let _editingWorkId = null;
+
+function openWorkModal(workId) {
+  ['w-title','w-artist','w-arranger','w-year','w-genre','w-cover','w-audio','w-note'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('w-category').value = currentCategory; // 默认沿用当前分类
+  clearAutofillStatus();
+  const titleEl = document.querySelector('#workModal .modal__title');
+  const saveBtn = document.querySelector('#workModal .modal__actions .btn:last-child');
+  if (workId != null) {
+    const w = Store.getWork(workId);
+    if (!w) { toast('找不到该作品'); return; }
+    _editingWorkId = workId;
+    document.getElementById('w-title').value = w.title || '';
+    document.getElementById('w-artist').value = w.artist || '';
+    document.getElementById('w-arranger').value = w.arranger || '威灵T';
+    document.getElementById('w-year').value = w.year || '';
+    document.getElementById('w-genre').value = w.genre || '';
+    document.getElementById('w-cover').value = w.cover || '';
+    document.getElementById('w-audio').value = w.audio || '';
+    document.getElementById('w-note').value = w.note || '';
+    document.getElementById('w-category').value = w.category || '古风';
+    _lastAutofilledUrl = w.audio || ''; // 避免编辑时对已填链接再次触发自动识别
+    if (titleEl) titleEl.textContent = '✏️ 修改作品';
+    if (saveBtn) saveBtn.textContent = '保存修改';
+  } else {
+    _editingWorkId = null;
+    document.getElementById('w-arranger').value = '威灵T'; // 新增时默认编曲
+    if (titleEl) titleEl.textContent = '♫ 添加作品';
+    if (saveBtn) saveBtn.textContent = '保存';
+  }
+  document.getElementById('workModal').classList.add('open');
+  setTimeout(() => document.getElementById('w-title').focus(), 100);
+}
+function openLogModal() {
+  ['l-title','l-content','l-tags'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('logModal').classList.add('open');
+  setTimeout(() => document.getElementById('l-title').focus(), 100);
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if (id === 'workModal') _editingWorkId = null;
+}
+
+function saveWork() {
+  const title = document.getElementById('w-title').value.trim();
+  if (!title) { toast('标题不能为空'); return; }
+  const data = {
+    title,
+    category: document.getElementById('w-category').value || '古风',
+    artist: document.getElementById('w-artist').value.trim(),
+    arranger: document.getElementById('w-arranger').value.trim(),
+    year: document.getElementById('w-year').value.trim(),
+    genre: document.getElementById('w-genre').value.trim(),
+    cover: document.getElementById('w-cover').value.trim(),
+    audio: document.getElementById('w-audio').value.trim(),
+    note: document.getElementById('w-note').value.trim()
+  };
+  if (_editingWorkId != null) {
+    Store.updateWork(_editingWorkId, data);
+    _editingWorkId = null;
+    closeModal('workModal');
+    renderAll();
+    toast('作品已更新 ✓');
+  } else {
+    Store.addWork({ id: Date.now(), ...data, createdAt: Date.now() });
+    closeModal('workModal');
+    // 若新作品分类与当前分类不同，自动切换到该分类
+    if (data.category !== currentCategory) {
+      switchCategory(data.category);
+    } else {
+      renderAll();
+    }
+    toast('作品已添加 ♪');
+  }
+}
+
+function saveLog() {
+  const title = document.getElementById('l-title').value.trim();
+  const content = document.getElementById('l-content').value.trim();
+  if (!title || !content) { toast('标题和正文不能为空'); return; }
+  const tagsRaw = document.getElementById('l-tags').value.trim();
+  const tags = tagsRaw ? tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
+  Store.addLog({
+    id: Date.now(),
+    title, content, tags,
+    createdAt: Date.now()
+  });
+  closeModal('logModal');
+  renderAll();
+  toast('日志已发布 ✎');
+}
+
+// ── 删除确认 ──
+let pendingDelete = null;
+function confirmDelete(type, id) {
+  pendingDelete = { type, id };
+  document.getElementById('confirmModal').classList.add('open');
+}
+document.getElementById('confirmBtn').addEventListener('click', () => {
+  if (!pendingDelete) return;
+  if (pendingDelete.type === 'work') Store.delWork(pendingDelete.id);
+  else if (pendingDelete.type === 'log') Store.delLog(pendingDelete.id);
+  pendingDelete = null;
+  closeModal('confirmModal');
+  renderAll();
+  toast('已删除');
+});
+
+// ── Tab 切换 ──
+document.querySelectorAll('.nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-' + btn.dataset.page).classList.add('active');
+    window.scrollTo({ top:0, behavior:'smooth' });
+  });
+});
+
+// ── 二级分类切换 ──
+function switchCategory(cat) {
+  currentCategory = cat;
+  document.querySelectorAll('#worksCategoryNav button').forEach(b => {
+    b.classList.toggle('active', b.dataset.cat === cat);
+  });
+  renderWorks();
+}
+document.querySelectorAll('#worksCategoryNav button').forEach(btn => {
+  btn.addEventListener('click', () => switchCategory(btn.dataset.cat));
+});
+
+// ── Toast ──
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── 点击 modal 背景关闭 ──
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => {
+    if (e.target === m) m.classList.remove('open');
+  });
+});
+
+// ── ESC 关闭 modal ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+});
+
+// ── 顶部日期 + 期号 ──
+(function setTopBar() {
+  const d = new Date();
+  const wk = ['SUN','MON','TUE','WED','THU','FRI','SAT'][d.getDay()];
+  document.getElementById('topDate').textContent = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} · ${wk}`;
+  // 期号：基于创建日期计算
+  const weekNum = Math.ceil((d - new Date(d.getFullYear(), 0, 1)) / 604800000);
+  document.getElementById('topIssue').textContent = `Vol. ${d.getFullYear() % 100}, No. ${weekNum}`;
+})();
+
+// ── 启动 ──
+if (window.__VIEWER_MODE__) {
+  document.body.classList.add('viewer-mode');
+  // 访客模式不需要示例数据
+} else {
+  seedSampleData();
+}
+Store.load();
+renderAll();
+
+</script>
+</body>
+</html>
