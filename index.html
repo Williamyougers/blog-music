@@ -1025,36 +1025,70 @@ function seedSampleData() {
     return;
   }
   localStorage.setItem(STORAGE_KEY_INIT, '1');
+  const now = Date.now();
+
+  // ── 古风 ──
   Store.addWork({
-    id: Date.now() - 3000,
-    title: 'Midnight Drive',
-    artist: '威灵T',
-    arranger: '',
-    year: 2026,
-    genre: 'Lo-fi / Chill',
-    cover: '',
-    audio: '',
+    id: now - 9000, title: '赴霜', category: '古风', artist: '威灵T', arranger: '威灵T',
+    year: 2026, genre: '古风 / 抒情', cover: '', audio: '',
+    note: '今夏写的一首，故事在长亭与桥之间。"原来三生三世里，你只是路过的雪一场。"',
+    createdAt: now - 9000
+  });
+  Store.addWork({
+    id: now - 8000, title: '青苔月', category: '古风', artist: '威灵T', arranger: '威灵T',
+    year: 2025, genre: '新古典 / 古风', cover: '', audio: '',
+    note: '灵感来自一首废寺诗，副歌里藏了一段笛声。',
+    createdAt: now - 8000
+  });
+  Store.addWork({
+    id: now - 7000, title: '浮生未歇', category: '古风', artist: '威灵T', arranger: '阿九',
+    year: 2024, genre: '古风 / 民谣', cover: '', audio: '',
+    note: '写给那些没说完就走散的人。',
+    createdAt: now - 7000
+  });
+
+  // ── 流行 ──
+  Store.addWork({
+    id: now - 6000, title: 'Midnight Drive', category: '流行', artist: '威灵T', arranger: '威灵T',
+    year: 2026, genre: 'Lo-fi / Chill', cover: '', audio: '',
     note: '凌晨独自开车回家时录的一段哼唱，后来加了鼓和贝斯。',
-    createdAt: Date.now() - 3000
+    createdAt: now - 6000
   });
   Store.addWork({
-    id: Date.now() - 2000,
-    title: 'Paper Boats',
-    artist: '威灵T',
-    arranger: '阿九',
-    year: 2026,
-    genre: 'Folk / Acoustic',
-    cover: '',
-    audio: '',
+    id: now - 5000, title: 'Paper Boats', category: '流行', artist: '威灵T', arranger: '阿九',
+    year: 2026, genre: 'Folk / Acoustic', cover: '', audio: '',
     note: '献给童年那条流过的小河。',
-    createdAt: Date.now() - 2000
+    createdAt: now - 5000
   });
+
+  // ── 原创钢琴曲/改编 ──
+  Store.addWork({
+    id: now - 4000, title: '雨歇之后', category: '原创钢琴曲/改编', artist: '威灵T', arranger: '威灵T',
+    year: 2026, genre: '原创钢琴', cover: '', audio: '',
+    note: '雨停那一刻空气里的味道，整首只有左手在低音区慢慢走。',
+    createdAt: now - 4000
+  });
+  Store.addWork({
+    id: now - 3000, title: '茉莉花·改编', category: '原创钢琴曲/改编', artist: '威灵T', arranger: '威灵T',
+    year: 2025, genre: '民歌改编 / 钢琴', cover: '', audio: '',
+    note: '把茉莉花放进 6/8 拍，听起来像在跳华尔兹。',
+    createdAt: now - 3000
+  });
+
+  // ── 日志 ──
   Store.addLog({
-    id: Date.now() - 1000,
+    id: now - 2000,
     title: '关于"留白"的一些想法',
     content: '最近在做新曲，越来越觉得音乐里最难的不是音符，而是音符之间的间隙。\n\n好的音乐像呼吸，吸气和呼气之间必须有那一秒的停顿。塞得太满反而听不出感情。\n\n大概人和人之间也是这样吧。',
     tags: ['创作', '思考'],
-    createdAt: Date.now() - 1000
+    createdAt: now - 2000
+  });
+  Store.addLog({
+    id: now - 1000,
+    title: '一首歌从有到无的几个阶段',
+    content: '其实多数歌是这样诞生的：\n\n哼出来 → 录小样 → 写词 → 编曲 → 删一半 → 再加一点 → 卡在某句调不好 → 放下 → 一个月后突然解开。\n\n所以别急。',
+    tags: ['创作', '日常'],
+    createdAt: now - 1000
   });
 }
 
