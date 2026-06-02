@@ -562,6 +562,87 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 .log__expand:hover { border-bottom-color:var(--accent); }
 
+/* ── Comments ── */
+.comments {
+  margin-top:1.6rem;
+  padding-top:1.4rem;
+  border-top:1px dashed var(--gray-200);
+}
+.comments__title {
+  font-family:var(--serif);
+  font-size:0.85rem;
+  letter-spacing:0.05em;
+  color:var(--gray-500);
+  text-transform:uppercase;
+  margin-bottom:0.9rem;
+}
+.comment {
+  padding:0.8rem 0;
+  border-bottom:1px solid var(--gray-100);
+  display:flex;
+  gap:0.8rem;
+  align-items:flex-start;
+}
+.comment:last-child { border-bottom:none; }
+.comment__avatar {
+  width:32px; height:32px;
+  border-radius:50%;
+  background:var(--cream);
+  border:1px solid var(--gray-200);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif); font-size:0.85rem; color:var(--gray-600);
+  flex-shrink:0;
+}
+.comment__main { flex:1; min-width:0; }
+.comment__head {
+  display:flex; align-items:baseline; gap:0.6rem; flex-wrap:wrap;
+  margin-bottom:0.25rem;
+}
+.comment__name { font-weight:600; font-size:0.88rem; color:var(--black); }
+.comment__name--admin { color:var(--accent); }
+.comment__name--mine { color:var(--gold); }
+.comment__time { font-size:0.72rem; color:var(--gray-400); font-family:var(--mono, ui-monospace, monospace); }
+.comment__content {
+  font-size:0.9rem; line-height:1.65; color:var(--gray-700);
+  white-space:pre-wrap; word-break:break-word;
+}
+.comment__del {
+  font-size:0.7rem; padding:0.15rem 0.5rem;
+  background:transparent; border:1px solid var(--gray-300);
+  color:var(--gray-500); cursor:pointer; margin-left:auto;
+  border-radius:2px;
+}
+.comment__del:hover { border-color:var(--accent); color:var(--accent); }
+.comments__form {
+  margin-top:1rem;
+  padding:0.9rem;
+  background:var(--cream);
+  border:1px solid var(--gray-200);
+}
+.comments__form-row {
+  display:grid; grid-template-columns:1fr; gap:0.5rem;
+}
+.comments__nick {
+  width:100%; max-width:200px;
+  padding:0.45rem 0.6rem;
+  border:1px solid var(--gray-300);
+  background:var(--white);
+  font-size:0.85rem;
+}
+.comments__input {
+  width:100%; min-height:64px; resize:vertical;
+  padding:0.55rem 0.7rem;
+  border:1px solid var(--gray-300);
+  background:var(--white);
+  font-family:inherit; font-size:0.88rem; line-height:1.6;
+}
+.comments__form-foot {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:0.55rem; gap:0.6rem;
+}
+.comments__count { font-size:0.72rem; color:var(--gray-400); }
+.comments__empty { font-size:0.82rem; color:var(--gray-400); font-style:italic; padding:0.6rem 0; }
+
 /* ── Empty State ── */
 .empty {
   text-align:center; padding:5rem 1rem;
@@ -890,17 +971,16 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <div class="page-header__label">About</div>
       <h2 class="page-header__title">关于</h2>
     </div>
+    <button class="btn btn--ghost btn--sm js-write-action" onclick="openAboutModal()" style="align-self:flex-end;">✎ 编辑</button>
   </div>
   <div class="about">
-    <p class="about__intro">嗨，我是威灵T。这里是我的音乐自留地——既存放正在听、正在做、正在想的曲目，也记录创作过程中那些转瞬即逝的灵感。</p>
+    <p class="about__intro" id="aboutIntro"></p>
     <div class="about__body">
-      <p>音乐对我来说不是背景音，而是另一种语言。一段旋律往往能说出文字说不出的东西。</p>
+      <p id="aboutBody1"></p>
     </div>
-    <div class="about__quote">
-      "这个站没有评论、没有算法、没有广告。只有作品和文字。如果你恰好喜欢，那便是缘分。"
-    </div>
+    <div class="about__quote" id="aboutQuote"></div>
     <div class="about__body">
-      <p>感谢你来到这里。愿你在此找到某种共鸣。</p>
+      <p id="aboutBody2"></p>
     </div>
     <div class="about__stats">
       <div class="about__stat"><div class="about__stat-num" id="statWorks">0</div><div class="about__stat-label">作品</div></div>
@@ -1031,6 +1111,35 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
 </div>
 
+<!-- 编辑 About Modal -->
+<div class="modal" id="aboutModal">
+  <div class="modal__panel" style="max-width:640px;">
+    <button class="modal__close" onclick="closeModal('aboutModal')">×</button>
+    <h3 class="modal__title">✎ 编辑「关于」</h3>
+    <div class="field">
+      <label>开篇（大字段落）</label>
+      <textarea id="ab-intro" rows="3" placeholder="嗨，我是..."></textarea>
+    </div>
+    <div class="field">
+      <label>第一段</label>
+      <textarea id="ab-body1" rows="4" placeholder="一段关于音乐的话..."></textarea>
+    </div>
+    <div class="field">
+      <label>引用（高亮区块）</label>
+      <textarea id="ab-quote" rows="3" placeholder="一句你想强调的话..."></textarea>
+    </div>
+    <div class="field">
+      <label>结尾段</label>
+      <textarea id="ab-body2" rows="3" placeholder="结束语..."></textarea>
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost btn--sm" onclick="resetAbout()" style="margin-right:auto;">恢复默认</button>
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('aboutModal')">取消</button>
+      <button class="btn btn--sm" onclick="saveAbout()">保存</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <footer class="footer">
@@ -1052,7 +1161,17 @@ const STORAGE_KEY_INIT = 'tn_init_v2';
 // ── 云端 API 配置 ──
 const API_BASE = 'https://blog-music-api.453203081.workers.dev';
 const ADMIN_TOKEN_KEY = 'tn_admin_token';
+const VISITOR_ID_KEY = 'tn_visitor_id';
 function isAdmin() { return !!sessionStorage.getItem(ADMIN_TOKEN_KEY); }
+function getVisitorId() {
+  let v = '';
+  try { v = localStorage.getItem(VISITOR_ID_KEY) || ''; } catch (_) {}
+  if (!v) {
+    v = 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+    try { localStorage.setItem(VISITOR_ID_KEY, v); } catch (_) {}
+  }
+  return v;
+}
 function setSyncStatus(state, msg) {
   const el = document.getElementById('syncStatus');
   if (!el) return;
@@ -1070,10 +1189,19 @@ function setSyncStatus(state, msg) {
   if (state === 'saved') setTimeout(() => { if (el.textContent === m.text) setSyncStatus('online'); }, 1500);
 }
 
+const DEFAULT_ABOUT = {
+  intro: '嗨，我是威灵T。这里是我的音乐自留地——既存放正在听、正在做、正在想的曲目，也记录创作过程中那些转瞬即逝的灵感。',
+  body1: '音乐对我来说不是背景音，而是另一种语言。一段旋律往往能说出文字说不出的东西。',
+  quote: '这个站没有评论、没有算法、没有广告。只有作品和文字。如果你恰好喜欢，那便是缘分。',
+  body2: '感谢你来到这里。愿你在此找到某种共鸣。'
+};
+
 // ── 数据层 ──
 const Store = {
   works: [],
   logs: [],
+  about: { ...DEFAULT_ABOUT },
+  comments: {}, // { [logId]: [{id, visitorId, nickname, content, createdAt}] }
   _syncTimer: null,
   _online: false,
   async load() {
@@ -1081,6 +1209,8 @@ const Store = {
     if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) {
       this.works = window.__EMBEDDED_DATA__.works || [];
       this.logs = window.__EMBEDDED_DATA__.logs || [];
+      this.about = { ...DEFAULT_ABOUT, ...(window.__EMBEDDED_DATA__.about || {}) };
+      this.comments = window.__EMBEDDED_DATA__.comments || {};
       this.works.forEach(w => { if (!w.category) w.category = '古风'; });
       return;
     }
@@ -1093,12 +1223,16 @@ const Store = {
           const data = await res.json();
           this.works = Array.isArray(data.works) ? data.works : [];
           this.logs = Array.isArray(data.logs) ? data.logs : [];
+          this.about = { ...DEFAULT_ABOUT, ...(data.about || {}) };
+          this.comments = (data.comments && typeof data.comments === 'object') ? data.comments : {};
           this.works.forEach(w => { if (!w.category) w.category = '古风'; });
           this._online = true;
           // 本地兜底缓存
           try {
             localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(this.works));
             localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(this.logs));
+            localStorage.setItem('tn_about', JSON.stringify(this.about));
+            localStorage.setItem('tn_comments', JSON.stringify(this.comments));
           } catch (_) {}
           setSyncStatus('online');
           return;
@@ -1111,6 +1245,8 @@ const Store = {
     // 兜底：localStorage
     this.works = JSON.parse(localStorage.getItem(STORAGE_KEY_WORKS) || '[]');
     this.logs = JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]');
+    try { this.about = { ...DEFAULT_ABOUT, ...(JSON.parse(localStorage.getItem('tn_about') || 'null') || {}) }; } catch (_) { this.about = { ...DEFAULT_ABOUT }; }
+    try { this.comments = JSON.parse(localStorage.getItem('tn_comments') || '{}') || {}; } catch (_) { this.comments = {}; }
     // 兼容老数据：没有 category 的全部归到「古风」
     let changed = false;
     this.works.forEach(w => { if (!w.category) { w.category = '古风'; changed = true; } });
@@ -1122,6 +1258,7 @@ const Store = {
     try {
       localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(this.works));
       localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(this.logs));
+      localStorage.setItem('tn_about', JSON.stringify(this.about));
     } catch (_) {}
     // 仅管理员推送到云端
     if (!isAdmin()) return;
@@ -1137,7 +1274,7 @@ const Store = {
       const res = await fetch(API_BASE + '/api/data', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ works: this.works, logs: this.logs })
+        body: JSON.stringify({ works: this.works, logs: this.logs, about: this.about })
       });
       if (res.ok) {
         setSyncStatus('saved');
@@ -1155,6 +1292,7 @@ const Store = {
   },
   saveWorks() { this._scheduleSync(); },
   saveLogs() { this._scheduleSync(); },
+  saveAbout() { this._scheduleSync(); },
   addWork(w) { if (!w.category) w.category = '古风'; this.works.unshift(w); this.saveWorks(); },
   updateWork(id, patch) {
     const i = this.works.findIndex(w => w.id === id);
@@ -1194,7 +1332,51 @@ const Store = {
     return true;
   },
   addLog(l) { this.logs.unshift(l); this.saveLogs(); },
-  delLog(id) { this.logs = this.logs.filter(l => l.id !== id); this.saveLogs(); }
+  delLog(id) {
+    this.logs = this.logs.filter(l => l.id !== id);
+    // 同时清掉这条日志的评论
+    if (this.comments && this.comments[id]) {
+      delete this.comments[id];
+      try { localStorage.setItem('tn_comments', JSON.stringify(this.comments)); } catch (_) {}
+    }
+    this.saveLogs();
+  },
+  // ── 评论（实时调用 Worker，不走 debounce）──
+  async addComment(logId, nickname, content) {
+    if (typeof API_BASE !== 'string' || !API_BASE) {
+      throw new Error('未联云，无法评论');
+    }
+    const res = await fetch(API_BASE + '/api/comments/' + encodeURIComponent(logId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname, content, visitorId: getVisitorId() })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!this.comments[logId]) this.comments[logId] = [];
+    this.comments[logId].push(data.comment);
+    try { localStorage.setItem('tn_comments', JSON.stringify(this.comments)); } catch (_) {}
+    return data.comment;
+  },
+  async delComment(logId, commentId) {
+    if (typeof API_BASE !== 'string' || !API_BASE) {
+      throw new Error('未联云，无法删除');
+    }
+    const headers = { 'X-Visitor-Id': getVisitorId() };
+    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(API_BASE + '/api/comments/' + encodeURIComponent(logId) + '/' + encodeURIComponent(commentId), {
+      method: 'DELETE',
+      headers
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (this.comments[logId]) {
+      this.comments[logId] = this.comments[logId].filter(c => c.id !== commentId);
+      try { localStorage.setItem('tn_comments', JSON.stringify(this.comments)); } catch (_) {}
+    }
+    return true;
+  }
 };
 
 // ── 示例数据（首次访问时填充）──
@@ -1407,7 +1589,7 @@ function renderLogs() {
     const tags = (l.tags || []).map(t => `<span class="log__tag">${escapeHTML(t)}</span>`).join('');
     const long = (l.content || '').length > 200;
     return `
-    <article class="log">
+    <article class="log" id="log-${l.id}">
       <div class="log__marker"></div>
       <div class="log__head">
         <h3 class="log__title">${escapeHTML(l.title)}</h3>
@@ -1416,11 +1598,97 @@ function renderLogs() {
       <div class="log__content drop-cap ${long ? 'collapsed' : ''}" id="lc-${l.id}">${escapeHTML(l.content)}</div>
       ${tags ? `<div class="log__tags">${tags}</div>` : ''}
       <div class="log__actions">
-        ${long ? `<button class="log__expand" onclick="toggleLog(${l.id}, this)">展开全文</button>` : ''}
-        <button class="btn btn--danger btn--sm" style="margin-left:auto;" onclick="confirmDelete('log', ${l.id})">删除</button>
+        ${long ? `<button class="log__expand" onclick='toggleLog(${JSON.stringify(l.id)}, this)'>展开全文</button>` : ''}
+        <button class="btn btn--danger btn--sm log__del js-write-action" style="margin-left:auto;" onclick='confirmDelete("log", ${JSON.stringify(l.id)})'>删除</button>
       </div>
+      ${renderCommentSection(l.id)}
     </article>`;
   }).join('');
+}
+
+function renderCommentSection(logId) {
+  const list = (Store.comments && Store.comments[logId]) || [];
+  // 排序：旧 → 新（时间正序）
+  const sorted = [...list].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const myId = getVisitorId();
+  const admin = isAdmin();
+  const items = sorted.map(c => {
+    const t = new Date(c.createdAt);
+    const tStr = `${t.getFullYear()}.${String(t.getMonth()+1).padStart(2,'0')}.${String(t.getDate()).padStart(2,'0')} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+    const isMine = c.visitorId === myId;
+    const canDel = admin || isMine;
+    const nameCls = admin && isMine ? 'comment__name--admin' : (isMine ? 'comment__name--mine' : '');
+    const nick = c.nickname || '匿名乐迷';
+    const initial = nick.slice(0, 1);
+    return `
+      <div class="comment" data-cid="${escapeHTML(c.id)}">
+        <div class="comment__avatar">${escapeHTML(initial)}</div>
+        <div class="comment__main">
+          <div class="comment__head">
+            <span class="comment__name ${nameCls}">${escapeHTML(nick)}</span>
+            ${isMine ? '<span class="comment__time" style="color:var(--gold);">你</span>' : ''}
+            <span class="comment__time">${tStr}</span>
+            ${canDel ? `<button class="comment__del" onclick='deleteComment(${JSON.stringify(String(logId))}, ${JSON.stringify(c.id)})'>删除</button>` : ''}
+          </div>
+          <div class="comment__content">${escapeHTML(c.content)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const empty = sorted.length === 0 ? `<div class="comments__empty">还没有评论，来留下第一句吧 ✨</div>` : '';
+  // 分享版/离线版本：仅展示列表，不显示表单
+  const showForm = !window.__VIEWER_MODE__;
+  const form = showForm ? `
+    <div class="comments__form">
+      <div class="comments__form-row">
+        <input class="comments__nick" id="cn-${logId}" type="text" maxlength="20" placeholder="昵称（可选，默认匿名乐迷）">
+        <textarea class="comments__input" id="cc-${logId}" maxlength="500" placeholder="说点什么…（最多 500 字）" oninput='updateCommentCount(this, ${JSON.stringify(String(logId))})'></textarea>
+      </div>
+      <div class="comments__form-foot">
+        <span class="comments__count" id="cn-count-${logId}">0 / 500</span>
+        <button class="btn btn--sm" onclick='submitComment(${JSON.stringify(String(logId))})'>发布评论</button>
+      </div>
+    </div>` : '';
+
+  return `
+    <div class="comments">
+      <div class="comments__title">Comments · ${sorted.length}</div>
+      ${items || empty}
+      ${form}
+    </div>`;
+}
+
+async function submitComment(logId) {
+  const ccEl = document.getElementById('cc-' + logId);
+  const cnEl = document.getElementById('cn-' + logId);
+  if (!ccEl) return;
+  const content = (ccEl.value || '').trim();
+  const nickname = (cnEl ? cnEl.value : '').trim();
+  if (!content) { toast('内容不能为空'); return; }
+  try {
+    await Store.addComment(logId, nickname, content);
+    ccEl.value = '';
+    renderLogs();
+    toast('已发布');
+  } catch (e) {
+    toast(e.message || '发布失败');
+  }
+}
+
+async function deleteComment(logId, commentId) {
+  if (!confirm('删除这条评论？')) return;
+  try {
+    await Store.delComment(logId, commentId);
+    renderLogs();
+    toast('已删除');
+  } catch (e) {
+    toast(e.message || '删除失败');
+  }
+}
+
+function updateCommentCount(el, logId) {
+  const c = document.getElementById('cn-count-' + logId);
+  if (c) c.textContent = (el.value || '').length + ' / 500';
 }
 
 function renderStats() {
@@ -1436,7 +1704,46 @@ function renderStats() {
   }
 }
 
-function renderAll() { renderWorks(); renderLogs(); renderStats(); }
+function renderAbout() {
+  const a = { ...DEFAULT_ABOUT, ...(Store.about || {}) };
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || ''; };
+  set('aboutIntro', a.intro);
+  set('aboutBody1', a.body1);
+  set('aboutQuote', a.quote ? '"' + a.quote + '"' : '');
+  set('aboutBody2', a.body2);
+}
+
+function openAboutModal() {
+  if (window.__VIEWER_MODE__ || !isAdmin()) return;
+  const a = { ...DEFAULT_ABOUT, ...(Store.about || {}) };
+  document.getElementById('ab-intro').value = a.intro || '';
+  document.getElementById('ab-body1').value = a.body1 || '';
+  document.getElementById('ab-quote').value = a.quote || '';
+  document.getElementById('ab-body2').value = a.body2 || '';
+  document.getElementById('aboutModal').classList.add('open');
+}
+
+function saveAbout() {
+  Store.about = {
+    intro: document.getElementById('ab-intro').value.trim(),
+    body1: document.getElementById('ab-body1').value.trim(),
+    quote: document.getElementById('ab-quote').value.trim(),
+    body2: document.getElementById('ab-body2').value.trim()
+  };
+  Store.saveAbout();
+  renderAbout();
+  closeModal('aboutModal');
+  toast('已保存「关于」');
+}
+
+function resetAbout() {
+  document.getElementById('ab-intro').value = DEFAULT_ABOUT.intro;
+  document.getElementById('ab-body1').value = DEFAULT_ABOUT.body1;
+  document.getElementById('ab-quote').value = DEFAULT_ABOUT.quote;
+  document.getElementById('ab-body2').value = DEFAULT_ABOUT.body2;
+}
+
+function renderAll() { renderWorks(); renderLogs(); renderStats(); renderAbout(); }
 
 // ── 排序：按钮 + 拖拽 ──
 function moveWork(id, direction) {
@@ -1460,7 +1767,7 @@ async function exportShareableHTML() {
       html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
     }
     // 构造注入脚本
-    const data = JSON.stringify({ works: Store.works, logs: Store.logs })
+    const data = JSON.stringify({ works: Store.works, logs: Store.logs, about: Store.about, comments: Store.comments })
       .replace(/</g, '\\u003c').replace(/>/g, '\\u003e'); // 防数据里含 \x3c/script\x3e 截断
     const inject = `<script>window.__VIEWER_MODE__=true;window.__EMBEDDED_DATA__=${data};</` + `script>`;
     if (html.includes('</head>')) {
@@ -2141,6 +2448,7 @@ async function adminLogin() {
     sessionStorage.removeItem(ADMIN_TOKEN_KEY);
     document.body.classList.add('viewer-mode');
     renderAdminBtn();
+    renderAll();
     setSyncStatus('online');
     return;
   }
@@ -2152,7 +2460,7 @@ async function adminLogin() {
     const res = await fetch(API_BASE + '/api/data', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ works: Store.works, logs: Store.logs })
+      body: JSON.stringify({ works: Store.works, logs: Store.logs, about: Store.about })
     });
     if (res.ok) {
       sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
@@ -2162,8 +2470,8 @@ async function adminLogin() {
       // 如果远端是空的，灌一次示例数据
       if (Store.works.length === 0 && Store.logs.length === 0) {
         seedSampleData();
-        renderAll();
       }
+      renderAll();
       alert('✅ 登录成功，已解锁编辑功能');
     } else if (res.status === 401) {
       setSyncStatus('error', '密码错误');
