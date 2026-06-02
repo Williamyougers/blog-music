@@ -618,6 +618,63 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   color:var(--gray-500); margin-top:0.5rem;
 }
 
+/* ── 加群卡片 ── */
+.fan-group {
+  margin-top:2.5rem; padding:2rem; background:var(--cream);
+  border:1px solid var(--gray-200); border-left:4px solid var(--accent);
+  display:grid; grid-template-columns:1fr 160px; gap:2rem; align-items:center;
+}
+.fan-group__label {
+  font-size:0.65rem; letter-spacing:0.25em; text-transform:uppercase;
+  color:var(--accent); font-weight:600; margin-bottom:0.6rem;
+}
+.fan-group__title {
+  font-family:var(--serif); font-size:1.5rem; color:var(--gray-900);
+  margin-bottom:0.6rem; font-weight:700;
+}
+.fan-group__desc { color:var(--gray-700); line-height:1.7; margin-bottom:1rem; font-size:0.9rem; }
+.fan-group__meta {
+  display:flex; gap:1rem; align-items:center; flex-wrap:wrap;
+  font-size:0.8rem; color:var(--gray-600);
+}
+.fan-group__meta code {
+  font-family:var(--mono, monospace); background:var(--white);
+  padding:0.3rem 0.6rem; border:1px solid var(--gray-300);
+  color:var(--gray-900); letter-spacing:0.05em;
+}
+.fan-group__copy {
+  font-size:0.7rem; padding:0.3rem 0.7rem; background:transparent;
+  color:var(--accent); border:1px solid var(--accent); cursor:pointer;
+  letter-spacing:0.1em; transition:all 0.2s;
+}
+.fan-group__copy:hover { background:var(--accent); color:var(--white); }
+.fan-group__qr {
+  text-align:center;
+}
+.fan-group__qr img {
+  width:160px; height:160px; display:block; border:1px solid var(--gray-300);
+  cursor:zoom-in; transition:transform 0.2s;
+  background:var(--white);
+}
+.fan-group__qr img:hover { transform:scale(1.02); }
+.fan-group__qr-label {
+  font-size:0.62rem; letter-spacing:0.18em; text-transform:uppercase;
+  color:var(--gray-500); margin-top:0.5rem;
+}
+@media (max-width:680px) {
+  .fan-group { grid-template-columns:1fr; text-align:center; padding:1.5rem; }
+  .fan-group__meta { justify-content:center; }
+}
+
+/* 加群二维码大图预览 */
+.qr-lightbox {
+  position:fixed; inset:0; background:rgba(10,10,10,0.85); backdrop-filter:blur(6px);
+  display:none; align-items:center; justify-content:center; z-index:300; cursor:zoom-out;
+  padding:2rem;
+}
+.qr-lightbox.show { display:flex; }
+.qr-lightbox img { max-width:90vw; max-height:90vh; background:var(--white); padding:1rem; }
+
 /* ── Modal ── */
 .modal {
   position:fixed; inset:0;
@@ -850,8 +907,31 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <div class="about__stat"><div class="about__stat-num" id="statLogs">0</div><div class="about__stat-label">日志</div></div>
       <div class="about__stat"><div class="about__stat-num" id="statDays">0</div><div class="about__stat-label">天</div></div>
     </div>
+
+    <!-- 加群卡片 -->
+    <div class="fan-group">
+      <div>
+        <div class="fan-group__label">Listener Circle</div>
+        <div class="fan-group__title">威灵T的编曲铺子</div>
+        <p class="fan-group__desc">一个分享小样、聊编曲、互相安利好歌的安静角落。新作品会先在这里发，欢迎来串门 🎵</p>
+        <div class="fan-group__meta">
+          <span>QQ 群号</span>
+          <code id="qqGroupNum">1046047856</code>
+          <button class="fan-group__copy" onclick="copyGroupNum()">复制</button>
+        </div>
+      </div>
+      <div class="fan-group__qr">
+        <img src="assets/qq-group.jpg" alt="QQ 群二维码" onclick="document.getElementById('qrLightbox').classList.add('show')">
+        <div class="fan-group__qr-label">扫码加群</div>
+      </div>
+    </div>
   </div>
 </main>
+
+<!-- 二维码大图预览 -->
+<div class="qr-lightbox" id="qrLightbox" onclick="this.classList.remove('show')">
+  <img src="assets/qq-group.jpg" alt="QQ 群二维码（点击关闭）">
+</div>
 
 <!-- 作品 Modal -->
 <div class="modal" id="workModal">
@@ -2014,6 +2094,33 @@ document.addEventListener('keydown', e => {
   document.getElementById('topIssue').textContent = `Vol. ${d.getFullYear() % 100}, No. ${weekNum}`;
 })();
 
+// ── 加群：复制群号 ──
+function copyGroupNum() {
+  const num = document.getElementById('qqGroupNum')?.textContent?.trim() || '1046047856';
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = num; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(num).then(() => toast('群号已复制 ' + num)).catch(() => { fallback(); toast('群号已复制 ' + num); });
+  } else { fallback(); toast('群号已复制 ' + num); }
+}
+function toast(msg) {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:rgba(10,10,10,0.9);color:#fff;padding:0.7rem 1.4rem;border-radius:2px;font-size:0.85rem;letter-spacing:0.1em;z-index:400;opacity:0;transition:opacity 0.2s;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.style.opacity = '0'; }, 1600);
+}
+
 // ── 管理员登录 / 退出 ──
 function renderAdminBtn() {
   const el = document.getElementById('adminBtn');
@@ -2074,8 +2181,9 @@ async function adminLogin() {
 // ── 启动 ──
 (async () => {
   if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) {
-    // 分享版（导出的 HTML）：永远访客模式
+    // 分享版（导出的 HTML）：永远访客模式，且隐藏加群模块（图片是相对路径，离线打不开）
     document.body.classList.add('viewer-mode');
+    document.querySelectorAll('.fan-group, .qr-lightbox').forEach(el => { el.style.display = 'none'; });
   } else {
     // 在线模式：默认隐藏写按钮，登录后再解锁
     if (!isAdmin()) document.body.classList.add('viewer-mode');
