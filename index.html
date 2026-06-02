@@ -65,6 +65,24 @@ input,textarea,select { font:inherit; color:inherit; }
 .top-bar__brand { color:var(--gold); font-weight:600; letter-spacing:0.25em; }
 .top-bar__divider { color:var(--gray-600); }
 .top-bar__issue { color:var(--gray-500); font-style:italic; font-family:var(--serif); letter-spacing:0.08em; text-transform:none; }
+.top-bar__right { display:flex; gap:1rem; align-items:center; }
+.sync-status {
+  font-size:0.6rem; letter-spacing:0.12em; padding:0.15rem 0.5rem;
+  border:1px solid rgba(184,132,74,0.3); border-radius:2px;
+  color:var(--gray-500); text-transform:none;
+}
+.sync-status.sync--ok { color:var(--gold); border-color:rgba(184,132,74,0.5); }
+.sync-status.sync--loading { color:var(--gray-400); }
+.sync-status.sync--warn { color:#d4a857; }
+.sync-status.sync--err { color:#e8654a; border-color:rgba(232,101,74,0.4); }
+.admin-btn {
+  font-size:0.62rem; letter-spacing:0.18em; padding:0.2rem 0.7rem;
+  background:transparent; color:var(--gray-300); border:1px solid var(--gray-600);
+  cursor:pointer; border-radius:2px; transition:all 0.2s; text-transform:none;
+  font-family:inherit;
+}
+.admin-btn:hover { color:var(--gold); border-color:var(--gold); }
+.admin-btn--on { color:var(--gold); border-color:var(--gold); background:rgba(184,132,74,0.08); }
 
 /* ── Masthead ── */
 .masthead {
@@ -746,7 +764,11 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <span class="top-bar__divider">|</span>
     <span class="top-bar__issue" id="topIssue">Vol. I, No. 1</span>
   </div>
-  <span id="topDate"></span>
+  <div class="top-bar__right">
+    <span id="syncStatus" class="sync-status">☁️ 加载中…</span>
+    <button id="adminBtn" class="admin-btn" onclick="adminLogin()" style="display:none;">🔒 管理员登录</button>
+    <span id="topDate"></span>
+  </div>
 </div>
 
 <header class="masthead">
@@ -947,11 +969,34 @@ const STORAGE_KEY_WORKS = 'tn_works';
 const STORAGE_KEY_LOGS = 'tn_logs';
 const STORAGE_KEY_INIT = 'tn_init_v2';
 
+// ── 云端 API 配置 ──
+const API_BASE = 'https://blog-music-api.453203081.workers.dev';
+const ADMIN_TOKEN_KEY = 'tn_admin_token';
+function isAdmin() { return !!sessionStorage.getItem(ADMIN_TOKEN_KEY); }
+function setSyncStatus(state, msg) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const map = {
+    loading: { text: '☁️ 加载中…', cls: 'sync--loading' },
+    online: { text: '☁️ 已联云', cls: 'sync--ok' },
+    offline: { text: '📴 离线（仅本地）', cls: 'sync--warn' },
+    saving: { text: '☁️ 同步中…', cls: 'sync--loading' },
+    saved: { text: '✅ 已同步', cls: 'sync--ok' },
+    error: { text: '⚠️ ' + (msg || '同步失败'), cls: 'sync--err' }
+  };
+  const m = map[state] || map.online;
+  el.textContent = m.text;
+  el.className = 'sync-status ' + m.cls;
+  if (state === 'saved') setTimeout(() => { if (el.textContent === m.text) setSyncStatus('online'); }, 1500);
+}
+
 // ── 数据层 ──
 const Store = {
   works: [],
   logs: [],
-  load() {
+  _syncTimer: null,
+  _online: false,
+  async load() {
     // 访客模式：优先读取内嵌数据，不走 localStorage
     if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) {
       this.works = window.__EMBEDDED_DATA__.works || [];
@@ -959,21 +1004,77 @@ const Store = {
       this.works.forEach(w => { if (!w.category) w.category = '古风'; });
       return;
     }
+    // 在线模式：先从 Worker API 读
+    if (typeof API_BASE === 'string' && API_BASE) {
+      setSyncStatus('loading');
+      try {
+        const res = await fetch(API_BASE + '/api/data', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          this.works = Array.isArray(data.works) ? data.works : [];
+          this.logs = Array.isArray(data.logs) ? data.logs : [];
+          this.works.forEach(w => { if (!w.category) w.category = '古风'; });
+          this._online = true;
+          // 本地兜底缓存
+          try {
+            localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(this.works));
+            localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(this.logs));
+          } catch (_) {}
+          setSyncStatus('online');
+          return;
+        }
+      } catch (e) {
+        console.warn('远端加载失败，回退本地缓存', e);
+      }
+      setSyncStatus('offline');
+    }
+    // 兜底：localStorage
     this.works = JSON.parse(localStorage.getItem(STORAGE_KEY_WORKS) || '[]');
     this.logs = JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]');
     // 兼容老数据：没有 category 的全部归到「古风」
     let changed = false;
     this.works.forEach(w => { if (!w.category) { w.category = '古风'; changed = true; } });
-    if (changed) this.saveWorks();
+    if (changed) this._scheduleSync();
   },
-  saveWorks() {
+  _scheduleSync() {
     if (window.__VIEWER_MODE__) return; // 访客模式不写
-    localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(this.works));
+    // 本地兜底缓存（始终写）
+    try {
+      localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(this.works));
+      localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(this.logs));
+    } catch (_) {}
+    // 仅管理员推送到云端
+    if (!isAdmin()) return;
+    clearTimeout(this._syncTimer);
+    this._syncTimer = setTimeout(() => this._syncRemote(), 600);
   },
-  saveLogs() {
-    if (window.__VIEWER_MODE__) return;
-    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(this.logs));
+  async _syncRemote() {
+    if (typeof API_BASE !== 'string' || !API_BASE) return;
+    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) return;
+    setSyncStatus('saving');
+    try {
+      const res = await fetch(API_BASE + '/api/data', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ works: this.works, logs: this.logs })
+      });
+      if (res.ok) {
+        setSyncStatus('saved');
+      } else if (res.status === 401) {
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+        document.body.classList.add('viewer-mode');
+        if (typeof renderAdminBtn === 'function') renderAdminBtn();
+        setSyncStatus('error', '登录已失效，请重新登录');
+      } else {
+        setSyncStatus('error', 'HTTP ' + res.status);
+      }
+    } catch (e) {
+      setSyncStatus('error', (e && e.message) || '网络异常');
+    }
   },
+  saveWorks() { this._scheduleSync(); },
+  saveLogs() { this._scheduleSync(); },
   addWork(w) { if (!w.category) w.category = '古风'; this.works.unshift(w); this.saveWorks(); },
   updateWork(id, patch) {
     const i = this.works.findIndex(w => w.id === id);
@@ -1018,12 +1119,8 @@ const Store = {
 
 // ── 示例数据（首次访问时填充）──
 function seedSampleData() {
-  if (localStorage.getItem(STORAGE_KEY_INIT)) return;
-  // 保留旧数据
-  if (localStorage.getItem('tn_init_v1') && Store.works.length > 0) {
-    localStorage.setItem(STORAGE_KEY_INIT, '1');
-    return;
-  }
+  // 仅在数据完全为空时灌（云端 KV 才是单一真相）
+  if (Store.works.length > 0 || Store.logs.length > 0) return;
   localStorage.setItem(STORAGE_KEY_INIT, '1');
   const now = Date.now();
 
@@ -1917,15 +2014,76 @@ document.addEventListener('keydown', e => {
   document.getElementById('topIssue').textContent = `Vol. ${d.getFullYear() % 100}, No. ${weekNum}`;
 })();
 
-// ── 启动 ──
-if (window.__VIEWER_MODE__) {
-  document.body.classList.add('viewer-mode');
-  // 访客模式不需要示例数据
-} else {
-  seedSampleData();
+// ── 管理员登录 / 退出 ──
+function renderAdminBtn() {
+  const el = document.getElementById('adminBtn');
+  if (!el) return;
+  if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  if (isAdmin()) {
+    el.textContent = '🔓 退出管理';
+    el.className = 'admin-btn admin-btn--on';
+  } else {
+    el.textContent = '🔒 管理员登录';
+    el.className = 'admin-btn';
+  }
 }
-Store.load();
-renderAll();
+async function adminLogin() {
+  if (isAdmin()) {
+    if (!confirm('退出管理员模式？')) return;
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    document.body.classList.add('viewer-mode');
+    renderAdminBtn();
+    setSyncStatus('online');
+    return;
+  }
+  const token = prompt('请输入管理员密码：');
+  if (!token) return;
+  setSyncStatus('saving');
+  try {
+    // 用一次"空操作 PUT 当前数据"作为鉴权验证
+    const res = await fetch(API_BASE + '/api/data', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ works: Store.works, logs: Store.logs })
+    });
+    if (res.ok) {
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+      document.body.classList.remove('viewer-mode');
+      renderAdminBtn();
+      setSyncStatus('saved');
+      // 如果远端是空的，灌一次示例数据
+      if (Store.works.length === 0 && Store.logs.length === 0) {
+        seedSampleData();
+        renderAll();
+      }
+      alert('✅ 登录成功，已解锁编辑功能');
+    } else if (res.status === 401) {
+      setSyncStatus('error', '密码错误');
+      alert('❌ 密码错误');
+    } else {
+      setSyncStatus('error', 'HTTP ' + res.status);
+      alert('❌ 登录失败：HTTP ' + res.status);
+    }
+  } catch (e) {
+    setSyncStatus('error', e.message || '网络异常');
+    alert('❌ 网络异常：' + (e.message || ''));
+  }
+}
+
+// ── 启动 ──
+(async () => {
+  if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) {
+    // 分享版（导出的 HTML）：永远访客模式
+    document.body.classList.add('viewer-mode');
+  } else {
+    // 在线模式：默认隐藏写按钮，登录后再解锁
+    if (!isAdmin()) document.body.classList.add('viewer-mode');
+  }
+  await Store.load();
+  renderAll();
+  renderAdminBtn();
+})();
 
 </script>
 </body>
