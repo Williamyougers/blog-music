@@ -19,7 +19,7 @@ function corsHeaders(request) {
   return {
     'Access-Control-Allow-Origin': allow,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Visitor-Id',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Visitor-Id, X-User-Token',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
   };
@@ -340,6 +340,178 @@ const ORDER_TIERS = [
   { key: 'standard', label: '进阶', price: 599 },
   { key: 'full', label: '全包', price: 999 },
 ];
+
+// =============================================================
+//  Auth + DM utilities (email-code login + user-to-admin DM)
+// =============================================================
+
+// Lowercase + trim email, basic format check
+function normalizeEmail(s) {
+  if (typeof s !== 'string') return '';
+  const e = s.trim().toLowerCase();
+  if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(e)) return '';
+  if (e.length > 200) return '';
+  return e;
+}
+
+// SHA-256 hex (truncated for userId)
+async function sha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function emailToUserId(email) {
+  const h = await sha256Hex('uid:' + email);
+  return h.slice(0, 16);
+}
+
+// Generate 6-digit numeric verification code
+function gen6Code() {
+  const arr = new Uint8Array(3);
+  crypto.getRandomValues(arr);
+  const n = ((arr[0] << 16) | (arr[1] << 8) | arr[2]) % 1000000;
+  return String(n).padStart(6, '0');
+}
+
+// Generate 64-hex session token
+function genToken() {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Mask email for display: ab***@xx.com
+function maskEmail(e) {
+  if (!e || typeof e !== 'string') return '';
+  const at = e.indexOf('@');
+  if (at < 1) return '***';
+  const local = e.slice(0, at);
+  const domain = e.slice(at);
+  if (local.length <= 2) return local[0] + '***' + domain;
+  return local.slice(0, 2) + '***' + domain;
+}
+
+// Send verification code via Resend (or no-op if not configured)
+async function sendVerifyEmail(env, email, code) {
+  if (!env.RESEND_API_KEY) {
+    console.log('[auth] RESEND_API_KEY missing, code for', email, '=', code);
+    return { ok: false, dev: true, code }; // dev mode: caller may surface
+  }
+  const from = env.MAIL_FROM || 'noreply@weilingt.top';
+  const fromName = env.MAIL_FROM_NAME || '威灵T · Tracks & Notes';
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,'Segoe UI',sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:40px 20px;">
+<tr><td align="center">
+  <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#16140f;border:1px solid #322d25;border-radius:8px;overflow:hidden;">
+    <tr><td style="background:#0a0a0a;padding:32px 32px 24px;text-align:center;border-bottom:3px solid #b8884a;">
+      <div style="font-family:Georgia,'Times New Roman',serif;font-size:32px;color:#fefdfb;font-weight:900;letter-spacing:-1px;">威灵<em style="color:#e8654a;font-style:italic;">T</em></div>
+      <div style="font-size:11px;color:#b8884a;letter-spacing:4px;text-transform:uppercase;margin-top:6px;">Tracks · Notes</div>
+    </td></tr>
+    <tr><td style="padding:32px;color:#e8e2d6;font-size:15px;line-height:1.7;">
+      <p style="margin:0 0 16px;">你好，</p>
+      <p style="margin:0 0 24px;">这是你登录 <a href="https://weilingt.top" style="color:#b8884a;text-decoration:none;">weilingt.top</a> 的验证码：</p>
+      <div style="background:#0a0a0a;border:1px dashed #b8884a;border-radius:6px;padding:24px;text-align:center;margin:0 0 24px;">
+        <div style="font-family:'SF Mono','Courier New',monospace;font-size:34px;color:#b8884a;letter-spacing:10px;font-weight:700;">${code}</div>
+      </div>
+      <p style="margin:0 0 8px;color:#9b9280;font-size:13px;">验证码 5 分钟内有效，请勿告诉他人。</p>
+      <p style="margin:0;color:#9b9280;font-size:13px;">如果不是你本人操作，忽略此邮件即可。</p>
+    </td></tr>
+    <tr><td style="padding:16px 32px;border-top:1px solid #322d25;text-align:center;color:#5d574a;font-size:11px;letter-spacing:2px;">
+      凡所听过 · 终将回响
+    </td></tr>
+  </table>
+</td></tr></table></body></html>`;
+  const resp = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + env.RESEND_API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: `${fromName} <${from}>`,
+      to: [email],
+      subject: `威灵T · 登录验证码 ${code}`,
+      html,
+      text: `你的登录验证码：${code}\n5 分钟内有效，请勿告诉他人。\n\nweilingt.top`,
+    }),
+  });
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '');
+    console.log('[auth] resend failed', resp.status, t);
+    return { ok: false, error: 'mail_send_failed' };
+  }
+  return { ok: true };
+}
+
+// Resolve current user from Bearer token (X-User-Token header for clarity)
+async function getCurrentUser(request, env) {
+  const h = request.headers.get('X-User-Token') || '';
+  if (!h || h.length !== 64) return null;
+  const raw = await env.BLOG.get('session/' + h, 'json');
+  if (!raw || !raw.email) return null;
+  const user = await env.BLOG.get('user/' + raw.email, 'json');
+  if (!user) return null;
+  return { ...user, token: h };
+}
+
+function sanitizeNickname(s) {
+  if (typeof s !== 'string') return '';
+  const t = s.trim().replace(/[\x00-\x1f\x7f]/g, '').slice(0, 20);
+  return t;
+}
+
+// Notify owner via Server Chan when user sends new DM
+async function notifyNewDM(env, user, content) {
+  if (!env.SERVERCHAN_KEY) return;
+  const title = `📨 新私信 · ${user.nickname || maskEmail(user.email)}`;
+  const desp = [
+    `**昵称**: ${user.nickname || '(未设置)'}`,
+    `**邮箱**: ${maskEmail(user.email)}`,
+    `**内容**:`,
+    '',
+    content.length > 300 ? content.slice(0, 300) + '...' : content,
+    '',
+    `---`,
+    `时间: ${new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').slice(0, 19)} (Asia/Shanghai)`,
+    `打开收件箱: https://weilingt.top/`,
+  ].join('\n');
+  try {
+    await fetch('https://sctapi.ftqq.com/' + env.SERVERCHAN_KEY + '.send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, desp }),
+    });
+  } catch (e) {
+    console.log('[dm] serverchan failed', e);
+  }
+}
+
+// Generate short message id
+function genMsgId() {
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+// Update admin/threads index after a thread changes
+async function updateAdminThreadsIndex(env, user, lastMsg, lastTs, unreadDelta) {
+  const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+  const idx = list.findIndex(t => t.userId === user.userId);
+  let item;
+  if (idx >= 0) {
+    item = list[idx];
+    list.splice(idx, 1);
+  } else {
+    item = { userId: user.userId, email: user.email, nickname: user.nickname || '', unread: 0 };
+  }
+  // Always refresh email/nickname (nickname may change)
+  item.email = user.email;
+  item.nickname = user.nickname || '';
+  item.lastMsg = (lastMsg || '').slice(0, 120);
+  item.lastTs = lastTs;
+  item.unread = Math.max(0, (item.unread || 0) + (unreadDelta || 0));
+  list.unshift(item);
+  // Cap at 500 threads (oldest dropped from KV index only; messages still in dm/thread/{userId})
+  if (list.length > 500) list.length = 500;
+  await env.BLOG.put('dm/admin/threads', JSON.stringify(list));
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -727,6 +899,212 @@ export default {
       list.splice(idx, 1);
       comments[logId] = list;
       await env.BLOG.put('comments', JSON.stringify(comments));
+      return json({ ok: true }, 200, cors);
+    }
+
+    // =============================================================
+    //  Auth endpoints (email verification code login)
+    // =============================================================
+
+    // POST /api/auth/send-code — send 6-digit code to email
+    if (path === '/api/auth/send-code' && method === 'POST') {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const email = normalizeEmail(body.email);
+      if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      // Rate limit: 60s between sends per email
+      const rl = await env.BLOG.get('ratelimit/code/' + email, 'json');
+      if (rl && Date.now() - rl.ts < 60000) {
+        return json({ error: 'Too frequent, try later', retryAfter: Math.ceil((60000 - (Date.now() - rl.ts)) / 1000) }, 429, cors);
+      }
+      const code = gen6Code();
+      const mailResult = await sendVerifyEmail(env, email, code);
+      // Store code with 5-min TTL
+      await env.BLOG.put('code/' + email, JSON.stringify({ code, attempts: 0, ts: Date.now() }), { expirationTtl: 300 });
+      // Store rate limit marker (90s TTL, slightly longer than cooldown)
+      await env.BLOG.put('ratelimit/code/' + email, JSON.stringify({ ts: Date.now() }), { expirationTtl: 90 });
+      // In dev mode (no Resend key), surface code so frontend can show it
+      if (mailResult.dev) {
+        return json({ ok: true, dev: true, code }, 200, cors);
+      }
+      if (!mailResult.ok) {
+        return json({ error: 'Failed to send email' }, 500, cors);
+      }
+      return json({ ok: true }, 200, cors);
+    }
+
+    // POST /api/auth/login — verify code, create session
+    if (path === '/api/auth/login' && method === 'POST') {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const email = normalizeEmail(body.email);
+      const code = String(body.code || '').trim();
+      if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      if (!/^\d{6}$/.test(code)) return json({ error: 'Code must be 6 digits' }, 400, cors);
+      const stored = await env.BLOG.get('code/' + email, 'json');
+      if (!stored) return json({ error: 'Code expired or not sent' }, 400, cors);
+      if (stored.attempts >= 5) return json({ error: 'Too many attempts, please request new code' }, 429, cors);
+      stored.attempts++;
+      if (stored.code !== code) {
+        await env.BLOG.put('code/' + email, JSON.stringify(stored), { expirationTtl: 300 });
+        return json({ error: 'Wrong code', attemptsLeft: 5 - stored.attempts }, 400, cors);
+      }
+      // Code correct — delete it
+      await env.BLOG.delete('code/' + email);
+      // Upsert user
+      const userId = await emailToUserId(email);
+      let user = await env.BLOG.get('user/' + email, 'json');
+      if (!user) {
+        user = { email, userId, nickname: '', createdAt: Date.now(), lastLogin: Date.now() };
+      } else {
+        user.lastLogin = Date.now();
+      }
+      await env.BLOG.put('user/' + email, JSON.stringify(user));
+      // Create session (30-day TTL)
+      const token = genToken();
+      await env.BLOG.put('session/' + token, JSON.stringify({ email }), { expirationTtl: 30 * 86400 });
+      return json({ ok: true, token, user: { email: user.email, userId: user.userId, nickname: user.nickname } }, 200, cors);
+    }
+
+    // GET /api/auth/me — get current user info
+    if (path === '/api/auth/me' && method === 'GET') {
+      const user = await getCurrentUser(request, env);
+      if (!user) return json({ error: 'Not logged in' }, 401, cors);
+      return json({ email: user.email, userId: user.userId, nickname: user.nickname }, 200, cors);
+    }
+
+    // POST /api/auth/logout — invalidate session
+    if (path === '/api/auth/logout' && method === 'POST') {
+      const h = request.headers.get('X-User-Token') || '';
+      if (h) await env.BLOG.delete('session/' + h);
+      return json({ ok: true }, 200, cors);
+    }
+
+    // PUT /api/auth/profile — update nickname
+    if (path === '/api/auth/profile' && method === 'PUT') {
+      const user = await getCurrentUser(request, env);
+      if (!user) return json({ error: 'Not logged in' }, 401, cors);
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const nickname = sanitizeNickname(body.nickname);
+      user.nickname = nickname;
+      await env.BLOG.put('user/' + user.email, JSON.stringify(user));
+      return json({ ok: true, nickname }, 200, cors);
+    }
+
+    // =============================================================
+    //  DM endpoints (user ↔ admin private messaging)
+    // =============================================================
+
+    // POST /api/dm/send — user sends message to admin
+    if (path === '/api/dm/send' && method === 'POST') {
+      const user = await getCurrentUser(request, env);
+      if (!user) return json({ error: 'Not logged in' }, 401, cors);
+      // Rate limit: 1 message per 3s per user
+      const rl = await env.BLOG.get('ratelimit/dm/' + user.userId, 'json');
+      if (rl && Date.now() - rl.ts < 3000) {
+        return json({ error: 'Too frequent' }, 429, cors);
+      }
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const content = sanitizeStr(body.content, 2000);
+      if (!content) return json({ error: 'Message cannot be empty' }, 400, cors);
+      const threadKey = 'dm/thread/' + user.userId;
+      const thread = (await env.BLOG.get(threadKey, 'json')) || [];
+      const msg = { id: genMsgId(), from: 'user', content, ts: Date.now() };
+      thread.push(msg);
+      // Cap thread at 1000 messages (drop oldest)
+      if (thread.length > 1000) thread.splice(0, thread.length - 1000);
+      await env.BLOG.put(threadKey, JSON.stringify(thread));
+      await env.BLOG.put('ratelimit/dm/' + user.userId, JSON.stringify({ ts: Date.now() }), { expirationTtl: 10 });
+      // Update admin index (+1 unread)
+      await updateAdminThreadsIndex(env, user, content, Date.now(), 1);
+      // Notify admin via Server Chan
+      ctx.waitUntil(notifyNewDM(env, user, content));
+      return json({ ok: true, msg }, 200, cors);
+    }
+
+    // GET /api/dm/thread — user gets own conversation thread
+    if (path === '/api/dm/thread' && method === 'GET') {
+      const user = await getCurrentUser(request, env);
+      if (!user) return json({ error: 'Not logged in' }, 401, cors);
+      const thread = (await env.BLOG.get('dm/thread/' + user.userId, 'json')) || [];
+      return json({ messages: thread }, 200, cors);
+    }
+
+    // GET /api/dm/unread — user checks unread count (admin replies)
+    if (path === '/api/dm/unread' && method === 'GET') {
+      const user = await getCurrentUser(request, env);
+      if (!user) return json({ error: 'Not logged in' }, 401, cors);
+      const thread = (await env.BLOG.get('dm/thread/' + user.userId, 'json')) || [];
+      // Count admin messages newer than last user message (or all if user never sent)
+      let lastUserTs = 0;
+      for (let i = thread.length - 1; i >= 0; i--) {
+        if (thread[i].from === 'user') { lastUserTs = thread[i].ts; break; }
+      }
+      const unread = thread.filter(m => m.from === 'admin' && m.ts > lastUserTs).length;
+      return json({ unread }, 200, cors);
+    }
+
+    // =============================================================
+    //  Admin DM endpoints (admin reads/replies to user conversations)
+    // =============================================================
+
+    // GET /api/admin/dm/threads — list all DM threads (admin only)
+    if (path === '/api/admin/dm/threads' && method === 'GET') {
+      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+      return json({ threads: list }, 200, cors);
+    }
+
+    // GET /api/admin/dm/thread/:userId — get a specific user's conversation (admin only)
+    if (path.startsWith('/api/admin/dm/thread/') && method === 'GET') {
+      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      const targetUserId = path.slice('/api/admin/dm/thread/'.length);
+      if (!targetUserId || targetUserId.length > 32) return json({ error: 'Invalid userId' }, 400, cors);
+      const thread = (await env.BLOG.get('dm/thread/' + targetUserId, 'json')) || [];
+      return json({ messages: thread }, 200, cors);
+    }
+
+    // POST /api/admin/dm/reply — admin replies to a user (admin only)
+    if (path === '/api/admin/dm/reply' && method === 'POST') {
+      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const targetUserId = String(body.userId || '').trim();
+      const content = sanitizeStr(body.content, 2000);
+      if (!targetUserId || targetUserId.length > 32) return json({ error: 'Invalid userId' }, 400, cors);
+      if (!content) return json({ error: 'Message cannot be empty' }, 400, cors);
+      const threadKey = 'dm/thread/' + targetUserId;
+      const thread = (await env.BLOG.get(threadKey, 'json')) || [];
+      const msg = { id: genMsgId(), from: 'admin', content, ts: Date.now() };
+      thread.push(msg);
+      if (thread.length > 1000) thread.splice(0, thread.length - 1000);
+      await env.BLOG.put(threadKey, JSON.stringify(thread));
+      // Update admin index: clear unread for this thread (admin just replied)
+      const userStub = { userId: targetUserId, email: '', nickname: '' };
+      // Try to get real user info from existing index
+      const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+      const existing = list.find(t => t.userId === targetUserId);
+      if (existing) { userStub.email = existing.email; userStub.nickname = existing.nickname; }
+      await updateAdminThreadsIndex(env, userStub, content, Date.now(), 0);
+      // Reset unread to 0 since admin just replied
+      const list2 = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+      const item = list2.find(t => t.userId === targetUserId);
+      if (item) { item.unread = 0; await env.BLOG.put('dm/admin/threads', JSON.stringify(list2)); }
+      return json({ ok: true, msg }, 200, cors);
+    }
+
+    // POST /api/admin/dm/mark-read — admin marks a thread as read (admin only)
+    if (path === '/api/admin/dm/mark-read' && method === 'POST') {
+      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const targetUserId = String(body.userId || '').trim();
+      if (!targetUserId) return json({ error: 'Invalid userId' }, 400, cors);
+      const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+      const item = list.find(t => t.userId === targetUserId);
+      if (item) { item.unread = 0; await env.BLOG.put('dm/admin/threads', JSON.stringify(list)); }
       return json({ ok: true }, 200, cors);
     }
 
