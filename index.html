@@ -35,8 +35,8 @@
   --gold: #b8884a;
   --gold-light: #d4a85c;
   --cream: #f5ede0;
-  --max-w: 1120px;
-  --gutter: clamp(1.2rem, 4vw, 2.5rem);
+  --max-w: 1280px;
+  --gutter: clamp(1.2rem, 4vw, 3rem);
 }
 
 html { font-size:16px; scroll-behavior:smooth; }
@@ -514,7 +514,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .work__audio[hidden] { display:none; }
 
 /* ── Logs ── */
-.logs { display:flex; flex-direction:column; gap:0; }
+.logs { display:flex; flex-direction:column; gap:0; max-width: 880px; margin: 0 auto; }
 
 .log {
   background:var(--white);
@@ -670,6 +670,8 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   padding:3rem;
   border:1px solid var(--gray-200);
   position:relative;
+  max-width: 880px;
+  margin: 0 auto;
 }
 .about::before {
   content:'"'; position:absolute; top:-0.3rem; left:1.5rem;
@@ -1383,9 +1385,9 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .changelog {
   list-style: none;
   padding: 0;
-  margin: 2rem 0 0;
+  margin: 2rem auto 0;
   position: relative;
-  max-width: 760px;
+  max-width: 880px;
 }
 .changelog::before {
   content: '';
@@ -3944,6 +3946,7 @@ const CHANGELOG = [
       '🔔 新订单微信即时通知：访客一下单，店主微信立即收到推送（挂名 / 模式 / 套餐 / 价格 / 描述 / 联系方式 / 时间），基于 Server 酱免费版，推送失败不影响下单',
       '✨ 工坊 UI 美化 9 项动效：状态横幅金色斜光扫过 / 套餐卡 hover 金色发光 + 选中弹簧 ✓ + 价格金光 / 汇总区呼吸光 / 进度条当前点呼吸光晕 + 已完成连线渐变 / 订单卡左侧金条 + 错位淡入 + 24h 内 NEW 徽章 / 完结卡绿色条加粗 / 用途菜单 active 底部金线',
       '🔥 「进行中」订单循环动效：左侧金红流光条上下游动 + 卡片金色光晕轻柔呼吸（hover 时暂停，已尊重 prefers-reduced-motion）',
+      '📐 全站主容器从 1120px 加宽到 1280px，作品 / 工坊更舒展；关于 / 日志 / 公告这类长文区域居中保留 880px 可读宽度',
     ],
   },
   {
