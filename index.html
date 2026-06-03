@@ -34,6 +34,7 @@
   --accent-light: #e8563f;
   --gold: #b8884a;
   --gold-light: #d4a85c;
+  --cream: #f5ede0;
   --max-w: 1120px;
   --gutter: clamp(1.2rem, 4vw, 2.5rem);
 }
@@ -891,6 +892,308 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 ::-webkit-scrollbar-track { background:var(--gray-100); }
 ::-webkit-scrollbar-thumb { background:var(--gray-300); border-radius:3px; }
 ::-webkit-scrollbar-thumb:hover { background:var(--gray-400); }
+
+/* ═══════════════════════════════════════
+   UI 美化升级 · 动态效果
+   ═══════════════════════════════════════ */
+
+/* ── 1. 整页首屏 fade-in（防白屏闪烁）── */
+@keyframes pageFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+body { animation: pageFadeIn 0.6s ease both; }
+
+/* ── 2. 滚动视口渐入（IntersectionObserver）── */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reveal {
+  opacity: 0;
+}
+.reveal.revealed {
+  animation: revealUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── 3. 卡片 hover 增强 ── */
+.work.reveal:hover { transform: translateY(-5px) translateY(var(--hover-lift, -5px)); }
+.work.reveal.revealed {
+  --hover-lift: -5px;
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s;
+}
+.work.reveal.revealed:hover {
+  box-shadow: 0 8px 24px rgba(26, 26, 26, 0.12), 0 2px 8px rgba(184, 132, 74, 0.15);
+  border-color: var(--gray-400);
+}
+
+/* ── 4. Tab 切换淡入淡出 ── */
+.page {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.page.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.page-header.reveal.revealed,
+.about.reveal.revealed,
+.log.reveal.revealed,
+.featured.reveal.revealed {
+  animation-play-state: running;
+}
+
+/* ── 5. 同步状态点呼吸 / 旋转 ── */
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+@keyframes spinDot {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.sync-status.sync--ok::before {
+  content: '●';
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.45rem;
+  vertical-align: middle;
+  animation: breathe 2.8s ease-in-out infinite;
+}
+.sync-status.sync--loading::before {
+  content: '○';
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.55rem;
+  vertical-align: middle;
+  animation: spinDot 1s linear infinite;
+  color: var(--gray-400);
+}
+.sync-status.sync--warn::before {
+  content: '○';
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.45rem;
+  vertical-align: middle;
+  color: #d4a857;
+}
+.sync-status.sync--err::before {
+  content: '○';
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.45rem;
+  vertical-align: middle;
+  color: #e8654a;
+}
+.sync-status.sync--err {
+  opacity: 0.65;
+}
+
+/* ── 6. 新评论金色高亮渐隐 ── */
+@keyframes commentHighlight {
+  0%   { background: rgba(184, 132, 74, 0.22); }
+  100% { background: transparent; }
+}
+.comment.comment--new {
+  animation: commentHighlight 1.8s ease-out both;
+}
+
+/* ── 7. 按钮 hover 微涨 + 阴影 + 背景渐变 ── */
+.btn {
+  position: relative;
+  overflow: hidden;
+  transition: background 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.2s,
+              border-color 0.28s,
+              transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.btn:hover::after { opacity: 1; }
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 4px 5px 0 var(--gray-300);
+}
+.btn:active { transform: translateY(0); box-shadow: none; }
+
+.btn--ghost {
+  transition: background 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.2s,
+              border-color 0.28s,
+              transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.22s;
+}
+.btn--ghost:hover {
+  box-shadow: 4px 5px 0 var(--gray-300);
+}
+
+.btn--danger {
+  transition: background 0.28s, color 0.2s, border-color 0.28s,
+              transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.22s;
+}
+.btn--danger:hover {
+  box-shadow: 4px 5px 0 rgba(194, 59, 34, 0.25);
+}
+
+/* ── 8. Modal 背景模糊 + 缩放淡入 ── */
+.modal {
+  background: rgba(10, 10, 10, 0.55);
+  backdrop-filter: blur(8px) saturate(1.1);
+  -webkit-backdrop-filter: blur(8px) saturate(1.1);
+}
+.modal__panel {
+  animation: modalPanelIn 0.3s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+@keyframes modalPanelIn {
+  from { opacity: 0; transform: scale(0.94) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── 9. 加群弹窗弹簧入场 ── */
+.fan-group {
+  transition: box-shadow 0.3s, transform 0.3s;
+}
+.fan-group:hover {
+  box-shadow: 4px 4px 0 var(--gold);
+  transform: translateY(-2px);
+}
+
+/* ── 10. 字数计数临近上限变色 ── */
+.comments__count { transition: color 0.2s, font-weight 0.2s; }
+.comments__count.warn  { color: var(--gold); font-weight: 600; }
+.comments__count.danger { color: var(--accent); font-weight: 700; }
+
+/* ── 11. 二维码 hover 轻微放大 ── */
+.fan-group__qr img {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s;
+}
+.fan-group__qr img:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+.qr-lightbox {
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.qr-lightbox.show {
+  animation: lightboxBgIn 0.22s ease both;
+}
+.qr-lightbox.show img {
+  animation: lightboxImgIn 0.45s cubic-bezier(0.34, 1.7, 0.5, 1) both;
+}
+@keyframes lightboxBgIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes lightboxImgIn {
+  0%   { opacity: 0; transform: scale(0.82); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.qr-lightbox img { transition: transform 0.25s; }
+.qr-lightbox:hover img { transform: scale(1.03); }
+
+/* ── Hero 增强：Masthead 气场升级 ── */
+.masthead {
+  border-bottom: 1px solid rgba(184, 132, 74, 0.15);
+}
+.masthead__vinyl {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+}
+.masthead:hover .masthead__vinyl {
+  box-shadow: 0 0 0 4px var(--gold), 0 6px 28px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Nav active 指示线平滑过渡 ── */
+.nav button {
+  transition: color 0.25s ease;
+}
+
+/* ── Log hover marker 更明显 ── */
+.log__marker {
+  width: 3px;
+  background: linear-gradient(to bottom, var(--accent), var(--gold));
+  transition: opacity 0.3s ease, width 0.3s ease;
+}
+.log:hover .log__marker {
+  opacity: 1;
+  width: 4px;
+}
+
+/* ── Featured hover 增强 ── */
+.featured {
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s;
+}
+.featured:hover {
+  box-shadow: 0 10px 32px rgba(26, 26, 26, 0.1), 0 3px 10px rgba(184, 132, 74, 0.12);
+  border-color: var(--gray-400);
+}
+
+/* ── About 页面增强 ── */
+.about__intro {
+  font-size: 1.3rem;
+  line-height: 1.85;
+  letter-spacing: 0.01em;
+}
+.about__body p {
+  font-size: 0.97rem;
+  color: var(--gray-700);
+  line-height: 2;
+  letter-spacing: 0.01em;
+}
+.about__stats {
+  transition: transform 0.3s;
+}
+
+/* ── Comment 区块增强 ── */
+.comment {
+  padding: 0.9rem 0.4rem;
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+.comment:hover { background: rgba(245, 237, 224, 0.35); }
+.comment__content { font-size: 0.9rem; }
+
+/* ── Sub-nav hover 增强 ── */
+.sub-nav button {
+  transition: color 0.2s ease, letter-spacing 0.2s;
+}
+.sub-nav button:hover { letter-spacing: 0.1em; }
+
+/* ── Toast 入场微调 ── */
+.toast {
+  border-radius: 2px;
+  letter-spacing: 0.06em;
+  border-top: 2px solid var(--gold);
+}
+
+/* ── 访客模式下写操作按钮静默隐藏（不破坏现有功能）── */
+body.viewer-mode .js-write-action,
+body.viewer-mode .btn--share,
+body.viewer-mode .work__edit,
+body.viewer-mode .work__del,
+body.viewer-mode .work__move,
+body.viewer-mode .featured__edit,
+body.viewer-mode .featured__del,
+body.viewer-mode .featured__move,
+body.viewer-mode .log__del,
+body.viewer-mode #autofillStatus { display: none !important; }
+body.viewer-mode .work, body.viewer-mode .featured { cursor: default; }
+body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { pointer-events: auto; }
 
 </style>
 </head>
@@ -2499,7 +2802,181 @@ async function adminLogin() {
   await Store.load();
   renderAll();
   renderAdminBtn();
+  // 启动后激活美化层
+  setupUiEnhancements();
 })();
+
+// ═══════════════════════════════════════
+// UI 美化增强层（IntersectionObserver / Tab 平滑切换 /
+// 新评论高亮 / 字数计数颜色）
+// 不修改原有任何业务函数，只做包装与监听
+// ═══════════════════════════════════════
+
+const REVEAL_SELECTOR = '.featured, .work, .log, .about, .fan-group, .empty, .page-header';
+let _revealIO = null;
+
+function setupRevealObserver() {
+  if (!('IntersectionObserver' in window)) {
+    document.querySelectorAll(REVEAL_SELECTOR).forEach(el => {
+      el.classList.add('reveal');
+      el.classList.add('revealed');
+    });
+    return;
+  }
+  if (!_revealIO) {
+    _revealIO = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('revealed');
+          _revealIO.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
+  }
+  document.querySelectorAll(REVEAL_SELECTOR).forEach((el, i) => {
+    if (el.classList.contains('revealed')) return; // 已显示，跳过
+    el.classList.add('reveal');
+    try {
+      const rect = el.getBoundingClientRect();
+      const inViewport = rect.top < window.innerHeight && rect.bottom > 0 && rect.width > 0 && rect.height > 0;
+      if (inViewport) {
+        // 已在视口内，加一个微小 stagger 后直接显示
+        const delay = Math.min(i * 35, 240);
+        setTimeout(() => el.classList.add('revealed'), delay);
+      } else if (rect.width === 0 && rect.height === 0) {
+        // 元素当前隐藏（display:none 等），保持监听以待页面切换
+        _revealIO.observe(el);
+      } else {
+        _revealIO.observe(el);
+      }
+    } catch (_) {
+      el.classList.add('revealed');
+    }
+  });
+}
+
+// ── 包装 renderAll / renderWorks / renderLogs：渲染后重新扫描 ──
+(function wrapRenderForReveal() {
+  if (typeof renderAll === 'function') {
+    const _origRenderAll = renderAll;
+    window.renderAll = function() {
+      _origRenderAll.apply(this, arguments);
+      requestAnimationFrame(setupRevealObserver);
+    };
+  }
+  if (typeof renderWorks === 'function') {
+    const _origRW = renderWorks;
+    window.renderWorks = function() {
+      _origRW.apply(this, arguments);
+      requestAnimationFrame(setupRevealObserver);
+    };
+  }
+  if (typeof renderLogs === 'function') {
+    const _origRL = renderLogs;
+    window.renderLogs = function() {
+      _origRL.apply(this, arguments);
+      requestAnimationFrame(() => {
+        setupRevealObserver();
+        // 新评论高亮
+        if (_pendingHighlightCid) {
+          const el = document.querySelector('.comment[data-cid="' + _pendingHighlightCid + '"]');
+          if (el) {
+            el.classList.add('comment--new');
+            setTimeout(() => el.classList.remove('comment--new'), 1800);
+          }
+          _pendingHighlightCid = null;
+        }
+      });
+    };
+  }
+})();
+
+// ── 接管 nav tab 切换：交叉淡入淡出（不破坏 page-* 结构）──
+(function enhanceNavTabs() {
+  const navButtons = document.querySelectorAll('.nav button');
+  navButtons.forEach(btn => {
+    // 克隆节点以移除原 click handler
+    const clone = btn.cloneNode(true);
+    btn.parentNode.replaceChild(clone, btn);
+  });
+  document.querySelectorAll('.nav button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
+      const targetId = 'page-' + btn.dataset.page;
+      const targetEl = document.getElementById(targetId);
+      const currentActive = document.querySelector('.page.active');
+      // 切换 nav active
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (!targetEl || targetEl === currentActive) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      // 淡出旧页，淡入新页
+      if (currentActive) {
+        currentActive.style.transition = 'opacity 0.18s ease';
+        currentActive.style.opacity = '0';
+        setTimeout(() => {
+          document.querySelectorAll('.page').forEach(p => {
+            p.classList.remove('active');
+            p.style.opacity = '';
+            p.style.transition = '';
+          });
+          targetEl.classList.add('active');
+          // 触发新页 pageIn 动画（已存在的 keyframe）
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          requestAnimationFrame(setupRevealObserver);
+        }, 180);
+      } else {
+        targetEl.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  });
+})();
+
+// ── 评论提交后金色高亮 1.8s ──
+let _pendingHighlightCid = null;
+(function wrapSubmitComment() {
+  if (typeof submitComment !== 'function') return;
+  const _orig = submitComment;
+  window.submitComment = async function(logId) {
+    const ccEl = document.getElementById('cc-' + logId);
+    const content = ccEl ? (ccEl.value || '').trim() : '';
+    if (!content) { _orig(logId); return; }
+    // 记录提交前已存在评论 ID
+    const before = new Set(((Store.comments && Store.comments[logId]) || []).map(c => c.id));
+    try {
+      await _orig.call(this, logId);
+      // 找出新出现的评论 ID
+      const after = (Store.comments && Store.comments[logId]) || [];
+      const newOne = after.find(c => !before.has(c.id));
+      if (newOne) {
+        _pendingHighlightCid = newOne.id;
+        // renderLogs 已被 wrap，会在下一帧消费 _pendingHighlightCid
+      }
+    } catch (e) { /* 原函数已 toast */ }
+  };
+})();
+
+// ── 字数计数颜色：临近上限变金/红 ──
+(function wrapUpdateCount() {
+  if (typeof updateCommentCount !== 'function') return;
+  const _orig = updateCommentCount;
+  window.updateCommentCount = function(el, logId) {
+    _orig.call(this, el, logId);
+    const c = document.getElementById('cn-count-' + logId);
+    if (!c) return;
+    const len = (el.value || '').length;
+    c.classList.remove('warn', 'danger');
+    if (len >= 480) c.classList.add('danger');
+    else if (len >= 400) c.classList.add('warn');
+  };
+})();
+
+function setupUiEnhancements() {
+  setupRevealObserver();
+}
 
 </script>
 </body>
