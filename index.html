@@ -2134,6 +2134,68 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   padding-left: 0.8rem;
   border-left: 2px solid rgba(184,132,74,0.3);
 }
+/* 订单卡片上的星级（展示态，只读金色） */
+.ws-order__rating {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+  line-height: 1;
+}
+.ws-order__rating .rv-empty {
+  color: var(--gray-300);
+}
+.ws-order__rating .rv-num {
+  margin-left: 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--gray-500);
+  font-style: normal;
+}
+/* 评价 Modal 里的可点击星星 */
+.rv-stars {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex-wrap: wrap;
+}
+.rv-star {
+  background: none;
+  border: none;
+  padding: 0.1rem 0.15rem;
+  cursor: pointer;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--gray-300);
+  transition: color 0.15s, transform 0.1s;
+}
+.rv-star:hover {
+  transform: scale(1.1);
+}
+.rv-star.is-on {
+  color: var(--gold);
+}
+.rv-stars__hint {
+  margin-left: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  font-weight: 600;
+}
+.rv-stars__clear {
+  margin-left: auto;
+  background: none;
+  border: 1px dashed var(--gray-300);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.rv-stars__clear:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 /* ── 管理员操作栏 ── */
 .ws-order__admin {
@@ -2630,6 +2692,18 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <div class="modal__panel" style="max-width:520px;">
     <button class="modal__close" onclick="closeModal('reviewModal')">×</button>
     <h3 class="modal__title" id="reviewModalTitle">✎ 添加客户评价</h3>
+    <div class="field">
+      <label>星级评分</label>
+      <div class="rv-stars" id="rv-stars" role="radiogroup" aria-label="客户评分">
+        <button type="button" class="rv-star" data-star="1" onclick="setReviewRating(1)" aria-label="1 星">★</button>
+        <button type="button" class="rv-star" data-star="2" onclick="setReviewRating(2)" aria-label="2 星">★</button>
+        <button type="button" class="rv-star" data-star="3" onclick="setReviewRating(3)" aria-label="3 星">★</button>
+        <button type="button" class="rv-star" data-star="4" onclick="setReviewRating(4)" aria-label="4 星">★</button>
+        <button type="button" class="rv-star" data-star="5" onclick="setReviewRating(5)" aria-label="5 星">★</button>
+        <span class="rv-stars__hint" id="rv-stars-hint">未评分</span>
+        <button type="button" class="rv-stars__clear" onclick="setReviewRating(0)" title="清空评分">清空</button>
+      </div>
+    </div>
     <div class="field">
       <label>评价内容（200 字内）</label>
       <textarea id="rv-content" rows="5" maxlength="200" placeholder="客户的反馈、感谢、推荐语……" oninput="updateReviewCount()"></textarea>
@@ -3490,6 +3564,7 @@ const CHANGELOG = [
       '🔀 排单视图按「非商 / 商用」分隔：切到非商只显示非商订单，切到商用只显示带 [商用] 前缀的订单，状态横幅 / 进行中 / 排队 / 已完结 全部按当前用途独立计数',
       '🙈 挂名按身份显示：店主看全名（红字）/ 本人看自己订单的全名（金字）/ 其他访客只看首字 +「***」；visitorId 永不下发到客户端',
       '✏️ 订单可编辑：访客可改自己未完结订单的描述 / 联系方式 / 挂名（金色按钮「✎ 编辑我的订单」）；店主可改任意订单的同字段（已并入现有 admin 操作条）；商用 / 长期合作前缀自动保留',
+      '⭐ 客户评价新增 1-5 星评分：评价 Modal 顶部加可点击星星，已完结订单卡片自动展示金色星级；店主可单独打分、单独写文字，或两者一起；店主可随时回头修改星级（按钮文案随状态在「加评价 / ✎ 改评价」之间切换）',
     ],
   },
   {
@@ -3984,11 +4059,16 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
       progressHtml = `<div class="ws-progress">${dots}</div><div class="ws-progress__labels">${labels}</div>`;
     }
 
-    // Completed badge + review
+    // Completed badge + rating + review
     let completedHtml = '';
     if (isCompleted) {
       const days = o.completedAt && o.acceptedAt ? Math.ceil((o.completedAt - o.acceptedAt) / 86400000) : '';
       completedHtml = `<span class="ws-order__badge-done">已交付 ✓${days ? ' · ' + days + '天' : ''}</span>`;
+      const r = Math.max(0, Math.min(5, Math.floor(Number(o.rating) || 0)));
+      if (r > 0) {
+        const stars = '★'.repeat(r) + `<span class="rv-empty">${'★'.repeat(5 - r)}</span>`;
+        completedHtml += `<div class="ws-order__rating" title="${r} 星好评">${stars}<span class="rv-num">${r}/5</span></div>`;
+      }
       if (o.review) {
         completedHtml += `<p class="ws-order__review">"${escapeHTML(o.review)}"</p>`;
       }
@@ -4003,7 +4083,11 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
       const stepBtns = !isCompleted ? ORDER_STEPS.map((s, i) =>
         `<button class="btn btn--ghost btn--sm" onclick="adminSetStep('${o.id}', ${i})">${s}</button>`
       ).join('') : '';
-      const reviewBtn = isCompleted && !o.review ? `<button class="btn btn--ghost btn--sm" onclick="adminSetReview('${o.id}')">加评价</button>` : '';
+      const reviewBtn = isCompleted
+        ? (!o.review && !(o.rating > 0)
+            ? `<button class="btn btn--ghost btn--sm" onclick="adminSetReview('${o.id}')">加评价</button>`
+            : `<button class="btn btn--ghost btn--sm" onclick="adminSetReview('${o.id}')">✎ 改评价</button>`)
+        : '';
       adminHtml = `<div class="ws-order__admin">${stepBtns}${reviewBtn}<button class="btn btn--ghost btn--sm" onclick="openEditOrderModal('${o.id}')">✎ 编辑</button><button class="btn btn--ghost btn--sm" style="color:var(--accent);" onclick="adminDeleteOrder('${o.id}')">删除</button></div>`;
     }
 
@@ -4059,6 +4143,19 @@ async function adminSetReview(orderId) {
 
 // ── 工坊：评价 Modal ──
 let _editingReviewOrderId = null;
+let _editingReviewRating = 0;
+const _RATING_HINTS = ['未评分', '⭐ 一般', '⭐⭐ 还行', '⭐⭐⭐ 不错', '⭐⭐⭐⭐ 很棒', '⭐⭐⭐⭐⭐ 五星好评'];
+function setReviewRating(n) {
+  n = Math.max(0, Math.min(5, Math.floor(Number(n) || 0)));
+  _editingReviewRating = n;
+  const stars = document.querySelectorAll('#rv-stars .rv-star');
+  stars.forEach(btn => {
+    const v = Number(btn.getAttribute('data-star')) || 0;
+    btn.classList.toggle('is-on', v <= n && n > 0);
+  });
+  const hint = document.getElementById('rv-stars-hint');
+  if (hint) hint.textContent = _RATING_HINTS[n] || '未评分';
+}
 function openReviewModal(orderId) {
   if (window.__VIEWER_MODE__ || !isAdmin()) return;
   _editingReviewOrderId = orderId;
@@ -4066,7 +4163,9 @@ function openReviewModal(orderId) {
   const ta = document.getElementById('rv-content');
   const title = document.getElementById('reviewModalTitle');
   if (ta) ta.value = (order && order.review) || '';
-  if (title) title.textContent = (order && order.review) ? '✎ 编辑客户评价' : '✎ 添加客户评价';
+  setReviewRating((order && order.rating) || 0);
+  const hasAny = !!(order && (order.review || order.rating));
+  if (title) title.textContent = hasAny ? '✎ 编辑客户评价' : '✎ 添加客户评价';
   updateReviewCount();
   document.getElementById('reviewModal').classList.add('open');
   setTimeout(() => { if (ta) ta.focus(); }, 100);
@@ -4080,11 +4179,14 @@ async function saveReviewModal() {
   const orderId = _editingReviewOrderId;
   if (!orderId) { closeModal('reviewModal'); return; }
   const review = document.getElementById('rv-content').value.trim();
+  const rating = _editingReviewRating | 0;
   try {
-    await Store.updateOrder(orderId, { review });
-    toast(review ? '评价已保存' : '评价已清空');
+    await Store.updateOrder(orderId, { review, rating });
+    const msg = (review || rating) ? '评价已保存' : '评价已清空';
+    toast(msg);
     closeModal('reviewModal');
     _editingReviewOrderId = null;
+    _editingReviewRating = 0;
     renderWorkshop();
   } catch (e) { toast(e.message); }
 }
