@@ -1743,6 +1743,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 
 /* ── 套餐管理 Modal ── */
 .tier-edit {
+  position: relative;
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--gray-200, #eaeaea);
   border-radius: 5px;
@@ -1756,6 +1757,31 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 .tier-edit .field { margin-bottom: 0.5rem; }
 .tier-edit .field:last-child { margin-bottom: 0; }
+.tier-edit__del {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--gray-400, #b5b5b5);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+}
+.tier-edit__del:hover {
+  color: var(--accent, #c23b22);
+  background: rgba(194, 59, 34, 0.08);
+}
+.tier-edit__num {
+  display: inline-block;
+  font-size: 0.78rem;
+  color: var(--gray-500, #888);
+  margin-bottom: 0.3rem;
+}
 @media (max-width: 520px) {
   .tier-edit__row { grid-template-columns: 1fr; }
 }
@@ -2039,11 +2065,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       </div>
       <div class="field">
         <label>价格 *</label>
-        <div class="ws-tiers" id="wsTiers">
-          <label class="ws-tier"><input type="radio" name="ws-tier" value="basic"><div class="ws-tier__name" id="ws-name-basic">基础</div><div class="ws-tier__price" id="ws-price-basic">¥299</div><div class="ws-tier__desc" id="ws-desc-basic">单段编曲 · 1 次修改</div></label>
-          <label class="ws-tier"><input type="radio" name="ws-tier" value="standard" checked><div class="ws-tier__name" id="ws-name-standard">进阶</div><div class="ws-tier__price" id="ws-price-standard">¥599</div><div class="ws-tier__desc" id="ws-desc-standard">完整编曲 · 3 次修改</div></label>
-          <label class="ws-tier"><input type="radio" name="ws-tier" value="full"><div class="ws-tier__name" id="ws-name-full">全包</div><div class="ws-tier__price" id="ws-price-full">¥999</div><div class="ws-tier__desc" id="ws-desc-full">编曲+混音 · 不限修改</div></label>
-        </div>
+        <div class="ws-tiers" id="wsTiers"><!-- 由 renderWorkshop() 动态渲染 --></div>
       </div>
       <div class="field">
         <label>需求描述</label>
@@ -2117,9 +2139,6 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         </select>
         <select class="ws-toolbar__select" id="wsCompletedTier" onchange="setWorkshopFilter('completed','tier',this.value)">
           <option value="">全部套餐</option>
-          <option value="basic">基础</option>
-          <option value="standard">进阶</option>
-          <option value="full">全包</option>
         </select>
         <select class="ws-toolbar__select" id="wsCompletedSort" onchange="setWorkshopFilter('completed','sort',this.value)">
           <option value="newest">最新优先</option>
@@ -2240,32 +2259,13 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 <!-- 编辑 About Modal -->
 <!-- 套餐管理 Modal（admin） -->
 <div class="modal" id="tierModal">
-  <div class="modal__panel" style="max-width:560px;">
+  <div class="modal__panel" style="max-width:600px;">
     <button class="modal__close" onclick="closeModal('tierModal')">×</button>
     <h3 class="modal__title">🎛 套餐管理</h3>
-    <p style="color:var(--gray-500); font-size:0.85rem; margin:0 0 1rem;">名字 / 价格 / 说明都可改；改后立即生效，已下订单不变。</p>
-    <div class="tier-edit">
-      <div class="tier-edit__row">
-        <div class="field"><label>套餐 1 · 名字</label><input id="tier-basic-label" type="text" placeholder="基础" maxlength="10"></div>
-        <div class="field"><label>价格 ¥</label><input id="tier-basic-price" type="number" min="0" max="99999" placeholder="299"></div>
-      </div>
-      <div class="field"><label>说明</label><input id="tier-basic-desc" type="text" placeholder="单段编曲 · 1 次修改" maxlength="60"></div>
-    </div>
-    <div class="tier-edit">
-      <div class="tier-edit__row">
-        <div class="field"><label>套餐 2 · 名字</label><input id="tier-standard-label" type="text" placeholder="进阶" maxlength="10"></div>
-        <div class="field"><label>价格 ¥</label><input id="tier-standard-price" type="number" min="0" max="99999" placeholder="599"></div>
-      </div>
-      <div class="field"><label>说明</label><input id="tier-standard-desc" type="text" placeholder="完整编曲 · 3 次修改" maxlength="60"></div>
-    </div>
-    <div class="tier-edit">
-      <div class="tier-edit__row">
-        <div class="field"><label>套餐 3 · 名字</label><input id="tier-full-label" type="text" placeholder="全包" maxlength="10"></div>
-        <div class="field"><label>价格 ¥</label><input id="tier-full-price" type="number" min="0" max="99999" placeholder="999"></div>
-      </div>
-      <div class="field"><label>说明</label><input id="tier-full-desc" type="text" placeholder="编曲+混音 · 不限修改" maxlength="60"></div>
-    </div>
-    <div class="modal__actions">
+    <p style="color:var(--gray-500); font-size:0.85rem; margin:0 0 0.8rem;">可随时增删套餐；名字 / 价格 / 说明都可改；已下订单不受影响。</p>
+    <div id="tierEditList"><!-- 由 openTierModal() 动态渲染 --></div>
+    <button class="btn btn--ghost btn--sm" onclick="addTierRow()" id="tierAddBtn" style="margin-top:0.4rem;">+ 添加套餐</button>
+    <div class="modal__actions" style="margin-top:1rem;">
       <button class="btn btn--ghost btn--sm" onclick="resetTierPrices()" style="margin-right:auto;">恢复默认</button>
       <button class="btn btn--ghost btn--sm" onclick="closeModal('tierModal')">取消</button>
       <button class="btn btn--sm" onclick="saveTierPrices()">保存</button>
@@ -2381,8 +2381,48 @@ const DEFAULT_ABOUT = {
   body2: '感谢你来到这里。愿你在此找到某种共鸣。',
   tierPrices: { basic: 299, standard: 599, full: 999 },
   tierDescs: { basic: '单段编曲 · 1 次修改', standard: '完整编曲 · 3 次修改', full: '编曲+混音 · 不限修改' },
-  tierLabels: { basic: '基础', standard: '进阶', full: '全包' }
+  tierLabels: { basic: '基础', standard: '进阶', full: '全包' },
+  tierKeys: ['basic', 'standard', 'full']
 };
+
+// ── 套餐工具：从 about 取动态 tier 列表（兼容老数据：没有 tierKeys 时从 tierPrices/Labels 推导）──
+const MAX_TIERS = 8;
+const TIER_KEY_RE = /^[a-zA-Z0-9_-]{1,20}$/;
+function getTierKeys() {
+  const a = Store.about || {};
+  let keys = Array.isArray(a.tierKeys) ? a.tierKeys.slice() : null;
+  if (!keys || !keys.length) {
+    // 老数据兜底：从 tierPrices / tierLabels / tierDescs 合并 key
+    const merged = new Set([
+      ...Object.keys(a.tierPrices || {}),
+      ...Object.keys(a.tierLabels || {}),
+      ...Object.keys(a.tierDescs || {}),
+    ]);
+    keys = merged.size ? Array.from(merged) : DEFAULT_ABOUT.tierKeys.slice();
+    // 保证默认顺序在前
+    const def = DEFAULT_ABOUT.tierKeys.filter(k => keys.includes(k));
+    const extra = keys.filter(k => !DEFAULT_ABOUT.tierKeys.includes(k));
+    keys = [...def, ...extra];
+  }
+  return keys.filter(k => typeof k === 'string' && TIER_KEY_RE.test(k)).slice(0, MAX_TIERS);
+}
+function getTierInfo(key) {
+  const a = Store.about || {};
+  const labels = a.tierLabels || {};
+  const prices = a.tierPrices || {};
+  const descs = a.tierDescs || {};
+  const def = DEFAULT_ABOUT.tierLabels[key];
+  return {
+    key,
+    label: labels[key] || def || key,
+    price: prices[key] != null ? prices[key] : (DEFAULT_ABOUT.tierPrices[key] != null ? DEFAULT_ABOUT.tierPrices[key] : 0),
+    desc: descs[key] || DEFAULT_ABOUT.tierDescs[key] || '',
+  };
+}
+function genTierKey() {
+  // 短随机 key，例如 t_a3f9
+  return 't_' + Math.random().toString(36).slice(2, 6);
+}
 
 // ── 数据层 ──
 const Store = {
@@ -3000,6 +3040,7 @@ const CHANGELOG = [
       '💬 客户评价改 Modal 输入（替代 prompt），200 字 + 实时计数',
       '🔍 订单列表筛选 / 排序：进行中 + 排队按时间 / 价格 / 进度排，已完结另加风格 + 套餐 + 交付时长',
       '📷 下单表单「套餐」改「价格」，需求描述支持上传最多 3 张参考图（自动压缩）',
+      '🎛 套餐管理升级：可随时新增 / 删除 / 重命名套餐（最多 8 个，至少 1 个），下单页与完结筛选自动同步',
     ],
   },
   {
@@ -3057,10 +3098,9 @@ async function submitOrder() {
   if (!contact) { toast('请填写联系方式'); return; }
 
   // 取当前套餐价格 / 名字（可能被管理员改过）
-  const tierPrices = (Store.about && Store.about.tierPrices) || DEFAULT_ABOUT.tierPrices;
-  const tierLabels = (Store.about && Store.about.tierLabels) || DEFAULT_ABOUT.tierLabels;
-  const price = tierPrices[tier] || 0;
-  const tierLabel = tierLabels[tier] || DEFAULT_ABOUT.tierLabels[tier] || tier;
+  const info = getTierInfo(tier);
+  const price = info.price;
+  const tierLabel = info.label;
   const images = _pendingOrderImages.slice();
 
   const btn = document.querySelector('.ws-submit');
@@ -3079,6 +3119,9 @@ async function submitOrder() {
     document.getElementById('ws-show-name').checked = true;
     if (document.querySelector('input[name="ws-tier"][value="standard"]')) {
       document.querySelector('input[name="ws-tier"][value="standard"]').checked = true;
+    } else {
+      const firstTier = document.querySelector('input[name="ws-tier"]');
+      if (firstTier) firstTier.checked = true;
     }
     _pendingOrderImages = [];
     renderPendingOrderImages();
@@ -3224,18 +3267,23 @@ function sortOrders(orders, sort) {
 }
 
 function renderWorkshop() {
-  // 同步套餐卡名字 / 价格 / 说明（可能被管理员改过）
-  const tierPrices = (Store.about && Store.about.tierPrices) || DEFAULT_ABOUT.tierPrices;
-  const tierDescs = (Store.about && Store.about.tierDescs) || DEFAULT_ABOUT.tierDescs;
-  const tierLabels = (Store.about && Store.about.tierLabels) || DEFAULT_ABOUT.tierLabels;
-  ['basic', 'standard', 'full'].forEach(k => {
-    const ne = document.getElementById('ws-name-' + k);
-    const pe = document.getElementById('ws-price-' + k);
-    const de = document.getElementById('ws-desc-' + k);
-    if (ne) ne.textContent = tierLabels[k] || DEFAULT_ABOUT.tierLabels[k];
-    if (pe) pe.textContent = '¥' + (tierPrices[k] != null ? tierPrices[k] : DEFAULT_ABOUT.tierPrices[k]);
-    if (de) de.textContent = tierDescs[k] || DEFAULT_ABOUT.tierDescs[k];
-  });
+  // 动态渲染套餐卡（数量 / 名字 / 价格 / 说明 都可被 admin 改）
+  const wsTiers = document.getElementById('wsTiers');
+  if (wsTiers) {
+    const keys = getTierKeys();
+    // 记住当前选中（如果有）以便重渲染后恢复
+    const curEl = wsTiers.querySelector('input[name="ws-tier"]:checked');
+    let curVal = curEl ? curEl.value : '';
+    if (!keys.includes(curVal)) curVal = keys[Math.min(1, keys.length - 1)] || keys[0] || '';
+    wsTiers.innerHTML = keys.map(k => {
+      const info = getTierInfo(k);
+      const checked = k === curVal ? ' checked' : '';
+      return `<label class="ws-tier"><input type="radio" name="ws-tier" value="${escapeHTML(k)}"${checked}>` +
+        `<div class="ws-tier__name">${escapeHTML(info.label)}</div>` +
+        `<div class="ws-tier__price">¥${info.price}</div>` +
+        `<div class="ws-tier__desc">${escapeHTML(info.desc)}</div></label>`;
+    }).join('') || '<p style="color:var(--gray-500); font-size:0.85rem;">暂无套餐</p>';
+  }
 
   const orders = Store.orders || [];
   let inProgress = orders.filter(o => o.step >= 1 && o.step < 4);
@@ -3254,11 +3302,26 @@ function renderWorkshop() {
     typeSelect.value = workshopFilters.completed.type;
   }
   // 同步其它 select 当前值
+  // 完结订单的「套餐」筛选 select 动态填充（当前 tier + 完结订单出现过的 tier 合并去重）
+  const tierSelect = document.getElementById('wsCompletedTier');
+  if (tierSelect) {
+    const tierMap = new Map(); // key → label
+    getTierKeys().forEach(k => tierMap.set(k, getTierInfo(k).label));
+    completed.forEach(o => {
+      if (o.tier && !tierMap.has(o.tier)) tierMap.set(o.tier, o.tierLabel || o.tier);
+    });
+    const cur = workshopFilters.completed.tier;
+    tierSelect.innerHTML = '<option value="">全部套餐</option>' +
+      Array.from(tierMap.entries()).map(([k, lab]) =>
+        `<option value="${escapeHTML(k)}"${k === cur ? ' selected' : ''}>${escapeHTML(lab)}</option>`).join('');
+    if (cur && !tierMap.has(cur)) workshopFilters.completed.tier = '';
+    tierSelect.value = workshopFilters.completed.tier;
+  }
+  // 同步其它 select 当前值
   const syncSelect = (id, val) => { const el = document.getElementById(id); if (el && el.value !== val) el.value = val; };
   syncSelect('wsInProgressSort', workshopFilters.inProgress.sort);
   syncSelect('wsQueueSort', workshopFilters.queue.sort);
   syncSelect('wsCompletedSort', workshopFilters.completed.sort);
-  syncSelect('wsCompletedTier', workshopFilters.completed.tier);
 
   // Status banner（基于"原始"未筛数据）
   const statusEl = document.getElementById('wsStatus');
@@ -3433,56 +3496,117 @@ async function saveReviewModal() {
   } catch (e) { toast(e.message); }
 }
 
-// ── 工坊：套餐管理 Modal ──
+// ── 工坊：套餐管理 Modal（动态列表，支持增删） ──
+let _tierEditState = []; // [{key, label, price, desc}]
+
+function renderTierEditList() {
+  const wrap = document.getElementById('tierEditList');
+  if (!wrap) return;
+  wrap.innerHTML = _tierEditState.map((row, idx) => {
+    const canDel = _tierEditState.length > 1 ? '' : ' disabled title="至少保留一个套餐"';
+    return `<div class="tier-edit" data-tier-idx="${idx}">
+      <button type="button" class="tier-edit__del" onclick="removeTierRow(${idx})"${canDel} aria-label="删除套餐">×</button>
+      <span class="tier-edit__num">套餐 ${idx + 1}</span>
+      <div class="tier-edit__row">
+        <div class="field"><label>名字</label><input data-tier-field="label" type="text" placeholder="如：基础 / 进阶 / 全包" maxlength="10" value="${escapeHTML(row.label || '')}"></div>
+        <div class="field"><label>价格 ¥</label><input data-tier-field="price" type="number" min="0" max="99999" placeholder="0" value="${row.price != null ? row.price : ''}"></div>
+      </div>
+      <div class="field"><label>说明</label><input data-tier-field="desc" type="text" placeholder="一句话说明这档包含什么" maxlength="60" value="${escapeHTML(row.desc || '')}"></div>
+    </div>`;
+  }).join('');
+  // 监听 input 同步到 state
+  wrap.querySelectorAll('.tier-edit').forEach(el => {
+    const idx = parseInt(el.getAttribute('data-tier-idx'), 10);
+    el.querySelectorAll('input[data-tier-field]').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const field = inp.getAttribute('data-tier-field');
+        if (!_tierEditState[idx]) return;
+        if (field === 'price') {
+          const n = Math.floor(Number(inp.value));
+          _tierEditState[idx].price = isNaN(n) ? 0 : n;
+        } else {
+          _tierEditState[idx][field] = inp.value;
+        }
+      });
+    });
+  });
+  // 添加按钮限额
+  const addBtn = document.getElementById('tierAddBtn');
+  if (addBtn) {
+    if (_tierEditState.length >= MAX_TIERS) {
+      addBtn.setAttribute('disabled', '');
+      addBtn.textContent = `已达上限（${MAX_TIERS} 个）`;
+    } else {
+      addBtn.removeAttribute('disabled');
+      addBtn.textContent = '+ 添加套餐';
+    }
+  }
+}
+
+function addTierRow() {
+  if (_tierEditState.length >= MAX_TIERS) { toast(`最多 ${MAX_TIERS} 个套餐`); return; }
+  _tierEditState.push({ key: genTierKey(), label: '', price: 0, desc: '' });
+  renderTierEditList();
+}
+
+function removeTierRow(idx) {
+  if (_tierEditState.length <= 1) { toast('至少保留一个套餐'); return; }
+  _tierEditState.splice(idx, 1);
+  renderTierEditList();
+}
+
 function openTierModal() {
   if (window.__VIEWER_MODE__ || !isAdmin()) return;
-  const tp = (Store.about && Store.about.tierPrices) || DEFAULT_ABOUT.tierPrices;
-  const td = (Store.about && Store.about.tierDescs) || DEFAULT_ABOUT.tierDescs;
-  const tl = (Store.about && Store.about.tierLabels) || DEFAULT_ABOUT.tierLabels;
-  ['basic', 'standard', 'full'].forEach(k => {
-    const le = document.getElementById('tier-' + k + '-label');
-    const pe = document.getElementById('tier-' + k + '-price');
-    const de = document.getElementById('tier-' + k + '-desc');
-    if (le) le.value = tl[k] || DEFAULT_ABOUT.tierLabels[k];
-    if (pe) pe.value = tp[k] != null ? tp[k] : DEFAULT_ABOUT.tierPrices[k];
-    if (de) de.value = td[k] || DEFAULT_ABOUT.tierDescs[k];
+  const keys = getTierKeys();
+  _tierEditState = keys.map(k => {
+    const info = getTierInfo(k);
+    return { key: k, label: info.label, price: info.price, desc: info.desc };
   });
+  if (!_tierEditState.length) {
+    _tierEditState = DEFAULT_ABOUT.tierKeys.map(k => ({
+      key: k, label: DEFAULT_ABOUT.tierLabels[k], price: DEFAULT_ABOUT.tierPrices[k], desc: DEFAULT_ABOUT.tierDescs[k],
+    }));
+  }
+  renderTierEditList();
   document.getElementById('tierModal').classList.add('open');
 }
+
 function resetTierPrices() {
-  ['basic', 'standard', 'full'].forEach(k => {
-    const le = document.getElementById('tier-' + k + '-label');
-    const pe = document.getElementById('tier-' + k + '-price');
-    const de = document.getElementById('tier-' + k + '-desc');
-    if (le) le.value = DEFAULT_ABOUT.tierLabels[k];
-    if (pe) pe.value = DEFAULT_ABOUT.tierPrices[k];
-    if (de) de.value = DEFAULT_ABOUT.tierDescs[k];
-  });
+  _tierEditState = DEFAULT_ABOUT.tierKeys.map(k => ({
+    key: k, label: DEFAULT_ABOUT.tierLabels[k], price: DEFAULT_ABOUT.tierPrices[k], desc: DEFAULT_ABOUT.tierDescs[k],
+  }));
+  renderTierEditList();
 }
+
 function saveTierPrices() {
-  const readPrice = k => {
-    const raw = document.getElementById('tier-' + k + '-price').value;
-    const n = Math.floor(Number(raw));
-    if (isNaN(n) || n < 0 || n > 99999) return null;
-    return n;
-  };
-  const readDesc = k => (document.getElementById('tier-' + k + '-desc').value || '').trim().slice(0, 60);
-  const readLabel = k => (document.getElementById('tier-' + k + '-label').value || '').trim().slice(0, 10);
-  const newPrices = { basic: readPrice('basic'), standard: readPrice('standard'), full: readPrice('full') };
-  if (newPrices.basic == null || newPrices.standard == null || newPrices.full == null) {
-    toast('价格必须是 0–99999 的数字');
-    return;
+  // 校验 & 收尾
+  if (!_tierEditState.length) { toast('至少保留一个套餐'); return; }
+  const newKeys = [];
+  const newPrices = {};
+  const newLabels = {};
+  const newDescs = {};
+  const seen = new Set();
+  for (let i = 0; i < _tierEditState.length; i++) {
+    const row = _tierEditState[i];
+    let key = row.key;
+    if (!key || !TIER_KEY_RE.test(key) || seen.has(key)) key = genTierKey();
+    while (seen.has(key)) key = genTierKey();
+    seen.add(key);
+    newKeys.push(key);
+    const p = Math.floor(Number(row.price));
+    if (isNaN(p) || p < 0 || p > 99999) { toast(`套餐 ${i + 1} 的价格必须是 0–99999`); return; }
+    newPrices[key] = p;
+    const label = (row.label || '').trim().slice(0, 10) || `套餐${i + 1}`;
+    newLabels[key] = label;
+    const desc = (row.desc || '').trim().slice(0, 60);
+    newDescs[key] = desc;
   }
-  const newLabels = {
-    basic: readLabel('basic') || DEFAULT_ABOUT.tierLabels.basic,
-    standard: readLabel('standard') || DEFAULT_ABOUT.tierLabels.standard,
-    full: readLabel('full') || DEFAULT_ABOUT.tierLabels.full,
-  };
   Store.about = {
     ...DEFAULT_ABOUT,
     ...(Store.about || {}),
+    tierKeys: newKeys,
     tierPrices: newPrices,
-    tierDescs: { basic: readDesc('basic') || DEFAULT_ABOUT.tierDescs.basic, standard: readDesc('standard') || DEFAULT_ABOUT.tierDescs.standard, full: readDesc('full') || DEFAULT_ABOUT.tierDescs.full },
+    tierDescs: newDescs,
     tierLabels: newLabels,
   };
   Store.saveAbout();
