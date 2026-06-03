@@ -1543,6 +1543,20 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   line-height: 1.55;
   letter-spacing: 0.04em;
 }
+.ws-sidebar__label--nav {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--gray-200);
+}
+.ws-mode-btn--nav {
+  background: var(--white);
+  border-style: dashed;
+}
+.ws-mode-btn--nav:hover {
+  border-style: solid;
+  border-color: var(--gold);
+  color: var(--gold);
+}
 .ws-mode-banner {
   background: linear-gradient(135deg, rgba(194, 59, 34, 0.1), rgba(184, 132, 74, 0.06));
   border: 1px solid rgba(194, 59, 34, 0.3);
@@ -2260,7 +2274,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <div class="ws-status" id="wsStatus"></div>
 
   <div class="ws-layout">
-    <!-- 左侧：用途菜单（非商 / 商用） -->
+    <!-- 左侧：用途菜单（非商 / 商用） + 板块快速跳转 -->
     <aside class="ws-sidebar">
       <div class="ws-sidebar__label">用途</div>
       <button class="ws-mode-btn ws-mode-btn--active" data-ws-mode="noncomm" onclick="setWsMode('noncomm')">
@@ -2272,6 +2286,16 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         <span class="ws-mode-btn__hint">企业 / 商演 · 价 ×3</span>
       </button>
       <p class="ws-sidebar__tip">商用版价格自动 ×3，订单会标注「[商用]」前缀</p>
+
+      <div class="ws-sidebar__label ws-sidebar__label--nav">板块</div>
+      <button class="ws-mode-btn ws-mode-btn--nav" onclick="scrollToWsSection('wsQueueSection', '排队')">
+        <span class="ws-mode-btn__title">排队</span>
+        <span class="ws-mode-btn__hint">等待我接单的请求</span>
+      </button>
+      <button class="ws-mode-btn ws-mode-btn--nav" onclick="scrollToWsSection('wsInProgressSection', '订单信息')">
+        <span class="ws-mode-btn__title">订单信息</span>
+        <span class="ws-mode-btn__hint">进行中 / 已完结</span>
+      </button>
     </aside>
 
     <div class="ws-main">
@@ -3386,6 +3410,7 @@ const CHANGELOG = [
       '✂️ 下单表单移除「风格类型」选择，直接由套餐 + 描述代替；老订单的风格标签照常显示',
       '🏢 工坊新增左侧「非商 / 商用」用途菜单，商用模式所有价格自动 ×3，订单自动标注「[商用]」前缀',
       '📝 「非商」按钮副标改为「仅限以个人名义平台发布」，更准确地说明授权范围',
+      '🧭 左侧菜单新增「板块」分区，快速跳转「排队」/「订单信息」',
     ],
   },
   {
@@ -3461,6 +3486,16 @@ function syncWsModeUI() {
   });
   const banner = document.getElementById('wsModeBanner');
   if (banner) banner.style.display = _wsMode === 'commercial' ? '' : 'none';
+}
+
+// 左侧板块跳转：滚动到指定 section；section 因无数据而 display:none 时给提示
+function scrollToWsSection(id, label) {
+  const el = document.getElementById(id);
+  if (!el || el.offsetParent === null) {
+    toast(`暂无${label || '相关'}内容`);
+    return;
+  }
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── 工坊：套餐合计 + 多选支持 ──
