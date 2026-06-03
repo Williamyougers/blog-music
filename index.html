@@ -3427,6 +3427,7 @@ const CHANGELOG = [
       '🧭 左侧菜单新增「板块」分区，快速跳转「排队」/「订单信息」',
       '📑 「排队」与「订单信息」合并为一个「排单」按钮，与实时状态横幅一起独立成「排单」视图（接单 / 排单 双视图切换）',
       '🔒 订单卡片新增「联系方式」徽章：访客只看到脱敏后的几位（中间 ****），管理员登录后看到完整联系方式（后端按身份返回，F12 也扒不到）',
+      '🔀 排单视图按「非商 / 商用」分隔：切到非商只显示非商订单，切到商用只显示带 [商用] 前缀的订单，状态横幅 / 进行中 / 排队 / 已完结 全部按当前用途独立计数',
     ],
   },
   {
@@ -3789,9 +3790,15 @@ function renderWorkshop() {
   }
 
   const orders = Store.orders || [];
-  let inProgress = orders.filter(o => o.step >= 1 && o.step < 4);
-  let queue = orders.filter(o => o.step === 0);
-  let completed = orders.filter(o => o.step === 4);
+  // 按当前用途模式分隔：商用订单 description 以「[商用]」开头，非商订单则不带
+  // 商用模式只显示商用单；非商模式只显示非商单
+  const isCommercialOrder = (o) => /^\s*\[商用\]/.test((o && o.description) || '');
+  const modeFiltered = (_wsMode === 'commercial')
+    ? orders.filter(isCommercialOrder)
+    : orders.filter(o => !isCommercialOrder(o));
+  let inProgress = modeFiltered.filter(o => o.step >= 1 && o.step < 4);
+  let queue = modeFiltered.filter(o => o.step === 0);
+  let completed = modeFiltered.filter(o => o.step === 4);
 
   // 完结订单的「套餐」筛选 select 动态填充（当前 tier + 完结订单出现过的 tier 合并去重，多选订单展开 tiers 数组）
   const tierSelect = document.getElementById('wsCompletedTier');
