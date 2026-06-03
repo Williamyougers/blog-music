@@ -1116,6 +1116,87 @@ body { animation: pageFadeIn 0.6s ease both; }
   box-shadow: 0 0 0 4px var(--gold), 0 6px 28px rgba(0, 0, 0, 0.6);
 }
 
+/* ── Banner 动起来 ── */
+.masthead::before {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(184, 136, 74, 0.22), transparent 45%),
+    radial-gradient(circle at 70% 60%, rgba(194, 59, 34, 0.16), transparent 50%);
+  filter: blur(30px);
+  z-index: 0;
+  pointer-events: none;
+  animation: heroGlow 18s ease-in-out infinite alternate;
+}
+@keyframes heroGlow {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.8; }
+  50%  { transform: translate(4%, -3%) scale(1.1); opacity: 1; }
+  100% { transform: translate(-3%, 4%) scale(1.05); opacity: 0.85; }
+}
+.masthead__wave {
+  z-index: 0;
+  animation: heroWave 6s ease-in-out infinite;
+}
+@keyframes heroWave {
+  0%, 100% { transform: translateY(0); opacity: 0.06; }
+  50%      { transform: translateY(-4px); opacity: 0.1; }
+}
+.masthead__title {
+  background: linear-gradient(100deg,
+    var(--white) 0%, var(--white) 40%,
+    var(--gold) 50%,
+    var(--white) 60%, var(--white) 100%);
+  background-size: 280% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: titleShimmer 7s ease-in-out infinite;
+}
+.masthead__title em {
+  background: none;
+  -webkit-text-fill-color: var(--accent-light);
+  color: var(--accent-light);
+}
+@keyframes titleShimmer {
+  0%, 100% { background-position: 130% 0; }
+  50%      { background-position: -30% 0; }
+}
+.masthead__tagline {
+  animation: taglineBreath 5s ease-in-out infinite;
+}
+@keyframes taglineBreath {
+  0%, 100% { opacity: 0.75; letter-spacing: 0.3em; }
+  50%      { opacity: 1;    letter-spacing: 0.36em; }
+}
+.masthead__ornament {
+  animation: ornamentBreath 4s ease-in-out infinite;
+}
+@keyframes ornamentBreath {
+  0%, 100% { opacity: 0.45; letter-spacing: 0.5em; }
+  50%      { opacity: 0.85; letter-spacing: 0.7em; }
+}
+.masthead__edge {
+  background-size: 24px 100%;
+  animation: edgeFlow 5s linear infinite;
+}
+@keyframes edgeFlow {
+  from { background-position: 0 0; }
+  to   { background-position: 24px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .masthead::before,
+  .masthead__wave,
+  .masthead__title,
+  .masthead__tagline,
+  .masthead__ornament,
+  .masthead__edge {
+    animation: none;
+  }
+}
+
 /* ── Nav active 指示线平滑过渡 ── */
 .nav button {
   transition: color 0.25s ease;
