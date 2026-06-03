@@ -1548,15 +1548,12 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   padding-top: 1rem;
   border-top: 1px solid var(--gray-200);
 }
-.ws-mode-btn--nav {
-  background: var(--white);
-  border-style: dashed;
+.ws-view-btn .ws-mode-btn__hint {
+  line-height: 1.5;
 }
-.ws-mode-btn--nav:hover {
-  border-style: solid;
-  border-color: var(--gold);
-  color: var(--gold);
-}
+/* 视图切换：commission（接单） / orders（排单） */
+.ws-view--commission .ws-view-only--orders { display: none !important; }
+.ws-view--orders .ws-view-only--commission { display: none !important; }
 .ws-mode-banner {
   background: linear-gradient(135deg, rgba(194, 59, 34, 0.1), rgba(184, 132, 74, 0.06));
   border: 1px solid rgba(194, 59, 34, 0.3);
@@ -2261,7 +2258,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 </main>
 
 <!-- 工坊页 -->
-<main class="page" id="page-workshop">
+<main class="page ws-view--commission" id="page-workshop">
   <div class="page-header">
     <div class="page-header__left">
       <div class="page-header__label">Workshop</div>
@@ -2270,8 +2267,8 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     </div>
   </div>
 
-  <!-- 实时状态横幅 -->
-  <div class="ws-status" id="wsStatus"></div>
+  <!-- 实时状态横幅（属于"排单"视图） -->
+  <div class="ws-status ws-view-only--orders" id="wsStatus"></div>
 
   <div class="ws-layout">
     <!-- 左侧：用途菜单（非商 / 商用） + 板块快速跳转 -->
@@ -2288,13 +2285,9 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <p class="ws-sidebar__tip">商用版价格自动 ×3，订单会标注「[商用]」前缀</p>
 
       <div class="ws-sidebar__label ws-sidebar__label--nav">板块</div>
-      <button class="ws-mode-btn ws-mode-btn--nav" onclick="scrollToWsSection('wsQueueSection', '排队')">
-        <span class="ws-mode-btn__title">排队</span>
-        <span class="ws-mode-btn__hint">等待我接单的请求</span>
-      </button>
-      <button class="ws-mode-btn ws-mode-btn--nav" onclick="scrollToWsSection('wsInProgressSection', '订单信息')">
-        <span class="ws-mode-btn__title">订单信息</span>
-        <span class="ws-mode-btn__hint">进行中 / 已完结</span>
+      <button class="ws-mode-btn ws-view-btn" data-ws-view="orders" onclick="toggleWsView('orders')">
+        <span class="ws-mode-btn__title">排单</span>
+        <span class="ws-mode-btn__hint">实时状态 / 进行中 / 排队 / 已完结</span>
       </button>
     </aside>
 
@@ -2305,7 +2298,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       </div>
 
       <!-- 下单表单 -->
-      <section class="ws-section">
+      <section class="ws-section ws-view-only--commission">
     <div class="ws-section__head">
       <h3 class="ws-section__title">下单 · Commission</h3>
       <div class="ws-toolbar js-write-action">
@@ -2348,7 +2341,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </section>
 
   <!-- 长期合作（包月/包季/包年/囤单） -->
-  <section class="ws-section" id="wsPlansSection">
+  <section class="ws-section ws-view-only--commission" id="wsPlansSection">
     <div class="ws-section__head">
       <h3 class="ws-section__title">长期合作 · Subscribe &amp; Bulk</h3>
       <div class="ws-toolbar js-write-action">
@@ -2360,7 +2353,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </section>
 
   <!-- 进行中 -->
-  <section class="ws-section" id="wsInProgressSection" style="display:none;">
+  <section class="ws-section ws-view-only--orders" id="wsInProgressSection" style="display:none;">
     <div class="ws-section__head">
       <h3 class="ws-section__title">进行中 · In Progress <span class="ws-count" id="wsInProgressCount">0</span></h3>
       <div class="ws-toolbar">
@@ -2377,7 +2370,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </section>
 
   <!-- 排队 -->
-  <section class="ws-section" id="wsQueueSection" style="display:none;">
+  <section class="ws-section ws-view-only--orders" id="wsQueueSection" style="display:none;">
     <div class="ws-section__head">
       <h3 class="ws-section__title">排队 · Queue <span class="ws-count" id="wsQueueCount">0</span></h3>
       <div class="ws-toolbar">
@@ -2393,7 +2386,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </section>
 
   <!-- 已完结 -->
-  <section class="ws-section" id="wsCompletedSection" style="display:none;">
+  <section class="ws-section ws-view-only--orders" id="wsCompletedSection" style="display:none;">
     <div class="ws-section__head">
       <h3 class="ws-section__title">已完结 · Completed <span class="ws-count" id="wsCompletedCount">0</span></h3>
       <div class="ws-toolbar">
@@ -3411,6 +3404,7 @@ const CHANGELOG = [
       '🏢 工坊新增左侧「非商 / 商用」用途菜单，商用模式所有价格自动 ×3，订单自动标注「[商用]」前缀',
       '📝 「非商」按钮副标改为「仅限以个人名义平台发布」，更准确地说明授权范围',
       '🧭 左侧菜单新增「板块」分区，快速跳转「排队」/「订单信息」',
+      '📑 「排队」与「订单信息」合并为一个「排单」按钮，与实时状态横幅一起独立成「排单」视图（接单 / 排单 双视图切换）',
     ],
   },
   {
@@ -3488,14 +3482,41 @@ function syncWsModeUI() {
   if (banner) banner.style.display = _wsMode === 'commercial' ? '' : 'none';
 }
 
-// 左侧板块跳转：滚动到指定 section；section 因无数据而 display:none 时给提示
-function scrollToWsSection(id, label) {
-  const el = document.getElementById(id);
-  if (!el || el.offsetParent === null) {
-    toast(`暂无${label || '相关'}内容`);
-    return;
+// 左侧视图切换：commission（接单：下单+长期合作） / orders（排单：状态+进行中+排队+已完结）
+const WS_VIEW_KEY = 'wsView_v1';
+let _wsView = 'commission';
+
+function initWsView() {
+  try {
+    const saved = localStorage.getItem(WS_VIEW_KEY);
+    if (saved === 'commission' || saved === 'orders') _wsView = saved;
+  } catch (e) {}
+  syncWsViewUI();
+}
+
+function setWsView(view) {
+  if (view !== 'commission' && view !== 'orders') return;
+  _wsView = view;
+  try { localStorage.setItem(WS_VIEW_KEY, view); } catch (e) {}
+  syncWsViewUI();
+  // 切到排单视图时，滚到顶部，让用户能从 wsStatus 开始看
+  if (view === 'orders') window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// 单按钮 toggle：当前已是该 view 则切回 commission
+function toggleWsView(view) {
+  setWsView(_wsView === view ? 'commission' : view);
+}
+
+function syncWsViewUI() {
+  const main = document.getElementById('page-workshop');
+  if (main) {
+    main.classList.toggle('ws-view--commission', _wsView === 'commission');
+    main.classList.toggle('ws-view--orders', _wsView === 'orders');
   }
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelectorAll('.ws-view-btn[data-ws-view]').forEach(btn => {
+    btn.classList.toggle('ws-mode-btn--active', btn.dataset.wsView === _wsView);
+  });
 }
 
 // ── 工坊：套餐合计 + 多选支持 ──
@@ -5059,6 +5080,7 @@ async function adminLogin() {
   renderAll();
   renderAdminBtn();
   initWsMode();
+  initWsView();
   // 启动后激活美化层
   setupUiEnhancements();
 })();
