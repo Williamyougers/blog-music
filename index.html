@@ -1465,6 +1465,278 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   .changelog__title { font-size: 0.98rem; }
 }
 
+/* ── 工坊页 ── */
+.ws-status {
+  background: linear-gradient(135deg, rgba(184,132,74,0.08), rgba(194,59,34,0.06));
+  border: 1px solid rgba(184,132,74,0.2);
+  border-radius: 4px;
+  padding: 1rem 1.4rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+.ws-section { margin-bottom: 2.5rem; }
+.ws-section__title {
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 1.2rem;
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.ws-count {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--gold);
+  color: var(--bg);
+  border-radius: 2px;
+  padding: 0.1rem 0.4rem;
+  letter-spacing: 0.1em;
+}
+.ws-form {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  padding: 1.8rem 2rem;
+}
+.ws-tiers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem;
+}
+.ws-tier {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid var(--gray-200);
+  border-radius: 4px;
+  padding: 1rem 0.8rem;
+  text-align: center;
+  transition: border-color 0.25s, background 0.25s, transform 0.2s;
+  background: var(--bg);
+}
+.ws-tier:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+}
+.ws-tier input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0; height: 0;
+}
+.ws-tier input[type="radio"]:checked + .ws-tier__name {
+  color: var(--accent);
+}
+.ws-tier:has(input:checked) {
+  border-color: var(--accent);
+  background: rgba(194,59,34,0.04);
+}
+.ws-tier__name {
+  font-family: var(--serif);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.3rem;
+  transition: color 0.25s;
+}
+.ws-tier__price {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--gold);
+  margin: 0.3rem 0;
+}
+.ws-tier__desc {
+  font-size: 0.72rem;
+  color: var(--gray-600);
+  line-height: 1.4;
+}
+.ws-checkbox {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--gray-600);
+  cursor: pointer;
+  margin: 0.8rem 0 1.2rem;
+}
+.ws-checkbox input { accent-color: var(--accent); }
+.ws-submit {
+  width: 100%;
+  padding: 0.9rem;
+  font-size: 1rem;
+}
+.ws-tip {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  text-align: center;
+  margin: 0.8rem 0 0;
+}
+
+/* ── 订单卡片 ── */
+.ws-orders { display: flex; flex-direction: column; gap: 0.8rem; }
+.ws-order {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  padding: 1.2rem 1.5rem;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.ws-order:hover {
+  border-color: var(--gold);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+}
+.ws-order__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+.ws-order__seq {
+  font-family: var(--sans);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+.ws-order__client {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--gray-500);
+  margin-left: 0.5rem;
+}
+.ws-order__type {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 2px;
+  background: rgba(184,132,74,0.1);
+  color: var(--gold);
+}
+.ws-order__tier {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 2px;
+  background: rgba(194,59,34,0.08);
+  color: var(--accent-light);
+  margin-left: 0.4rem;
+}
+.ws-order__desc {
+  font-size: 0.85rem;
+  color: var(--gray-700, #555);
+  line-height: 1.6;
+  margin: 0.4rem 0 0.8rem;
+}
+
+/* ── 进度条 ── */
+.ws-progress {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0.6rem 0 0.5rem;
+}
+.ws-progress__step {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+.ws-progress__dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--gray-300);
+  background: var(--white);
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+.ws-progress__dot--done {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.ws-progress__dot--current {
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(184,132,74,0.2);
+}
+.ws-progress__line {
+  flex: 1;
+  height: 2px;
+  background: var(--gray-300);
+  margin: 0 2px;
+}
+.ws-progress__line--done {
+  background: var(--accent);
+}
+.ws-progress__labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: var(--gray-500);
+  margin-top: 0.3rem;
+  letter-spacing: 0.04em;
+}
+.ws-progress__labels span.ws-progress__label--active {
+  color: var(--gold);
+  font-weight: 600;
+}
+.ws-progress__labels span.ws-progress__label--done {
+  color: var(--accent);
+}
+
+/* ── 订单底栏 ── */
+.ws-order__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--gray-500);
+}
+.ws-order__date { letter-spacing: 0.04em; }
+.ws-order__price {
+  font-weight: 700;
+  color: var(--gold);
+  font-size: 0.9rem;
+}
+
+/* ── 完结状态 ── */
+.ws-order--completed {
+  border-left: 3px solid #4a9;
+}
+.ws-order__badge-done {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #4a9;
+  letter-spacing: 0.08em;
+}
+.ws-order__review {
+  font-size: 0.82rem;
+  color: var(--gray-600);
+  font-style: italic;
+  margin: 0.5rem 0 0;
+  padding-left: 0.8rem;
+  border-left: 2px solid rgba(184,132,74,0.3);
+}
+
+/* ── 管理员操作栏 ── */
+.ws-order__admin {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .ws-tiers { grid-template-columns: 1fr; }
+  .ws-form { padding: 1.2rem; }
+  .ws-order { padding: 1rem; }
+  .ws-progress__labels { font-size: 0.55rem; }
+}
+
 </style>
 </head>
 <body>
@@ -1501,6 +1773,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 <nav class="nav">
   <button data-page="works" class="active">作品</button>
   <button data-page="logs">日志</button>
+  <button data-page="workshop">工坊</button>
   <button data-page="about">关于</button>
   <button data-page="changelog">更新</button>
 </nav>
@@ -1595,6 +1868,89 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     </div>
   </div>
   <ol class="changelog" id="changelogList"></ol>
+</main>
+
+<!-- 工坊页 -->
+<main class="page" id="page-workshop">
+  <div class="page-header">
+    <div class="page-header__left">
+      <div class="page-header__label">Workshop</div>
+      <h2 class="page-header__title">工坊</h2>
+      <p class="page-header__desc">编曲约稿 · 透明的接单工作台</p>
+    </div>
+  </div>
+
+  <!-- 实时状态横幅 -->
+  <div class="ws-status" id="wsStatus"></div>
+
+  <!-- 下单表单 -->
+  <section class="ws-section">
+    <h3 class="ws-section__title">下单 · Commission</h3>
+    <div class="ws-form">
+      <div class="field">
+        <label>类型 *</label>
+        <select id="ws-type">
+          <option value="">请选择风格</option>
+          <option value="古风">古风</option>
+          <option value="Lo-fi">Lo-fi</option>
+          <option value="Folk">Folk 民谣</option>
+          <option value="新古典">新古典</option>
+          <option value="流行">流行</option>
+          <option value="电子">电子</option>
+          <option value="摇滚">摇滚</option>
+          <option value="R&B">R&B</option>
+          <option value="说唱">说唱</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>套餐 *</label>
+        <div class="ws-tiers" id="wsTiers">
+          <label class="ws-tier"><input type="radio" name="ws-tier" value="basic"><div class="ws-tier__name">基础</div><div class="ws-tier__price">¥299</div><div class="ws-tier__desc">单段编曲 · 1 次修改</div></label>
+          <label class="ws-tier"><input type="radio" name="ws-tier" value="standard" checked><div class="ws-tier__name">进阶</div><div class="ws-tier__price">¥599</div><div class="ws-tier__desc">完整编曲 · 3 次修改</div></label>
+          <label class="ws-tier"><input type="radio" name="ws-tier" value="full"><div class="ws-tier__name">全包</div><div class="ws-tier__price">¥999</div><div class="ws-tier__desc">编曲+混音 · 不限修改</div></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>需求描述</label>
+        <textarea id="ws-desc" rows="4" placeholder="风格参考、demo 链接、想要的氛围、交付时间……越具体我越能做好"></textarea>
+      </div>
+      <div class="field__row">
+        <div class="field">
+          <label>挂名（可选）</label>
+          <input id="ws-name" type="text" placeholder="如 L 先生 / 留空则匿名" maxlength="30">
+        </div>
+        <div class="field">
+          <label>联系方式 *</label>
+          <input id="ws-contact" type="text" placeholder="QQ / 微信 / 邮箱" maxlength="200">
+        </div>
+      </div>
+      <label class="ws-checkbox">
+        <input type="checkbox" id="ws-show-name" checked>
+        <span>完结后公开挂名展示（不勾则永久匿名）</span>
+      </label>
+      <button class="btn ws-submit" onclick="submitOrder()">提交订单 →</button>
+      <p class="ws-tip">提交后我会在 24h 内联系你确认细节并发付款码。</p>
+    </div>
+  </section>
+
+  <!-- 进行中 -->
+  <section class="ws-section" id="wsInProgressSection" style="display:none;">
+    <h3 class="ws-section__title">进行中 · In Progress <span class="ws-count" id="wsInProgressCount">0</span></h3>
+    <div class="ws-orders" id="wsInProgressList"></div>
+  </section>
+
+  <!-- 排队 -->
+  <section class="ws-section" id="wsQueueSection" style="display:none;">
+    <h3 class="ws-section__title">排队 · Queue <span class="ws-count" id="wsQueueCount">0</span></h3>
+    <div class="ws-orders" id="wsQueueList"></div>
+  </section>
+
+  <!-- 已完结 -->
+  <section class="ws-section" id="wsCompletedSection" style="display:none;">
+    <h3 class="ws-section__title">已完结 · Completed <span class="ws-count" id="wsCompletedCount">0</span></h3>
+    <div class="ws-orders" id="wsCompletedList"></div>
+  </section>
 </main>
 
 <!-- 二维码大图预览 -->
@@ -1791,6 +2147,7 @@ const Store = {
   logs: [],
   about: { ...DEFAULT_ABOUT },
   comments: {}, // { [logId]: [{id, visitorId, nickname, content, createdAt}] }
+  orders: [],   // [{id, seq, type, tier, tierLabel, price, description, clientName, showName, visitorId, contact, step, createdAt, acceptedAt, completedAt, review}]
   _syncTimer: null,
   _online: false,
   async load() {
@@ -1800,6 +2157,7 @@ const Store = {
       this.logs = window.__EMBEDDED_DATA__.logs || [];
       this.about = { ...DEFAULT_ABOUT, ...(window.__EMBEDDED_DATA__.about || {}) };
       this.comments = window.__EMBEDDED_DATA__.comments || {};
+      this.orders = window.__EMBEDDED_DATA__.orders || [];
       this.works.forEach(w => { if (!w.category) w.category = '古风'; });
       return;
     }
@@ -1814,6 +2172,7 @@ const Store = {
           this.logs = Array.isArray(data.logs) ? data.logs : [];
           this.about = { ...DEFAULT_ABOUT, ...(data.about || {}) };
           this.comments = (data.comments && typeof data.comments === 'object') ? data.comments : {};
+          this.orders = Array.isArray(data.orders) ? data.orders : [];
           this.works.forEach(w => { if (!w.category) w.category = '古风'; });
           this._online = true;
           // 本地兜底缓存
@@ -1822,6 +2181,7 @@ const Store = {
             localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(this.logs));
             localStorage.setItem('tn_about', JSON.stringify(this.about));
             localStorage.setItem('tn_comments', JSON.stringify(this.comments));
+            localStorage.setItem('tn_orders', JSON.stringify(this.orders));
           } catch (_) {}
           setSyncStatus('online');
           return;
@@ -1836,6 +2196,7 @@ const Store = {
     this.logs = JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]');
     try { this.about = { ...DEFAULT_ABOUT, ...(JSON.parse(localStorage.getItem('tn_about') || 'null') || {}) }; } catch (_) { this.about = { ...DEFAULT_ABOUT }; }
     try { this.comments = JSON.parse(localStorage.getItem('tn_comments') || '{}') || {}; } catch (_) { this.comments = {}; }
+    try { this.orders = JSON.parse(localStorage.getItem('tn_orders') || '[]') || []; } catch (_) { this.orders = []; }
     // 兼容老数据：没有 category 的全部归到「古风」
     let changed = false;
     this.works.forEach(w => { if (!w.category) { w.category = '古风'; changed = true; } });
@@ -1964,6 +2325,52 @@ const Store = {
       this.comments[logId] = this.comments[logId].filter(c => c.id !== commentId);
       try { localStorage.setItem('tn_comments', JSON.stringify(this.comments)); } catch (_) {}
     }
+    return true;
+  },
+  // ── Orders ──
+  async submitOrder(type, tier, description, clientName, showName, contact) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云，无法下单');
+    const res = await fetch(API_BASE + '/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, tier, description, clientName, showName, contact, visitorId: getVisitorId() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (data.order) this.orders.push(data.order);
+    try { localStorage.setItem('tn_orders', JSON.stringify(this.orders)); } catch (_) {}
+    return data.order;
+  },
+  async updateOrder(orderId, updates) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) throw new Error('需要管理员权限');
+    const res = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(orderId), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(updates),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (data.order) {
+      const idx = this.orders.findIndex(o => o.id === orderId);
+      if (idx >= 0) this.orders[idx] = data.order;
+      try { localStorage.setItem('tn_orders', JSON.stringify(this.orders)); } catch (_) {}
+    }
+    return data.order;
+  },
+  async deleteOrder(orderId) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) throw new Error('需要管理员权限');
+    const res = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(orderId), {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    this.orders = this.orders.filter(o => o.id !== orderId);
+    try { localStorage.setItem('tn_orders', JSON.stringify(this.orders)); } catch (_) {}
     return true;
   }
 };
@@ -2332,10 +2739,20 @@ function resetAbout() {
   document.getElementById('ab-body2').value = DEFAULT_ABOUT.body2;
 }
 
-function renderAll() { renderWorks(); renderLogs(); renderStats(); renderAbout(); renderChangelog(); }
+function renderAll() { renderWorks(); renderLogs(); renderStats(); renderAbout(); renderChangelog(); renderWorkshop(); }
 
 // ── 更新公告数据（最新在最前；日期升序在最后追加新条目） ──
 const CHANGELOG = [
+  {
+    date: '2026-06-03',
+    title: '工坊上线 · 编曲约稿透明接单',
+    items: [
+      '新增第 5 个 tab「工坊」，访客可直接下单',
+      '5 步状态进度条：接单中 / 沟通中 / 编曲中 / 待交付 / 完结',
+      '订单永久保留，支持自愿挂名展示，完结订单可附客户评价',
+      '管理员可后台推进状态、调整价格、删除订单',
+    ],
+  },
   {
     date: '2026-06-03',
     title: 'Banner 动起来 + 点击迸发音符',
@@ -2405,6 +2822,194 @@ function renderChangelog() {
         ${items}
       </li>`;
   }).join('');
+}
+
+// ── 工坊：提交订单 ──
+async function submitOrder() {
+  const type = document.getElementById('ws-type').value;
+  const tierEl = document.querySelector('input[name="ws-tier"]:checked');
+  const tier = tierEl ? tierEl.value : '';
+  const description = document.getElementById('ws-desc').value.trim();
+  const clientName = document.getElementById('ws-name').value.trim();
+  const showName = document.getElementById('ws-show-name').checked;
+  const contact = document.getElementById('ws-contact').value.trim();
+
+  if (!type) { toast('请选择风格类型'); return; }
+  if (!tier) { toast('请选择套餐'); return; }
+  if (!contact) { toast('请填写联系方式'); return; }
+
+  const btn = document.querySelector('.ws-submit');
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+
+  try {
+    await Store.submitOrder(type, tier, description, clientName, showName, contact);
+    toast('订单已提交 ✓ 我会尽快联系你');
+    // reset form
+    document.getElementById('ws-type').value = '';
+    document.getElementById('ws-desc').value = '';
+    document.getElementById('ws-name').value = '';
+    document.getElementById('ws-contact').value = '';
+    document.getElementById('ws-show-name').checked = true;
+    if (document.querySelector('input[name="ws-tier"][value="standard"]')) {
+      document.querySelector('input[name="ws-tier"][value="standard"]').checked = true;
+    }
+    renderWorkshop();
+  } catch (e) {
+    toast(e.message || '提交失败');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+// ── 工坊：渲染 ──
+const ORDER_STEPS = ['接单中', '沟通中', '编曲中', '待交付', '完结'];
+
+function renderWorkshop() {
+  const orders = Store.orders || [];
+  const inProgress = orders.filter(o => o.step >= 1 && o.step < 4);
+  const queue = orders.filter(o => o.step === 0);
+  const completed = orders.filter(o => o.step === 4);
+
+  // Status banner
+  const statusEl = document.getElementById('wsStatus');
+  if (statusEl) {
+    const activeCount = inProgress.length;
+    const queueCount = queue.length;
+    const totalCompleted = completed.length;
+    let slot = '';
+    if (activeCount === 0 && queueCount === 0) {
+      slot = ' · <span style="color:var(--gold);">当前空闲，随时可接 ✨</span>';
+    } else if (activeCount + queueCount >= 5) {
+      slot = ' · <span style="color:var(--accent);">档期已满，可预约后续</span>';
+    } else if (activeCount >= 3) {
+      slot = ' · 排期较紧，欢迎预约';
+    } else {
+      slot = ' · 还有档期，随时可下单';
+    }
+    statusEl.innerHTML = `🎧 手头 <strong>${activeCount}</strong> 单进行中 · <strong>${queueCount}</strong> 单待开始${slot} · 累计交付 <strong>${totalCompleted}</strong> 单`;
+  }
+
+  // In progress (step 1-3)
+  renderOrderSection('wsInProgress', inProgress, false, false);
+  // Queue (step 0)
+  renderOrderSection('wsQueue', queue, true, false);
+  // Completed (step 4)
+  renderOrderSection('wsCompleted', completed.slice().reverse(), false, true);
+}
+
+function renderOrderSection(prefix, orders, isQueue, isCompleted) {
+  const section = document.getElementById(prefix + 'Section');
+  const list = document.getElementById(prefix + 'List');
+  const count = document.getElementById(prefix + 'Count');
+  if (!section || !list) return;
+  if (!orders.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  if (count) count.textContent = orders.length;
+  const admin = isAdmin();
+
+  list.innerHTML = orders.map(o => {
+    const seq = '#' + String(o.seq || 0).padStart(3, '0');
+    const clientDisplay = o.showName && o.clientName ? `<span class="ws-order__client">${escapeHTML(o.clientName)}</span>` : '';
+    const dateStr = formatDate(o.createdAt);
+    const priceStr = '¥' + (o.price || 0);
+
+    // Progress bar
+    let progressHtml = '';
+    if (!isQueue && !isCompleted) {
+      const dots = ORDER_STEPS.map((s, i) => {
+        const dotClass = i < o.step ? 'ws-progress__dot--done' : (i === o.step ? 'ws-progress__dot--current' : '');
+        const lineClass = i < o.step ? 'ws-progress__line--done' : '';
+        const line = i < ORDER_STEPS.length - 1 ? `<div class="ws-progress__line ${lineClass}"></div>` : '';
+        return `<div class="ws-progress__step"><div class="ws-progress__dot ${dotClass}"></div>${line}</div>`;
+      }).join('');
+      const labels = ORDER_STEPS.map((s, i) => {
+        const cls = i < o.step ? 'ws-progress__label--done' : (i === o.step ? 'ws-progress__label--active' : '');
+        return `<span class="${cls}">${s}</span>`;
+      }).join('');
+      progressHtml = `<div class="ws-progress">${dots}</div><div class="ws-progress__labels">${labels}</div>`;
+    }
+
+    // Completed badge + review
+    let completedHtml = '';
+    if (isCompleted) {
+      const days = o.completedAt && o.acceptedAt ? Math.ceil((o.completedAt - o.acceptedAt) / 86400000) : '';
+      completedHtml = `<span class="ws-order__badge-done">已交付 ✓${days ? ' · ' + days + '天' : ''}</span>`;
+      if (o.review) {
+        completedHtml += `<p class="ws-order__review">"${escapeHTML(o.review)}"</p>`;
+      }
+    }
+
+    // Queue simple label
+    let queueLabel = isQueue ? '<span class="ws-order__type" style="background:rgba(184,132,74,0.15);">等待处理</span>' : '';
+
+    // Admin controls
+    let adminHtml = '';
+    if (admin) {
+      const stepBtns = !isCompleted ? ORDER_STEPS.map((s, i) =>
+        `<button class="btn btn--ghost btn--sm" onclick="adminSetStep('${o.id}', ${i})">${s}</button>`
+      ).join('') : '';
+      const reviewBtn = isCompleted && !o.review ? `<button class="btn btn--ghost btn--sm" onclick="adminSetReview('${o.id}')">加评价</button>` : '';
+      adminHtml = `<div class="ws-order__admin">${stepBtns}${reviewBtn}<button class="btn btn--ghost btn--sm" style="color:var(--accent);" onclick="adminDeleteOrder('${o.id}')">删除</button></div>`;
+    }
+
+    return `
+      <div class="ws-order${isCompleted ? ' ws-order--completed' : ''}">
+        <div class="ws-order__head">
+          <div>
+            <span class="ws-order__seq">${seq}</span>${clientDisplay}
+          </div>
+          <div>
+            <span class="ws-order__type">${escapeHTML(o.type)}</span>
+            <span class="ws-order__tier">${escapeHTML(o.tierLabel || o.tier)}</span>
+            ${queueLabel}
+          </div>
+        </div>
+        ${o.description ? `<p class="ws-order__desc">${escapeHTML(o.description)}</p>` : ''}
+        ${progressHtml}
+        <div class="ws-order__foot">
+          <span class="ws-order__date">${dateStr}</span>
+          <span class="ws-order__price">${priceStr}</span>
+        </div>
+        ${completedHtml}
+        ${adminHtml}
+      </div>`;
+  }).join('');
+}
+
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function adminSetStep(orderId, step) {
+  try {
+    await Store.updateOrder(orderId, { step });
+    toast(`状态已更新 → ${ORDER_STEPS[step]}`);
+    renderWorkshop();
+  } catch (e) { toast(e.message); }
+}
+
+async function adminSetReview(orderId) {
+  const review = prompt('输入客户评价：');
+  if (!review) return;
+  try {
+    await Store.updateOrder(orderId, { review });
+    toast('评价已添加');
+    renderWorkshop();
+  } catch (e) { toast(e.message); }
+}
+
+async function adminDeleteOrder(orderId) {
+  if (!confirm('确定删除此订单？')) return;
+  try {
+    await Store.deleteOrder(orderId);
+    toast('订单已删除');
+    renderWorkshop();
+  } catch (e) { toast(e.message); }
 }
 
 // ── 排序：按钮 + 拖拽 ──
