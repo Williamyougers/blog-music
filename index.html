@@ -1478,6 +1478,88 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   margin-bottom: 2rem;
 }
 .ws-section { margin-bottom: 2.5rem; }
+/* ── 工坊：用途菜单（非商 / 商用） ── */
+.ws-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+.ws-sidebar {
+  position: sticky;
+  top: 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.ws-sidebar__label {
+  font-size: 0.7rem;
+  color: var(--gray-500);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+.ws-mode-btn {
+  background: var(--white);
+  border: 1px solid var(--gray-300);
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--sans);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--text);
+  border-radius: 2px;
+  transition: border-color 0.18s, color 0.18s, background 0.18s;
+}
+.ws-mode-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.ws-mode-btn--active,
+.ws-mode-btn--active:hover {
+  background: var(--black);
+  color: var(--white);
+  border-color: var(--black);
+}
+.ws-mode-btn__title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.ws-mode-btn__hint {
+  font-size: 0.72rem;
+  color: var(--gray-500);
+  letter-spacing: 0.04em;
+}
+.ws-mode-btn--active .ws-mode-btn__hint {
+  color: rgba(255, 255, 255, 0.65);
+}
+.ws-sidebar__tip {
+  margin: 0.6rem 0 0;
+  font-size: 0.72rem;
+  color: var(--gray-500);
+  line-height: 1.55;
+  letter-spacing: 0.04em;
+}
+.ws-mode-banner {
+  background: linear-gradient(135deg, rgba(194, 59, 34, 0.1), rgba(184, 132, 74, 0.06));
+  border: 1px solid rgba(194, 59, 34, 0.3);
+  color: var(--accent);
+  padding: 0.7rem 1.2rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 1.4rem;
+  border-radius: 2px;
+}
+@media (max-width: 768px) {
+  .ws-layout { grid-template-columns: 1fr; gap: 1.2rem; }
+  .ws-sidebar { position: static; flex-direction: row; gap: 0.5rem; flex-wrap: wrap; }
+  .ws-sidebar__label { width: 100%; margin-bottom: 0; }
+  .ws-sidebar .ws-mode-btn { flex: 1; min-width: 130px; }
+  .ws-sidebar__tip { width: 100%; }
+}
 .ws-section__head {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap;
@@ -2177,8 +2259,29 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <!-- 实时状态横幅 -->
   <div class="ws-status" id="wsStatus"></div>
 
-  <!-- 下单表单 -->
-  <section class="ws-section">
+  <div class="ws-layout">
+    <!-- 左侧：用途菜单（非商 / 商用） -->
+    <aside class="ws-sidebar">
+      <div class="ws-sidebar__label">用途</div>
+      <button class="ws-mode-btn ws-mode-btn--active" data-ws-mode="noncomm" onclick="setWsMode('noncomm')">
+        <span class="ws-mode-btn__title">非商</span>
+        <span class="ws-mode-btn__hint">个人 / 学习 / 翻唱</span>
+      </button>
+      <button class="ws-mode-btn" data-ws-mode="commercial" onclick="setWsMode('commercial')">
+        <span class="ws-mode-btn__title">商用</span>
+        <span class="ws-mode-btn__hint">企业 / 商演 · 价 ×3</span>
+      </button>
+      <p class="ws-sidebar__tip">商用版价格自动 ×3，订单会标注「[商用]」前缀</p>
+    </aside>
+
+    <div class="ws-main">
+      <!-- 商用模式提示 -->
+      <div class="ws-mode-banner" id="wsModeBanner" style="display:none;">
+        🏢 当前为「商用」模式 · 所有价格已按 ×3 显示与计费
+      </div>
+
+      <!-- 下单表单 -->
+      <section class="ws-section">
     <div class="ws-section__head">
       <h3 class="ws-section__title">下单 · Commission</h3>
       <div class="ws-toolbar js-write-action">
@@ -2284,6 +2387,8 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     </div>
     <div class="ws-orders" id="wsCompletedList"></div>
   </section>
+    </div><!-- /.ws-main -->
+  </div><!-- /.ws-layout -->
 </main>
 
 <!-- 二维码大图预览 -->
@@ -3261,7 +3366,7 @@ function renderAll() { renderWorks(); renderLogs(); renderStats(); renderAbout()
 const CHANGELOG = [
   {
     date: '2026-06-03',
-    title: '全站升级 · 工坊接单 + 多选下单 + UI 动效',
+    title: '全站升级 · 工坊接单 + 多选下单 + 长期合作 + 商用模式 + UI 动效',
     items: [
       '🎨 全站 UI 美化：11 项动效（首屏淡入 / 滚动渐入 / 卡片 hover / tab 切换 / 同步状态呼吸等），Modal blur 背景 + 弹簧入场',
       '🎵 Masthead 五层动效叠加（金色光晕漂移 / 标题金光扫过 / 副标题与装饰呼吸 / 底部条纹流动）',
@@ -3279,6 +3384,7 @@ const CHANGELOG = [
       '🗓 新增「长期合作」区块：默认提供包月 / 包季 / 包年 / 囤单 4 个方案，独立卡片展示，独立咨询入口',
       '🛠 新增「订阅服务管理」（管理员）：长期方案可增删 / 改名 / 改价 / 改周期 / 改说明，与单首套餐互不干扰',
       '✂️ 下单表单移除「风格类型」选择，直接由套餐 + 描述代替；老订单的风格标签照常显示',
+      '🏢 工坊新增左侧「非商 / 商用」用途菜单，商用模式所有价格自动 ×3，订单自动标注「[商用]」前缀',
     ],
   },
   {
@@ -3321,6 +3427,41 @@ function renderChangelog() {
   }).join('');
 }
 
+// ── 工坊：用途模式（非商 / 商用） ──
+const COMMERCIAL_MULTIPLIER = 3;
+const WS_MODE_KEY = 'wsMode_v1';
+let _wsMode = 'noncomm';
+
+function getWsMultiplier() { return _wsMode === 'commercial' ? COMMERCIAL_MULTIPLIER : 1; }
+function applyMultiplier(price) { return Math.round((Number(price) || 0) * getWsMultiplier()); }
+
+function initWsMode() {
+  try {
+    const saved = localStorage.getItem(WS_MODE_KEY);
+    if (saved === 'commercial' || saved === 'noncomm') _wsMode = saved;
+  } catch (e) {}
+  syncWsModeUI();
+}
+
+function setWsMode(mode) {
+  if (mode !== 'noncomm' && mode !== 'commercial') return;
+  if (_wsMode === mode) return;
+  _wsMode = mode;
+  try { localStorage.setItem(WS_MODE_KEY, mode); } catch (e) {}
+  // 切换 mode 时清空已选套餐，避免合计错位
+  document.querySelectorAll('input[name="ws-tier"]:checked').forEach(i => { i.checked = false; });
+  syncWsModeUI();
+  renderWorkshop();
+}
+
+function syncWsModeUI() {
+  document.querySelectorAll('.ws-mode-btn[data-ws-mode]').forEach(btn => {
+    btn.classList.toggle('ws-mode-btn--active', btn.dataset.wsMode === _wsMode);
+  });
+  const banner = document.getElementById('wsModeBanner');
+  if (banner) banner.style.display = _wsMode === 'commercial' ? '' : 'none';
+}
+
 // ── 工坊：套餐合计 + 多选支持 ──
 function getSelectedTiers() {
   // 返回选中的 tier 详情数组：[{key, label, price, mode, desc}]
@@ -3332,7 +3473,7 @@ function updateTierTotal() {
   if (!el) return;
   const items = getSelectedTiers();
   if (!items.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
-  const total = items.reduce((s, t) => s + (Number(t.price) || 0), 0);
+  const total = items.reduce((s, t) => s + applyMultiplier(t.price), 0);
   const hasFrom = items.some(t => t.priceMode === 'from');
   const totalMode = hasFrom ? 'from' : 'fixed';
   const labelChain = items.map(t => t.label).join(' + ');
@@ -3356,15 +3497,17 @@ async function submitOrder() {
   if (!selectedTiers.length) { toast('请至少勾选一个套餐'); return; }
   if (!contact) { toast('请填写联系方式'); return; }
 
-  // 多选合计
-  const totalPrice = selectedTiers.reduce((s, t) => s + (Number(t.price) || 0), 0);
+  // 多选合计（按当前模式换算价格写入订单）
+  const mult = getWsMultiplier();
+  const totalPrice = selectedTiers.reduce((s, t) => s + applyMultiplier(t.price), 0);
   const hasFrom = selectedTiers.some(t => t.priceMode === 'from');
   const totalMode = hasFrom ? 'from' : 'fixed';
   // 用 + 连接 key 作为兼容字段（老前端 / 老订单展示用），权威字段是 tiers 数组
   const tierKey = selectedTiers.map(t => t.key).join('+');
   const tierLabel = selectedTiers.map(t => t.label).join(' + ');
-  const tiers = selectedTiers.map(t => ({ key: t.key, label: t.label, price: t.price, mode: t.priceMode }));
+  const tiers = selectedTiers.map(t => ({ key: t.key, label: t.label, price: applyMultiplier(t.price), mode: t.priceMode }));
   const images = _pendingOrderImages.slice();
+  const finalDescription = (mult > 1 ? '[商用] ' : '') + description;
 
   const btn = document.querySelector('.ws-submit');
   const orig = btn.textContent;
@@ -3372,7 +3515,7 @@ async function submitOrder() {
   btn.textContent = '提交中…';
 
   try {
-    await Store.submitOrder('', tierKey, description, clientName, showName, contact, totalPrice, tierLabel, images, tiers, totalMode);
+    await Store.submitOrder('', tierKey, finalDescription, clientName, showName, contact, totalPrice, tierLabel, images, tiers, totalMode);
     toast('订单已提交 ✓ 我会尽快联系你');
     // reset form
     document.getElementById('ws-desc').value = '';
@@ -3537,7 +3680,7 @@ function renderWorkshop() {
       const checked = prevChecked.includes(k) ? ' checked' : '';
       return `<label class="ws-tier"><input type="checkbox" name="ws-tier" value="${escapeHTML(k)}"${checked}>` +
         `<div class="ws-tier__name">${escapeHTML(info.label)}</div>` +
-        `<div class="ws-tier__price">${escapeHTML(formatPrice(info.price, info.priceMode))}</div>` +
+        `<div class="ws-tier__price">${escapeHTML(formatPrice(applyMultiplier(info.price), info.priceMode))}</div>` +
         `<div class="ws-tier__desc">${escapeHTML(info.desc)}</div></label>`;
     }).join('') || '<p style="color:var(--gray-500); font-size:0.85rem;">暂无套餐</p>';
     // 更新合计价格显示
@@ -3558,7 +3701,7 @@ function renderWorkshop() {
         return `<div class="ws-plan" data-plan="${escapeHTML(k)}">
           <div class="ws-plan__label">${escapeHTML(info.label)}</div>
           ${periodHtml}
-          <div class="ws-plan__price">¥${Number(info.price) || 0}${fromHtml}</div>
+          <div class="ws-plan__price">¥${applyMultiplier(info.price)}${fromHtml}</div>
           <p class="ws-plan__desc">${escapeHTML(info.desc)}</p>
           <button class="btn btn--sm ws-plan__cta" onclick="openPlanOrder('${escapeHTML(k)}')">咨询此方案 →</button>
         </div>`;
@@ -4047,9 +4190,11 @@ function openPlanOrder(key) {
   const summary = document.getElementById('planOrderSummary');
   if (summary) {
     const periodLine = info.period ? `<div style="color:var(--gold); font-size:0.8rem;">周期：${escapeHTML(info.period)}</div>` : '';
+    const shownPrice = applyMultiplier(info.price);
+    const modeNote = (getWsMultiplier() > 1) ? '<span style="color:var(--accent); font-size:0.78rem; margin-left:0.3rem;">（商用 ×3）</span>' : '';
     summary.innerHTML = `
       <div>已选方案：<strong>${escapeHTML(info.label)}</strong></div>
-      <div>价格：<strong>${escapeHTML(formatPrice(info.price, info.priceMode))}</strong>${info.priceMode === 'from' ? '<span style="color:var(--gray-500); font-size:0.78rem; margin-left:0.3rem;">（具体以沟通后报价为准）</span>' : ''}</div>
+      <div>价格：<strong>${escapeHTML(formatPrice(shownPrice, info.priceMode))}</strong>${modeNote}${info.priceMode === 'from' ? '<span style="color:var(--gray-500); font-size:0.78rem; margin-left:0.3rem;">（具体以沟通后报价为准）</span>' : ''}</div>
       ${periodLine}
       ${info.desc ? `<div style="color:var(--gray-600); font-size:0.82rem; margin-top:0.3rem;">${escapeHTML(info.desc)}</div>` : ''}
     `;
@@ -4078,19 +4223,22 @@ async function submitPlanOrder() {
   try {
     // tier 用 plan key（已在 TIER_KEY_RE 匹配范围内），tierLabel 用 plan label，price/priceMode 用 plan
     // 通过 description 前缀注入"长期合作 · {label}（{period}）"标识，便于老客户端也能识别
+    const mult = getWsMultiplier();
     const period = info.period ? `（${info.period}）` : '';
     const planPrefix = `[长期合作 · ${info.label}${period}] `;
+    const commPrefix = (mult > 1) ? '[商用] ' : '';
+    const finalPrice = applyMultiplier(info.price);
     await Store.submitOrder(
       '',                               // type 已删
       info.key,                         // tier = plan key
-      planPrefix + description,         // 前缀注入到 description
+      commPrefix + planPrefix + description, // 前缀注入到 description
       clientName,
       showName,
       contact,
-      info.price,
+      finalPrice,
       info.label,
       [],                               // 长期合作暂不带图
-      [{ key: info.key, label: info.label, price: info.price, mode: info.priceMode }],
+      [{ key: info.key, label: info.label, price: finalPrice, mode: info.priceMode }],
       info.priceMode
     );
     toast('咨询已提交 ✓ 我会尽快联系你');
@@ -4874,6 +5022,7 @@ async function adminLogin() {
   await Store.load();
   renderAll();
   renderAdminBtn();
+  initWsMode();
   // 启动后激活美化层
   setupUiEnhancements();
 })();
