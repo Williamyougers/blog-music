@@ -116,19 +116,14 @@
 [data-theme="dark"] .top-bar .sync-status.sync--ok { color:var(--gold); }
 [data-theme="dark"] .top-bar .sync-status.sync--loading { color:#999; }
 
-[data-theme="dark"] .masthead { background:#0a0a0a; }
-[data-theme="dark"] .masthead__title { color:#fefdfb; }
-[data-theme="dark"] .masthead__tagline { color:#777; }
+/* — Dark：masthead 跟随主题反转（米白底 + 深色字），避免和 top-bar/nav 连成一片大黑 — */
+/* vinyl 黑胶单独保留，防止 var(--black) 反转把黑胶变成米白 — */
 [data-theme="dark"] .masthead__vinyl {
   background:radial-gradient(circle, var(--gold) 0%, var(--gold) 14%, transparent 15%),
     radial-gradient(circle, #0a0a0a 0%, #0a0a0a 50%, transparent 51%),
     conic-gradient(from 0deg, #1a1a1a, #333, #1a1a1a, #2a2a2a, #1a1a1a, #333, #1a1a1a, #2a2a2a, #1a1a1a);
-  box-shadow:0 0 0 3px var(--gold), 0 4px 20px rgba(0,0,0,0.6);
+  box-shadow:0 0 0 3px var(--gold), 0 4px 20px rgba(0,0,0,0.5);
 }
-[data-theme="dark"] .masthead__edge {
-  background:repeating-linear-gradient(90deg, var(--accent) 0px, var(--accent) 8px, var(--gold) 8px, var(--gold) 16px, #0a0a0a 16px, #0a0a0a 24px);
-}
-[data-theme="dark"] .masthead__wave { color: var(--gray-100); }
 
 /* — Dark：toast 黑底白字保持原样 — */
 [data-theme="dark"] [data-toast="1"] { background:rgba(10,10,10,0.95) !important; color:#fefdfb !important; }
@@ -4062,6 +4057,7 @@ const CHANGELOG = [
       '🔍 SEO + 社交分享卡片：补全 title / description / keywords / Open Graph / Twitter Card，搜索引擎可正确收录，微信 / QQ 转发链接自带封面图 + 简介',
       '🎨 浏览器标签新增 favicon：黑底金色 W 衬线字，与全站 logo 调性统一',
       '🌙 暗色模式上线：顶部 🌙/☀️ 按钮一键切换，跟随系统偏好或 localStorage 记住选择；首屏无闪烁，内容区平滑过渡，顶栏与 masthead 保持永久深色页眉风格',
+      '🪞 暗色模式 banner 反转：dark 下 banner 改成米白亮色块，跟黑色 top-bar / nav 形成「亮-暗」对比节奏，不再连成一片大黑（黑胶质感保留）',
     ],
   },
   {
