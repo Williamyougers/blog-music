@@ -1854,6 +1854,16 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   color: var(--gray-500);
   margin-left: 0.5rem;
 }
+.ws-order__client--admin {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 600;
+}
+.ws-order__client--mine {
+  color: var(--gold);
+  font-style: normal;
+  font-weight: 600;
+}
 .ws-order__contact {
   display: inline-block;
   font-size: 0.72rem;
@@ -2823,7 +2833,8 @@ const Store = {
       try {
         // 管理员带 token 拉数据，后端会返回未脱敏的 contact
         const _adminToken = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-        const _headers = _adminToken ? { 'Authorization': 'Bearer ' + _adminToken } : {};
+        const _headers = { 'X-Visitor-Id': getVisitorId() };
+        if (_adminToken) _headers['Authorization'] = 'Bearer ' + _adminToken;
         const res = await fetch(API_BASE + '/api/data', { cache: 'no-store', headers: _headers });
         if (res.ok) {
           const data = await res.json();
@@ -3428,6 +3439,7 @@ const CHANGELOG = [
       '📑 「排队」与「订单信息」合并为一个「排单」按钮，与实时状态横幅一起独立成「排单」视图（接单 / 排单 双视图切换）',
       '🔒 订单卡片新增「联系方式」徽章：访客只看到脱敏后的几位（中间 ****），管理员登录后看到完整联系方式（后端按身份返回，F12 也扒不到）',
       '🔀 排单视图按「非商 / 商用」分隔：切到非商只显示非商订单，切到商用只显示带 [商用] 前缀的订单，状态横幅 / 进行中 / 排队 / 已完结 全部按当前用途独立计数',
+      '🙈 挂名按身份显示：店主看全名（红字）/ 本人看自己订单的全名（金字）/ 其他访客只看首字 +「***」；visitorId 永不下发到客户端',
     ],
   },
   {
@@ -3889,10 +3901,19 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
 
   list.innerHTML = orders.map(o => {
     const seq = '#' + String(o.seq || 0).padStart(3, '0');
-    const clientDisplay = o.showName && o.clientName ? `<span class="ws-order__client">${escapeHTML(o.clientName)}</span>` : '';
+    // 挂名：管理员看全名（红字 hint），本人看全名（金色 hint），其他人看后端已脱敏的「首字+***」
+    let clientDisplay = '';
+    if (o.showName && o.clientName) {
+      let nameCls = 'ws-order__client';
+      let nameTitle = '';
+      if (admin) { nameCls += ' ws-order__client--admin'; nameTitle = ' title="店主视角"'; }
+      else if (o._isMine) { nameCls += ' ws-order__client--mine'; nameTitle = ' title="你提交的订单"'; }
+      else { nameTitle = ' title="访客仅可见首字"'; }
+      clientDisplay = `<span class="${nameCls}"${nameTitle}>${escapeHTML(o.clientName)}</span>`;
+    }
     // 联系方式：管理员看到完整（后端鉴权后下发原始数据），访客看到的是脱敏后的串
     const contactDisplay = o.contact
-      ? `<span class="ws-order__contact${admin ? ' ws-order__contact--admin' : ''}" title="${admin ? '仅你可见' : '完整联系方式仅店主可见'}">📇 ${escapeHTML(o.contact)}</span>`
+      ? `<span class="ws-order__contact${(admin || o._isMine) ? ' ws-order__contact--admin' : ''}" title="${admin ? '仅你可见' : (o._isMine ? '你提交的联系方式' : '完整联系方式仅店主可见')}">📇 ${escapeHTML(o.contact)}</span>`
       : '';
     const dateStr = formatDate(o.createdAt);
     const priceStr = formatPrice(o.price || 0, o.priceMode);
