@@ -1195,9 +1195,81 @@ body.viewer-mode #autofillStatus { display: none !important; }
 body.viewer-mode .work, body.viewer-mode .featured { cursor: default; }
 body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { pointer-events: auto; }
 
+/* ── 返回顶部按钮 ── */
+.back-to-top {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  border: 1.5px solid var(--gold);
+  font-size: 18px;
+  font-family: serif;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(20px) scale(0.85);
+  transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.34, 1.5, 0.5, 1), background 0.22s, color 0.22s, box-shadow 0.25s;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  pointer-events: none;
+  padding: 0;
+  line-height: 1;
+}
+.back-to-top.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.back-to-top:hover {
+  background: var(--accent);
+  color: var(--bg);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.28), 0 0 0 4px rgba(184, 136, 74, 0.18);
+}
+.back-to-top:active { transform: translateY(-1px) scale(0.97); }
+
+/* ── 音符粒子层 ── */
+.note-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.note-particle {
+  position: absolute;
+  bottom: -40px;
+  font-size: 18px;
+  color: var(--gold);
+  opacity: 0;
+  user-select: none;
+  will-change: transform, opacity;
+  animation: noteFloat linear forwards;
+  text-shadow: 0 0 8px rgba(184, 136, 74, 0.16);
+  font-family: serif;
+}
+@keyframes noteFloat {
+  0%   { opacity: 0; transform: translate3d(0, 0, 0) rotate(0deg); }
+  12%  { opacity: 0.4; }
+  85%  { opacity: 0.22; }
+  100% { opacity: 0; transform: translate3d(var(--drift, 0px), calc(-100vh - 80px), 0) rotate(var(--rot, 30deg)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-particle { display: none; }
+}
+@media (max-width: 768px) {
+  .back-to-top { right: 16px; bottom: 16px; width: 42px; height: 42px; font-size: 16px; }
+  .note-particle { font-size: 15px; }
+}
+
 </style>
 </head>
 <body>
+
+<div class="note-particles" aria-hidden="true" id="noteParticles"></div>
+<button class="back-to-top" id="backToTop" aria-label="返回顶部" title="返回顶部">↑</button>
 
 <div class="top-bar">
   <div class="top-bar__left">
@@ -2976,6 +3048,57 @@ let _pendingHighlightCid = null;
 
 function setupUiEnhancements() {
   setupRevealObserver();
+  setupBackToTop();
+  setupNoteParticles();
+}
+
+function setupBackToTop() {
+  const btn = document.getElementById('backToTop');
+  if (!btn) return;
+  let ticking = false;
+  function update() {
+    if (window.scrollY > 380) btn.classList.add('show');
+    else btn.classList.remove('show');
+    ticking = false;
+  }
+  window.addEventListener('scroll', () => {
+    if (!ticking) { window.requestAnimationFrame(update); ticking = true; }
+  }, { passive: true });
+  btn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  update();
+}
+
+function setupNoteParticles() {
+  const layer = document.getElementById('noteParticles');
+  if (!layer) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const NOTES = ['♪', '♫', '♬', '♩'];
+  const MAX = 7;
+  let alive = 0;
+  function spawn() {
+    if (document.hidden) return;
+    if (alive >= MAX) return;
+    const el = document.createElement('span');
+    el.className = 'note-particle';
+    el.textContent = NOTES[Math.floor(Math.random() * NOTES.length)];
+    const left = Math.random() * 100;
+    const duration = 14 + Math.random() * 10;
+    const drift = (Math.random() * 80 - 40).toFixed(0) + 'px';
+    const rot = (Math.random() * 60 - 30).toFixed(0) + 'deg';
+    const size = 14 + Math.random() * 12;
+    el.style.left = left + '%';
+    el.style.fontSize = size + 'px';
+    el.style.animationDuration = duration + 's';
+    el.style.setProperty('--drift', drift);
+    el.style.setProperty('--rot', rot);
+    layer.appendChild(el);
+    alive++;
+    el.addEventListener('animationend', () => { el.remove(); alive--; });
+  }
+  for (let i = 0; i < 3; i++) setTimeout(spawn, i * 1500);
+  setInterval(spawn, 2200);
 }
 
 </script>
