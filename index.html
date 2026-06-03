@@ -1627,6 +1627,107 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   margin: 0.8rem 0 0;
 }
 
+/* ── 长期合作 · 订阅与囤单 ── */
+.ws-plans__intro {
+  color: var(--gray-500);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+.ws-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.ws-plan {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  padding: 1.2rem 1.1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  position: relative;
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+}
+.ws-plan:hover {
+  border-color: var(--gold);
+  box-shadow: 0 4px 18px rgba(184, 132, 74, 0.15);
+  transform: translateY(-2px);
+}
+.ws-plan__label {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.5px;
+}
+.ws-plan__period {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.72rem;
+  color: var(--gold);
+  border: 1px solid rgba(184, 132, 74, 0.5);
+  border-radius: 2px;
+  padding: 0.1rem 0.45rem;
+  letter-spacing: 0.5px;
+}
+.ws-plan__price {
+  font-family: var(--font-serif);
+  font-size: 1.7rem;
+  color: var(--accent);
+  font-weight: 600;
+  line-height: 1;
+}
+.ws-plan__price small {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  font-weight: 400;
+  margin-left: 0.2rem;
+}
+.ws-plan__desc {
+  font-size: 0.82rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+  margin: 0;
+  min-height: 2.5em;
+}
+.ws-plan__cta {
+  margin-top: auto;
+  width: 100%;
+}
+.ws-plan__empty {
+  grid-column: 1 / -1;
+  color: var(--gray-500);
+  font-size: 0.85rem;
+  padding: 1rem 0;
+  text-align: center;
+}
+.ws-order__plan-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, rgba(184,132,74,0.18), rgba(194,59,34,0.15));
+  color: var(--gold);
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+  margin-right: 0.3rem;
+}
+.plan-order__summary {
+  background: var(--cream);
+  border-left: 3px solid var(--gold);
+  padding: 0.7rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--ink);
+  line-height: 1.6;
+}
+.plan-order__summary strong {
+  color: var(--accent);
+  font-size: 1.05rem;
+}
+.plan-edit__period {
+  flex: 0 0 110px;
+}
+
 /* ── 订单卡片 ── */
 .ws-orders { display: flex; flex-direction: column; gap: 0.8rem; }
 .ws-order {
@@ -2086,22 +2187,6 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     </div>
     <div class="ws-form">
       <div class="field">
-        <label>类型 *</label>
-        <select id="ws-type">
-          <option value="">请选择风格</option>
-          <option value="古风">古风</option>
-          <option value="Lo-fi">Lo-fi</option>
-          <option value="Folk">Folk 民谣</option>
-          <option value="新古典">新古典</option>
-          <option value="流行">流行</option>
-          <option value="电子">电子</option>
-          <option value="摇滚">摇滚</option>
-          <option value="R&B">R&B</option>
-          <option value="说唱">说唱</option>
-          <option value="其他">其他</option>
-        </select>
-      </div>
-      <div class="field">
         <label>价格 · 可多选 *</label>
         <div class="ws-tiers" id="wsTiers"><!-- 由 renderWorkshop() 动态渲染 --></div>
         <div class="ws-tier-total" id="wsTierTotal" style="display:none;"></div>
@@ -2133,6 +2218,18 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <button class="btn ws-submit" onclick="submitOrder()">提交订单 →</button>
       <p class="ws-tip">提交后我会在 24h 内联系你确认细节并发付款码。</p>
     </div>
+  </section>
+
+  <!-- 长期合作（包月/包季/包年/囤单） -->
+  <section class="ws-section" id="wsPlansSection">
+    <div class="ws-section__head">
+      <h3 class="ws-section__title">长期合作 · Subscribe &amp; Bulk</h3>
+      <div class="ws-toolbar js-write-action">
+        <button class="btn btn--ghost btn--sm" onclick="openPlanModal()" title="管理员：管理订阅与囤单方案">🗓 订阅服务管理</button>
+      </div>
+    </div>
+    <p class="ws-plans__intro" id="wsPlansIntro">不想一次只下一首？看看这些长期合作方案，价格更友好，排期更优先。</p>
+    <div class="ws-plans" id="wsPlans"><!-- 由 renderWorkshop() 动态渲染 --></div>
   </section>
 
   <!-- 进行中 -->
@@ -2173,9 +2270,6 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <div class="ws-section__head">
       <h3 class="ws-section__title">已完结 · Completed <span class="ws-count" id="wsCompletedCount">0</span></h3>
       <div class="ws-toolbar">
-        <select class="ws-toolbar__select" id="wsCompletedType" onchange="setWorkshopFilter('completed','type',this.value)">
-          <option value="">全部风格</option>
-        </select>
         <select class="ws-toolbar__select" id="wsCompletedTier" onchange="setWorkshopFilter('completed','tier',this.value)">
           <option value="">全部套餐</option>
         </select>
@@ -2312,6 +2406,53 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
 </div>
 
+<!-- 订阅服务管理（管理员） -->
+<div class="modal" id="planModal">
+  <div class="modal__panel" style="max-width:680px;">
+    <button class="modal__close" onclick="closeModal('planModal')">×</button>
+    <h3 class="modal__title">🗓 订阅服务管理</h3>
+    <p style="color:var(--gray-500); font-size:0.85rem; margin:0 0 0.8rem;">管理包月 / 包季 / 包年 / 囤单等长期方案；名字 / 周期 / 价格 / 说明都可改；已下订单不受影响。</p>
+    <div id="planEditList"><!-- 由 openPlanModal() 动态渲染 --></div>
+    <button class="btn btn--ghost btn--sm" onclick="addPlanRow()" id="planAddBtn" style="margin-top:0.4rem;">+ 添加方案</button>
+    <div class="modal__actions" style="margin-top:1rem;">
+      <button class="btn btn--ghost btn--sm" onclick="resetPlans()" style="margin-right:auto;">恢复默认</button>
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('planModal')">取消</button>
+      <button class="btn btn--sm" onclick="savePlans()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 长期合作 · 咨询 / 下单 -->
+<div class="modal" id="planOrderModal">
+  <div class="modal__panel" style="max-width:480px;">
+    <button class="modal__close" onclick="closeModal('planOrderModal')">×</button>
+    <h3 class="modal__title">咨询长期合作</h3>
+    <div class="plan-order__summary" id="planOrderSummary"><!-- openPlanOrder() 动态填 --></div>
+    <div class="ws-form" style="padding:0; box-shadow:none; background:transparent;">
+      <div class="field">
+        <label>需求 / 备注</label>
+        <textarea id="po-desc" rows="3" placeholder="想要的风格、用途、预计时长、希望开始时间等"></textarea>
+      </div>
+      <div class="field">
+        <label>称呼（选填）</label>
+        <input id="po-name" type="text" maxlength="30" placeholder="想被怎么称呼">
+      </div>
+      <div class="field">
+        <label>联系方式 *</label>
+        <input id="po-contact" type="text" maxlength="200" placeholder="微信 / QQ / 邮箱 等，方便我联系你">
+      </div>
+      <label class="ws-checkbox">
+        <input type="checkbox" id="po-show-name" checked>
+        <span>完结后公开挂名展示（不勾则永久匿名）</span>
+      </label>
+    </div>
+    <div class="modal__actions" style="margin-top:1rem;">
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('planOrderModal')">取消</button>
+      <button class="btn btn--sm" id="planOrderSubmit" onclick="submitPlanOrder()">提交咨询 →</button>
+    </div>
+  </div>
+</div>
+
 <!-- 图片放大 Lightbox -->
 <div class="modal" id="imgLightbox" onclick="closeImgLightbox(event)">
   <div class="modal__panel" id="imgLightboxPanel" style="background:transparent; box-shadow:none; padding:0; max-width:92vw;">
@@ -2422,7 +2563,19 @@ const DEFAULT_ABOUT = {
   tierPriceModes: { basic: 'fixed', standard: 'fixed', full: 'fixed' },
   tierDescs: { basic: '单段编曲 · 1 次修改', standard: '完整编曲 · 3 次修改', full: '编曲+混音 · 不限修改' },
   tierLabels: { basic: '基础', standard: '进阶', full: '全包' },
-  tierKeys: ['basic', 'standard', 'full']
+  tierKeys: ['basic', 'standard', 'full'],
+  // ── 长期合作（包月/包季/包年/囤单） · 与单首套餐独立 ──
+  planKeys: ['monthly', 'quarterly', 'yearly', 'bulk'],
+  planPrices: { monthly: 1999, quarterly: 4999, yearly: 16888, bulk: 2599 },
+  planPriceModes: { monthly: 'from', quarterly: 'from', yearly: 'from', bulk: 'from' },
+  planLabels: { monthly: '包月', quarterly: '包季', yearly: '包年', bulk: '囤单' },
+  planPeriods: { monthly: '1 个月', quarterly: '3 个月', yearly: '12 个月', bulk: '不限期' },
+  planDescs: {
+    monthly: '当月不限次小段编曲 · 优先排期',
+    quarterly: '三个月长期合作 · 含 1 首全包',
+    yearly: '全年陪跑 · 含 4 首全包 + 不限小段',
+    bulk: '一次囤 10 首 · 自由分配 · 不过期',
+  },
 };
 
 // ── 套餐工具：从 about 取动态 tier 列表（兼容老数据：没有 tierKeys 时从 tierPrices/Labels 推导）──
@@ -2470,6 +2623,38 @@ function genTierKey() {
 function formatPrice(price, mode) {
   const p = Number(price) || 0;
   return '¥' + p + (mode === 'from' ? ' 起' : '');
+}
+
+// ── 长期合作（plans）：与单首套餐独立的一组方案 ──
+const MAX_PLANS = 8;
+function getPlanKeys() {
+  const a = Store.about || {};
+  let keys = Array.isArray(a.planKeys) ? a.planKeys.slice() : null;
+  if (!keys) {
+    // 兼容老数据：从 planPrices 推导，否则用默认
+    const fromPrices = a.planPrices ? Object.keys(a.planPrices) : [];
+    keys = fromPrices.length ? fromPrices : DEFAULT_ABOUT.planKeys.slice();
+  }
+  return keys.filter(k => typeof k === 'string' && TIER_KEY_RE.test(k)).slice(0, MAX_PLANS);
+}
+function getPlanInfo(key) {
+  const a = Store.about || {};
+  const prices = a.planPrices || {};
+  const labels = a.planLabels || {};
+  const descs = a.planDescs || {};
+  const periods = a.planPeriods || {};
+  const modes = a.planPriceModes || {};
+  return {
+    key,
+    label: labels[key] || DEFAULT_ABOUT.planLabels[key] || key,
+    price: prices[key] != null ? prices[key] : (DEFAULT_ABOUT.planPrices[key] != null ? DEFAULT_ABOUT.planPrices[key] : 0),
+    priceMode: modes[key] || DEFAULT_ABOUT.planPriceModes[key] || 'from',
+    desc: descs[key] || DEFAULT_ABOUT.planDescs[key] || '',
+    period: periods[key] || DEFAULT_ABOUT.planPeriods[key] || '',
+  };
+}
+function genPlanKey() {
+  return 'p_' + Math.random().toString(36).slice(2, 6);
 }
 
 // ── 数据层 ──
@@ -3091,6 +3276,9 @@ const CHANGELOG = [
       '🎛 套餐管理升级：可随时新增 / 删除 / 重命名套餐（最多 8 个，至少 1 个），下单页与完结筛选自动同步',
       '💰 价格支持「固定价」与「XX 元起」两种模式，套餐管理可逐档切换',
       '🛒 套餐改支持多选下单，下方实时合计价格与套餐名（含起价时附最终报价提示）',
+      '🗓 新增「长期合作」区块：默认提供包月 / 包季 / 包年 / 囤单 4 个方案，独立卡片展示，独立咨询入口',
+      '🛠 新增「订阅服务管理」（管理员）：长期方案可增删 / 改名 / 改价 / 改周期 / 改说明，与单首套餐互不干扰',
+      '✂️ 下单表单移除「风格类型」选择，直接由套餐 + 描述代替；老订单的风格标签照常显示',
     ],
   },
   {
@@ -3159,14 +3347,12 @@ document.addEventListener('change', (e) => {
 
 // ── 工坊：提交订单 ──
 async function submitOrder() {
-  const type = document.getElementById('ws-type').value;
   const selectedTiers = getSelectedTiers();
   const description = document.getElementById('ws-desc').value.trim();
   const clientName = document.getElementById('ws-name').value.trim();
   const showName = document.getElementById('ws-show-name').checked;
   const contact = document.getElementById('ws-contact').value.trim();
 
-  if (!type) { toast('请选择风格类型'); return; }
   if (!selectedTiers.length) { toast('请至少勾选一个套餐'); return; }
   if (!contact) { toast('请填写联系方式'); return; }
 
@@ -3186,10 +3372,9 @@ async function submitOrder() {
   btn.textContent = '提交中…';
 
   try {
-    await Store.submitOrder(type, tierKey, description, clientName, showName, contact, totalPrice, tierLabel, images, tiers, totalMode);
+    await Store.submitOrder('', tierKey, description, clientName, showName, contact, totalPrice, tierLabel, images, tiers, totalMode);
     toast('订单已提交 ✓ 我会尽快联系你');
     // reset form
-    document.getElementById('ws-type').value = '';
     document.getElementById('ws-desc').value = '';
     document.getElementById('ws-name').value = '';
     document.getElementById('ws-contact').value = '';
@@ -3313,7 +3498,7 @@ const ORDER_STEPS = ['接单中', '沟通中', '编曲中', '待交付', '完结
 const workshopFilters = {
   inProgress: { sort: 'newest' },
   queue: { sort: 'newest' },
-  completed: { sort: 'newest', type: '', tier: '' },
+  completed: { sort: 'newest', tier: '' },
 };
 
 function setWorkshopFilter(group, key, value) {
@@ -3359,23 +3544,33 @@ function renderWorkshop() {
     updateTierTotal();
   }
 
+  // 长期合作 plans 卡片
+  const wsPlans = document.getElementById('wsPlans');
+  if (wsPlans) {
+    const pkeys = getPlanKeys();
+    if (!pkeys.length) {
+      wsPlans.innerHTML = '<p class="ws-plan__empty">暂无长期方案，敬请期待 ✨</p>';
+    } else {
+      wsPlans.innerHTML = pkeys.map(k => {
+        const info = getPlanInfo(k);
+        const periodHtml = info.period ? `<span class="ws-plan__period">${escapeHTML(info.period)}</span>` : '';
+        const fromHtml = info.priceMode === 'from' ? '<small>起</small>' : '';
+        return `<div class="ws-plan" data-plan="${escapeHTML(k)}">
+          <div class="ws-plan__label">${escapeHTML(info.label)}</div>
+          ${periodHtml}
+          <div class="ws-plan__price">¥${Number(info.price) || 0}${fromHtml}</div>
+          <p class="ws-plan__desc">${escapeHTML(info.desc)}</p>
+          <button class="btn btn--sm ws-plan__cta" onclick="openPlanOrder('${escapeHTML(k)}')">咨询此方案 →</button>
+        </div>`;
+      }).join('');
+    }
+  }
+
   const orders = Store.orders || [];
   let inProgress = orders.filter(o => o.step >= 1 && o.step < 4);
   let queue = orders.filter(o => o.step === 0);
   let completed = orders.filter(o => o.step === 4);
 
-  // 风格 select 动态填充（仅完结组用，基于完结订单去重）
-  const typeSelect = document.getElementById('wsCompletedType');
-  if (typeSelect) {
-    const types = Array.from(new Set(completed.map(o => o.type).filter(Boolean))).sort();
-    const cur = workshopFilters.completed.type;
-    typeSelect.innerHTML = '<option value="">全部风格</option>' +
-      types.map(t => `<option value="${escapeHTML(t)}"${t === cur ? ' selected' : ''}>${escapeHTML(t)}</option>`).join('');
-    // 保留下拉框当前选中（如果类型已不存在则回到全部）
-    if (cur && !types.includes(cur)) workshopFilters.completed.type = '';
-    typeSelect.value = workshopFilters.completed.type;
-  }
-  // 同步其它 select 当前值
   // 完结订单的「套餐」筛选 select 动态填充（当前 tier + 完结订单出现过的 tier 合并去重，多选订单展开 tiers 数组）
   const tierSelect = document.getElementById('wsCompletedTier');
   if (tierSelect) {
@@ -3427,7 +3622,6 @@ function renderWorkshop() {
 
   // 完结组应用筛选
   const cf = workshopFilters.completed;
-  if (cf.type) completed = completed.filter(o => o.type === cf.type);
   if (cf.tier) completed = completed.filter(o => {
     // 多选订单：tiers 数组里包含；老订单：tier 字符串（可能是 "basic+full" 组合）
     if (Array.isArray(o.tiers) && o.tiers.length) return o.tiers.some(t => t && t.key === cf.tier);
@@ -3453,7 +3647,7 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
   if (!section || !list) return;
   // 完结组在有筛选时（即便空）也保持可见，便于切回"全部"
   const cf = workshopFilters.completed;
-  const hasCompletedFilter = isCompleted && (cf.type || cf.tier || cf.sort !== 'newest');
+  const hasCompletedFilter = isCompleted && (cf.tier || cf.sort !== 'newest');
   if (!orders.length && !hasCompletedFilter) { section.style.display = 'none'; return; }
   section.style.display = '';
   if (count) count.textContent = orders.length;
@@ -3516,7 +3710,7 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
             <span class="ws-order__seq">${seq}</span>${clientDisplay}
           </div>
           <div>
-            <span class="ws-order__type">${escapeHTML(o.type)}</span>
+            ${o.type ? `<span class="ws-order__type">${escapeHTML(o.type)}</span>` : ''}
             <span class="ws-order__tier">${escapeHTML(o.tierLabel || o.tier)}</span>
             ${queueLabel}
           </div>
@@ -3714,6 +3908,201 @@ function saveTierPrices() {
   closeModal('tierModal');
   renderWorkshop();
   toast('套餐已更新');
+}
+
+// ── 长期合作（plans）：管理 + 下单 ──
+let _planEditState = [];
+let _currentPlanKey = null;
+
+function renderPlanEditList() {
+  const wrap = document.getElementById('planEditList');
+  if (!wrap) return;
+  wrap.innerHTML = _planEditState.map((row, idx) => {
+    const canDel = _planEditState.length <= 1 ? ' disabled' : '';
+    return `<div class="tier-edit" data-idx="${idx}">
+      <span class="tier-edit__num">方案 ${idx + 1}</span>
+      <button type="button" class="tier-edit__del" onclick="removePlanRow(${idx})"${canDel} aria-label="删除方案">×</button>
+      <div class="tier-edit__row">
+        <input type="text" class="tier-edit__label" data-plan-field="label" placeholder="方案名（≤10字）" maxlength="10" value="${escapeHTML(row.label || '')}">
+        <input type="text" class="plan-edit__period" data-plan-field="period" placeholder="周期" maxlength="20" value="${escapeHTML(row.period || '')}">
+      </div>
+      <div class="tier-edit__row tier-edit__row--mode">
+        <input type="number" class="tier-edit__price" data-plan-field="price" placeholder="0" min="0" max="99999" value="${row.price}">
+        <select data-plan-field="priceMode">
+          <option value="fixed"${row.priceMode === 'fixed' ? ' selected' : ''}>固定价</option>
+          <option value="from"${row.priceMode === 'from' ? ' selected' : ''}>XX 起</option>
+        </select>
+      </div>
+      <textarea class="tier-edit__desc" data-plan-field="desc" rows="2" placeholder="方案说明（可选，≤60字）" maxlength="60">${escapeHTML(row.desc || '')}</textarea>
+    </div>`;
+  }).join('');
+  // 输入监听
+  wrap.querySelectorAll('.tier-edit').forEach(card => {
+    const idx = Number(card.dataset.idx);
+    card.querySelectorAll('input[data-plan-field], select[data-plan-field], textarea[data-plan-field]').forEach(el => {
+      const field = el.dataset.planField;
+      const ev = el.tagName === 'SELECT' ? 'change' : 'input';
+      el.addEventListener(ev, () => {
+        if (!_planEditState[idx]) return;
+        _planEditState[idx][field] = field === 'price' ? el.value : el.value;
+      });
+    });
+  });
+  const addBtn = document.getElementById('planAddBtn');
+  if (addBtn) {
+    if (_planEditState.length >= MAX_PLANS) {
+      addBtn.setAttribute('disabled', '');
+      addBtn.textContent = `已达上限（${MAX_PLANS} 个）`;
+    } else {
+      addBtn.removeAttribute('disabled');
+      addBtn.textContent = '+ 添加方案';
+    }
+  }
+}
+
+function addPlanRow() {
+  if (_planEditState.length >= MAX_PLANS) { toast(`最多 ${MAX_PLANS} 个方案`); return; }
+  _planEditState.push({ key: genPlanKey(), label: '', period: '', price: 0, priceMode: 'from', desc: '' });
+  renderPlanEditList();
+}
+
+function removePlanRow(idx) {
+  if (_planEditState.length <= 1) { toast('至少保留一个方案'); return; }
+  _planEditState.splice(idx, 1);
+  renderPlanEditList();
+}
+
+function openPlanModal() {
+  if (window.__VIEWER_MODE__ || !isAdmin()) return;
+  const keys = getPlanKeys();
+  _planEditState = keys.map(k => {
+    const info = getPlanInfo(k);
+    return { key: k, label: info.label, period: info.period, price: info.price, priceMode: info.priceMode, desc: info.desc };
+  });
+  if (!_planEditState.length) {
+    _planEditState = DEFAULT_ABOUT.planKeys.map(k => ({
+      key: k, label: DEFAULT_ABOUT.planLabels[k], period: DEFAULT_ABOUT.planPeriods[k],
+      price: DEFAULT_ABOUT.planPrices[k], priceMode: DEFAULT_ABOUT.planPriceModes[k] || 'from',
+      desc: DEFAULT_ABOUT.planDescs[k],
+    }));
+  }
+  renderPlanEditList();
+  document.getElementById('planModal').classList.add('open');
+}
+
+function resetPlans() {
+  _planEditState = DEFAULT_ABOUT.planKeys.map(k => ({
+    key: k, label: DEFAULT_ABOUT.planLabels[k], period: DEFAULT_ABOUT.planPeriods[k],
+    price: DEFAULT_ABOUT.planPrices[k], priceMode: DEFAULT_ABOUT.planPriceModes[k] || 'from',
+    desc: DEFAULT_ABOUT.planDescs[k],
+  }));
+  renderPlanEditList();
+}
+
+function savePlans() {
+  if (!_planEditState.length) { toast('至少保留一个方案'); return; }
+  const newKeys = [];
+  const newPrices = {};
+  const newLabels = {};
+  const newDescs = {};
+  const newModes = {};
+  const newPeriods = {};
+  const seen = new Set();
+  for (let i = 0; i < _planEditState.length; i++) {
+    const row = _planEditState[i];
+    let key = row.key;
+    if (!key || !TIER_KEY_RE.test(key) || seen.has(key)) key = genPlanKey();
+    while (seen.has(key)) key = genPlanKey();
+    seen.add(key);
+    newKeys.push(key);
+    const p = Math.floor(Number(row.price));
+    if (isNaN(p) || p < 0 || p > 99999) { toast(`方案 ${i + 1} 的价格必须是 0–99999`); return; }
+    newPrices[key] = p;
+    newLabels[key] = (row.label || '').trim().slice(0, 10) || `方案${i + 1}`;
+    newDescs[key] = (row.desc || '').trim().slice(0, 60);
+    newPeriods[key] = (row.period || '').trim().slice(0, 20);
+    newModes[key] = row.priceMode === 'fixed' ? 'fixed' : 'from';
+  }
+  Store.about = {
+    ...DEFAULT_ABOUT,
+    ...(Store.about || {}),
+    planKeys: newKeys,
+    planPrices: newPrices,
+    planPriceModes: newModes,
+    planDescs: newDescs,
+    planLabels: newLabels,
+    planPeriods: newPeriods,
+  };
+  Store.saveAbout();
+  closeModal('planModal');
+  renderWorkshop();
+  toast('订阅方案已更新');
+}
+
+function openPlanOrder(key) {
+  const keys = getPlanKeys();
+  if (!keys.includes(key)) { toast('方案不存在'); return; }
+  _currentPlanKey = key;
+  const info = getPlanInfo(key);
+  const summary = document.getElementById('planOrderSummary');
+  if (summary) {
+    const periodLine = info.period ? `<div style="color:var(--gold); font-size:0.8rem;">周期：${escapeHTML(info.period)}</div>` : '';
+    summary.innerHTML = `
+      <div>已选方案：<strong>${escapeHTML(info.label)}</strong></div>
+      <div>价格：<strong>${escapeHTML(formatPrice(info.price, info.priceMode))}</strong>${info.priceMode === 'from' ? '<span style="color:var(--gray-500); font-size:0.78rem; margin-left:0.3rem;">（具体以沟通后报价为准）</span>' : ''}</div>
+      ${periodLine}
+      ${info.desc ? `<div style="color:var(--gray-600); font-size:0.82rem; margin-top:0.3rem;">${escapeHTML(info.desc)}</div>` : ''}
+    `;
+  }
+  // 重置表单
+  document.getElementById('po-desc').value = '';
+  document.getElementById('po-name').value = '';
+  document.getElementById('po-contact').value = '';
+  document.getElementById('po-show-name').checked = true;
+  document.getElementById('planOrderModal').classList.add('open');
+}
+
+async function submitPlanOrder() {
+  if (!_currentPlanKey) { toast('请重新选择方案'); return; }
+  const info = getPlanInfo(_currentPlanKey);
+  const description = document.getElementById('po-desc').value.trim();
+  const clientName = document.getElementById('po-name').value.trim();
+  const showName = document.getElementById('po-show-name').checked;
+  const contact = document.getElementById('po-contact').value.trim();
+  if (!contact) { toast('请填写联系方式'); return; }
+
+  const btn = document.getElementById('planOrderSubmit');
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  try {
+    // tier 用 plan key（已在 TIER_KEY_RE 匹配范围内），tierLabel 用 plan label，price/priceMode 用 plan
+    // 通过 description 前缀注入"长期合作 · {label}（{period}）"标识，便于老客户端也能识别
+    const period = info.period ? `（${info.period}）` : '';
+    const planPrefix = `[长期合作 · ${info.label}${period}] `;
+    await Store.submitOrder(
+      '',                               // type 已删
+      info.key,                         // tier = plan key
+      planPrefix + description,         // 前缀注入到 description
+      clientName,
+      showName,
+      contact,
+      info.price,
+      info.label,
+      [],                               // 长期合作暂不带图
+      [{ key: info.key, label: info.label, price: info.price, mode: info.priceMode }],
+      info.priceMode
+    );
+    toast('咨询已提交 ✓ 我会尽快联系你');
+    closeModal('planOrderModal');
+    _currentPlanKey = null;
+    renderWorkshop();
+  } catch (e) {
+    toast(e.message || '提交失败');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
 }
 
 async function adminDeleteOrder(orderId) {
