@@ -36,6 +36,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!-- 主题初始化（避免首屏闪烁） -->
+<script>
+(function() {
+  try {
+    var t = localStorage.getItem('theme');
+    if (!t) t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  } catch(e) {}
+})();
+</script>
 <style>
 /* ═══════════════════════════════════════
    TRACKS & NOTES — 个人音乐博客 v2
@@ -66,6 +77,77 @@
   --cream: #f5ede0;
   --max-w: 1280px;
   --gutter: clamp(1.2rem, 4vw, 3rem);
+  --nav-bg: rgba(254,253,251,0.97);
+  --shadow-strong: rgba(0,0,0,0.5);
+  --shadow-soft: rgba(0,0,0,0.08);
+}
+
+/* — Dark Theme — */
+[data-theme="dark"] {
+  --black: #f0ebe2;
+  --gray-900: #e8e2d6;
+  --gray-700: #c4bba8;
+  --gray-600: #9b9280;
+  --gray-500: #7a7261;
+  --gray-400: #5d574a;
+  --gray-300: #423d33;
+  --gray-200: #322d25;
+  --gray-150: #292520;
+  --gray-100: #1c1916;
+  --gray-50: #16140f;
+  --white: #221e18;
+  --cream: #2a2520;
+  --accent-light: #e8654a;
+  --gold-light: #d4a85c;
+  --nav-bg: rgba(34,30,24,0.92);
+  --shadow-strong: rgba(0,0,0,0.7);
+  --shadow-soft: rgba(0,0,0,0.4);
+}
+[data-theme="dark"] img { filter: brightness(0.9); }
+
+/* — Dark：top-bar / masthead 保持永久深色页眉风格（不随主题反转） — */
+[data-theme="dark"] .top-bar { background:#0a0a0a; color:#999; }
+[data-theme="dark"] .top-bar__divider { color:#555; }
+[data-theme="dark"] .top-bar__issue { color:#777; }
+[data-theme="dark"] .top-bar .admin-btn { color:#bbb; border-color:#555; background:transparent; }
+[data-theme="dark"] .top-bar .admin-btn:hover { color:var(--gold); border-color:var(--gold); }
+[data-theme="dark"] .top-bar .admin-btn--on { color:var(--gold); border-color:var(--gold); background:rgba(184,132,74,0.10); }
+[data-theme="dark"] .top-bar .sync-status { color:#777; }
+[data-theme="dark"] .top-bar .sync-status.sync--ok { color:var(--gold); }
+[data-theme="dark"] .top-bar .sync-status.sync--loading { color:#999; }
+
+[data-theme="dark"] .masthead { background:#0a0a0a; }
+[data-theme="dark"] .masthead__title { color:#fefdfb; }
+[data-theme="dark"] .masthead__tagline { color:#777; }
+[data-theme="dark"] .masthead__vinyl {
+  background:radial-gradient(circle, var(--gold) 0%, var(--gold) 14%, transparent 15%),
+    radial-gradient(circle, #0a0a0a 0%, #0a0a0a 50%, transparent 51%),
+    conic-gradient(from 0deg, #1a1a1a, #333, #1a1a1a, #2a2a2a, #1a1a1a, #333, #1a1a1a, #2a2a2a, #1a1a1a);
+  box-shadow:0 0 0 3px var(--gold), 0 4px 20px rgba(0,0,0,0.6);
+}
+[data-theme="dark"] .masthead__edge {
+  background:repeating-linear-gradient(90deg, var(--accent) 0px, var(--accent) 8px, var(--gold) 8px, var(--gold) 16px, #0a0a0a 16px, #0a0a0a 24px);
+}
+[data-theme="dark"] .masthead__wave { color: var(--gray-100); }
+
+/* — Dark：toast 黑底白字保持原样 — */
+[data-theme="dark"] [data-toast="1"] { background:rgba(10,10,10,0.95) !important; color:#fefdfb !important; }
+
+/* 主题切换按钮：图标翻转动效 + body 颜色平滑过渡 */
+.theme-btn .tb-ic { transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1); display:inline-block; }
+.theme-btn--spin .tb-ic { animation: themeBtnSpin 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes themeBtnSpin {
+  0%   { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(0.4); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+body { transition: background 0.35s ease, color 0.35s ease; }
+.nav, .work, .log, .about, .featured, .ws-order, .ws-tier, .ws-status, .modal__panel, .changelog__item, .fan-group, .top-bar {
+  transition: background 0.35s ease, color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  body, .nav, .work, .log, .about, .featured, .ws-order, .ws-tier, .ws-status, .modal__panel, .changelog__item, .fan-group, .top-bar { transition: none; }
+  .theme-btn--spin .tb-ic { animation: none; }
 }
 
 html { font-size:16px; scroll-behavior:smooth; }
@@ -174,7 +256,7 @@ input,textarea,select { font:inherit; color:inherit; }
   border-bottom:1px solid var(--gray-200);
   font-size:0.72rem; letter-spacing:0.14em; text-transform:uppercase;
   position:sticky; top:0;
-  background:rgba(254,253,251,0.97);
+  background:var(--nav-bg);
   backdrop-filter:blur(12px);
   z-index:50;
 }
@@ -2593,6 +2675,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <span class="top-bar__issue" id="topIssue">Vol. I, No. 1</span>
   </div>
   <div class="top-bar__right">
+    <button id="themeBtn" class="admin-btn theme-btn" onclick="toggleTheme()" title="切换主题"><span class="tb-ic">🌙</span><span class="tb-lbl">深色</span></button>
     <span id="syncStatus" class="sync-status"><span class="tb-ic">☁️</span><span class="tb-lbl">加载中…</span></span>
     <button id="adminBtn" class="admin-btn" onclick="adminLogin()" style="display:none;"><span class="tb-ic">🔒</span><span class="tb-lbl">管理员登录</span></button>
     <span id="topDate"></span>
@@ -2600,8 +2683,8 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 </div>
 
 <header class="masthead">
-  <svg class="masthead__wave" viewBox="0 0 1200 120" preserveAspectRatio="none">
-    <path d="M0,60 Q30,20 60,60 T120,60 T180,60 T240,60 T300,60 T360,60 T420,60 T480,60 T540,60 T600,60 T660,60 T720,60 T780,60 T840,60 T900,60 T960,60 T1020,60 T1080,60 T1140,60 T1200,60 V120 H0 Z" fill="rgba(254,253,251,1)"/>
+  <svg class="masthead__wave" viewBox="0 0 1200 120" preserveAspectRatio="none" style="color:var(--white);">
+    <path d="M0,60 Q30,20 60,60 T120,60 T180,60 T240,60 T300,60 T360,60 T420,60 T480,60 T540,60 T600,60 T660,60 T720,60 T780,60 T840,60 T900,60 T960,60 T1020,60 T1080,60 T1140,60 T1200,60 V120 H0 Z" fill="currentColor"/>
   </svg>
   <div class="masthead__inner">
     <div class="masthead__vinyl"></div>
@@ -3978,6 +4061,7 @@ const CHANGELOG = [
       '📐 全站主容器从 1120px 加宽到 1280px，作品 / 工坊更舒展；关于 / 日志 / 公告这类长文区域居中保留 880px 可读宽度',
       '🔍 SEO + 社交分享卡片：补全 title / description / keywords / Open Graph / Twitter Card，搜索引擎可正确收录，微信 / QQ 转发链接自带封面图 + 简介',
       '🎨 浏览器标签新增 favicon：黑底金色 W 衬线字，与全站 logo 调性统一',
+      '🌙 暗色模式上线：顶部 🌙/☀️ 按钮一键切换，跟随系统偏好或 localStorage 记住选择；首屏无闪烁，内容区平滑过渡，顶栏与 masthead 保持永久深色页眉风格',
     ],
   },
   {
@@ -5812,6 +5896,33 @@ function toast(msg) {
 }
 
 // ── 管理员登录 / 退出 ──
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', t); } catch(e) {}
+  const btn = document.getElementById('themeBtn');
+  if (btn) {
+    const ic = t === 'dark' ? '☀️' : '🌙';
+    const lbl = t === 'dark' ? '浅色' : '深色';
+    btn.innerHTML = `<span class="tb-ic">${ic}</span><span class="tb-lbl">${lbl}</span>`;
+    btn.title = t === 'dark' ? '切换到浅色模式' : '切换到深色模式';
+  }
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+  // 微动效：按钮一次翻转
+  const btn = document.getElementById('themeBtn');
+  if (btn) {
+    btn.classList.remove('theme-btn--spin');
+    void btn.offsetWidth;
+    btn.classList.add('theme-btn--spin');
+  }
+}
+function initThemeBtn() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  applyTheme(cur);
+}
+
 function renderAdminBtn() {
   const el = document.getElementById('adminBtn');
   if (!el) return;
@@ -5886,6 +5997,7 @@ async function adminLogin() {
   await Store.load();
   renderAll();
   renderAdminBtn();
+  initThemeBtn();
   initWsMode();
   initWsView();
   // 启动后激活美化层
