@@ -1259,9 +1259,34 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 @media (prefers-reduced-motion: reduce) {
   .note-particle { display: none; }
 }
+
+/* ── 点击迸发音符 ── */
+.note-burst {
+  position: fixed;
+  font-size: 20px;
+  color: var(--gold);
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform, opacity;
+  animation: noteBurst 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  text-shadow: 0 0 10px rgba(184, 136, 74, 0.35);
+  font-family: serif;
+  z-index: 9999;
+}
+@keyframes noteBurst {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(0deg); }
+  18%  { opacity: 0.95; transform: translate(-50%, -50%) scale(1.15) rotate(0deg); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--bx, 0px)), calc(-50% + var(--by, -60px))) scale(0.9) rotate(var(--brot, 25deg)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-burst { display: none; }
+}
+
 @media (max-width: 768px) {
   .back-to-top { right: 16px; bottom: 16px; width: 42px; height: 42px; font-size: 16px; }
   .note-particle { font-size: 15px; }
+  .note-burst { font-size: 17px; }
 }
 
 </style>
@@ -3099,6 +3124,30 @@ function setupNoteParticles() {
   }
   for (let i = 0; i < 3; i++) setTimeout(spawn, i * 1500);
   setInterval(spawn, 2200);
+
+  /* click burst */
+  document.addEventListener('click', e => {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const count = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const b = document.createElement('span');
+      b.className = 'note-burst';
+      b.textContent = NOTES[Math.floor(Math.random() * NOTES.length)];
+      const angle = (Math.PI * 2 / count) * i + (Math.random() * 0.8 - 0.4);
+      const dist = 40 + Math.random() * 45;
+      const bx = (Math.cos(angle) * dist).toFixed(0) + 'px';
+      const by = (Math.sin(angle) * dist - 20).toFixed(0) + 'px';
+      const brot = (Math.random() * 80 - 40).toFixed(0) + 'deg';
+      b.style.left = e.clientX + 'px';
+      b.style.top = e.clientY + 'px';
+      b.style.setProperty('--bx', bx);
+      b.style.setProperty('--by', by);
+      b.style.setProperty('--brot', brot);
+      b.style.fontSize = (15 + Math.random() * 10) + 'px';
+      document.body.appendChild(b);
+      b.addEventListener('animationend', () => b.remove());
+    }
+  });
 }
 
 </script>
