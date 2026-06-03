@@ -1478,6 +1478,23 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   margin-bottom: 2rem;
 }
 .ws-section { margin-bottom: 2.5rem; }
+.ws-section__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap;
+}
+.ws-section__head .ws-section__title { margin: 0; }
+.ws-toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.ws-toolbar__select {
+  font-family: var(--sans); font-size: 0.78rem;
+  color: var(--text); background: var(--white);
+  border: 1px solid var(--gray-300);
+  border-radius: 2px;
+  padding: 0.32rem 0.55rem;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.ws-toolbar__select:hover { border-color: var(--gold); color: var(--gold); }
+.ws-toolbar__select:focus { outline: none; border-color: var(--accent); }
 .ws-section__title {
   font-family: var(--serif);
   font-size: 1.2rem;
@@ -1885,7 +1902,12 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 
   <!-- 下单表单 -->
   <section class="ws-section">
-    <h3 class="ws-section__title">下单 · Commission</h3>
+    <div class="ws-section__head">
+      <h3 class="ws-section__title">下单 · Commission</h3>
+      <div class="ws-toolbar js-write-action">
+        <button class="btn btn--ghost btn--sm" onclick="openTierModal()" title="管理员：调整套餐价格 / 说明">🎛 套餐管理</button>
+      </div>
+    </div>
     <div class="ws-form">
       <div class="field">
         <label>类型 *</label>
@@ -1906,9 +1928,9 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <div class="field">
         <label>套餐 *</label>
         <div class="ws-tiers" id="wsTiers">
-          <label class="ws-tier"><input type="radio" name="ws-tier" value="basic"><div class="ws-tier__name">基础</div><div class="ws-tier__price">¥299</div><div class="ws-tier__desc">单段编曲 · 1 次修改</div></label>
-          <label class="ws-tier"><input type="radio" name="ws-tier" value="standard" checked><div class="ws-tier__name">进阶</div><div class="ws-tier__price">¥599</div><div class="ws-tier__desc">完整编曲 · 3 次修改</div></label>
-          <label class="ws-tier"><input type="radio" name="ws-tier" value="full"><div class="ws-tier__name">全包</div><div class="ws-tier__price">¥999</div><div class="ws-tier__desc">编曲+混音 · 不限修改</div></label>
+          <label class="ws-tier"><input type="radio" name="ws-tier" value="basic"><div class="ws-tier__name">基础</div><div class="ws-tier__price" id="ws-price-basic">¥299</div><div class="ws-tier__desc" id="ws-desc-basic">单段编曲 · 1 次修改</div></label>
+          <label class="ws-tier"><input type="radio" name="ws-tier" value="standard" checked><div class="ws-tier__name">进阶</div><div class="ws-tier__price" id="ws-price-standard">¥599</div><div class="ws-tier__desc" id="ws-desc-standard">完整编曲 · 3 次修改</div></label>
+          <label class="ws-tier"><input type="radio" name="ws-tier" value="full"><div class="ws-tier__name">全包</div><div class="ws-tier__price" id="ws-price-full">¥999</div><div class="ws-tier__desc" id="ws-desc-full">编曲+混音 · 不限修改</div></label>
         </div>
       </div>
       <div class="field">
@@ -1936,19 +1958,60 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 
   <!-- 进行中 -->
   <section class="ws-section" id="wsInProgressSection" style="display:none;">
-    <h3 class="ws-section__title">进行中 · In Progress <span class="ws-count" id="wsInProgressCount">0</span></h3>
+    <div class="ws-section__head">
+      <h3 class="ws-section__title">进行中 · In Progress <span class="ws-count" id="wsInProgressCount">0</span></h3>
+      <div class="ws-toolbar">
+        <select class="ws-toolbar__select" id="wsInProgressSort" onchange="setWorkshopFilter('inProgress','sort',this.value)">
+          <option value="newest">最新优先</option>
+          <option value="oldest">最早优先</option>
+          <option value="priceDesc">价格 ↓</option>
+          <option value="priceAsc">价格 ↑</option>
+          <option value="step">进度靠前</option>
+        </select>
+      </div>
+    </div>
     <div class="ws-orders" id="wsInProgressList"></div>
   </section>
 
   <!-- 排队 -->
   <section class="ws-section" id="wsQueueSection" style="display:none;">
-    <h3 class="ws-section__title">排队 · Queue <span class="ws-count" id="wsQueueCount">0</span></h3>
+    <div class="ws-section__head">
+      <h3 class="ws-section__title">排队 · Queue <span class="ws-count" id="wsQueueCount">0</span></h3>
+      <div class="ws-toolbar">
+        <select class="ws-toolbar__select" id="wsQueueSort" onchange="setWorkshopFilter('queue','sort',this.value)">
+          <option value="newest">最新优先</option>
+          <option value="oldest">最早优先</option>
+          <option value="priceDesc">价格 ↓</option>
+          <option value="priceAsc">价格 ↑</option>
+        </select>
+      </div>
+    </div>
     <div class="ws-orders" id="wsQueueList"></div>
   </section>
 
   <!-- 已完结 -->
   <section class="ws-section" id="wsCompletedSection" style="display:none;">
-    <h3 class="ws-section__title">已完结 · Completed <span class="ws-count" id="wsCompletedCount">0</span></h3>
+    <div class="ws-section__head">
+      <h3 class="ws-section__title">已完结 · Completed <span class="ws-count" id="wsCompletedCount">0</span></h3>
+      <div class="ws-toolbar">
+        <select class="ws-toolbar__select" id="wsCompletedType" onchange="setWorkshopFilter('completed','type',this.value)">
+          <option value="">全部风格</option>
+        </select>
+        <select class="ws-toolbar__select" id="wsCompletedTier" onchange="setWorkshopFilter('completed','tier',this.value)">
+          <option value="">全部套餐</option>
+          <option value="basic">基础</option>
+          <option value="standard">进阶</option>
+          <option value="full">全包</option>
+        </select>
+        <select class="ws-toolbar__select" id="wsCompletedSort" onchange="setWorkshopFilter('completed','sort',this.value)">
+          <option value="newest">最新优先</option>
+          <option value="oldest">最早优先</option>
+          <option value="priceDesc">价格 ↓</option>
+          <option value="priceAsc">价格 ↑</option>
+          <option value="fastest">交付最快</option>
+        </select>
+      </div>
+    </div>
     <div class="ws-orders" id="wsCompletedList"></div>
   </section>
 </main>
@@ -2057,6 +2120,63 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 </div>
 
 <!-- 编辑 About Modal -->
+<!-- 套餐管理 Modal（admin） -->
+<div class="modal" id="tierModal">
+  <div class="modal__panel" style="max-width:520px;">
+    <button class="modal__close" onclick="closeModal('tierModal')">×</button>
+    <h3 class="modal__title">🎛 套餐管理</h3>
+    <p style="color:var(--gray-500); font-size:0.85rem; margin:0 0 1rem;">改后立即生效；已下订单不变。</p>
+    <div class="field__row">
+      <div class="field">
+        <label>基础 ¥</label>
+        <input id="tier-basic-price" type="number" min="0" max="99999" placeholder="299">
+      </div>
+      <div class="field">
+        <label>进阶 ¥</label>
+        <input id="tier-standard-price" type="number" min="0" max="99999" placeholder="599">
+      </div>
+      <div class="field">
+        <label>全包 ¥</label>
+        <input id="tier-full-price" type="number" min="0" max="99999" placeholder="999">
+      </div>
+    </div>
+    <div class="field">
+      <label>基础 · 说明</label>
+      <input id="tier-basic-desc" type="text" placeholder="单段编曲 · 1 次修改">
+    </div>
+    <div class="field">
+      <label>进阶 · 说明</label>
+      <input id="tier-standard-desc" type="text" placeholder="完整编曲 · 3 次修改">
+    </div>
+    <div class="field">
+      <label>全包 · 说明</label>
+      <input id="tier-full-desc" type="text" placeholder="编曲+混音 · 不限修改">
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost btn--sm" onclick="resetTierPrices()" style="margin-right:auto;">恢复默认</button>
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('tierModal')">取消</button>
+      <button class="btn btn--sm" onclick="saveTierPrices()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 评价 Modal（admin） -->
+<div class="modal" id="reviewModal">
+  <div class="modal__panel" style="max-width:520px;">
+    <button class="modal__close" onclick="closeModal('reviewModal')">×</button>
+    <h3 class="modal__title" id="reviewModalTitle">✎ 添加客户评价</h3>
+    <div class="field">
+      <label>评价内容（200 字内）</label>
+      <textarea id="rv-content" rows="5" maxlength="200" placeholder="客户的反馈、感谢、推荐语……" oninput="updateReviewCount()"></textarea>
+      <div style="font-size:0.78rem; color:var(--gray-500); text-align:right; margin-top:0.3rem;"><span id="rv-count">0</span> / 200</div>
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('reviewModal')">取消</button>
+      <button class="btn btn--sm" onclick="saveReviewModal()">保存评价</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="aboutModal">
   <div class="modal__panel" style="max-width:640px;">
     <button class="modal__close" onclick="closeModal('aboutModal')">×</button>
@@ -2138,7 +2258,9 @@ const DEFAULT_ABOUT = {
   intro: '嗨，我是威灵T。这里是我的音乐自留地——既存放正在听、正在做、正在想的曲目，也记录创作过程中那些转瞬即逝的灵感。',
   body1: '音乐对我来说不是背景音，而是另一种语言。一段旋律往往能说出文字说不出的东西。',
   quote: '这个站没有评论、没有算法、没有广告。只有作品和文字。如果你恰好喜欢，那便是缘分。',
-  body2: '感谢你来到这里。愿你在此找到某种共鸣。'
+  body2: '感谢你来到这里。愿你在此找到某种共鸣。',
+  tierPrices: { basic: 299, standard: 599, full: 999 },
+  tierDescs: { basic: '单段编曲 · 1 次修改', standard: '完整编曲 · 3 次修改', full: '编曲+混音 · 不限修改' }
 };
 
 // ── 数据层 ──
@@ -2328,12 +2450,12 @@ const Store = {
     return true;
   },
   // ── Orders ──
-  async submitOrder(type, tier, description, clientName, showName, contact) {
+  async submitOrder(type, tier, description, clientName, showName, contact, price) {
     if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云，无法下单');
     const res = await fetch(API_BASE + '/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, tier, description, clientName, showName, contact, visitorId: getVisitorId() }),
+      body: JSON.stringify({ type, tier, description, clientName, showName, contact, price, visitorId: getVisitorId() }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
@@ -2745,6 +2867,15 @@ function renderAll() { renderWorks(); renderLogs(); renderStats(); renderAbout()
 const CHANGELOG = [
   {
     date: '2026-06-03',
+    title: '工坊体验升级 · 套餐管理 / 评价 Modal / 筛选排序',
+    items: [
+      '管理员可在工坊页一键调整 3 档套餐价格和说明（基础 / 进阶 / 全包）',
+      '客户评价改成 Modal 输入，支持 200 字 + 字数提示，可编辑可清空',
+      '订单列表加筛选 / 排序：进行中 + 排队按时间 / 价格 / 进度排，已完结另加风格 + 套餐 + 交付时长筛排',
+    ],
+  },
+  {
+    date: '2026-06-03',
     title: '工坊上线 · 编曲约稿透明接单',
     items: [
       '新增第 5 个 tab「工坊」，访客可直接下单',
@@ -2838,13 +2969,17 @@ async function submitOrder() {
   if (!tier) { toast('请选择套餐'); return; }
   if (!contact) { toast('请填写联系方式'); return; }
 
+  // 取当前套餐价格（可能被管理员改过）
+  const tierPrices = (Store.about && Store.about.tierPrices) || DEFAULT_ABOUT.tierPrices;
+  const price = tierPrices[tier] || 0;
+
   const btn = document.querySelector('.ws-submit');
   const orig = btn.textContent;
   btn.disabled = true;
   btn.textContent = '提交中…';
 
   try {
-    await Store.submitOrder(type, tier, description, clientName, showName, contact);
+    await Store.submitOrder(type, tier, description, clientName, showName, contact, price);
     toast('订单已提交 ✓ 我会尽快联系你');
     // reset form
     document.getElementById('ws-type').value = '';
@@ -2867,13 +3002,72 @@ async function submitOrder() {
 // ── 工坊：渲染 ──
 const ORDER_STEPS = ['接单中', '沟通中', '编曲中', '待交付', '完结'];
 
-function renderWorkshop() {
-  const orders = Store.orders || [];
-  const inProgress = orders.filter(o => o.step >= 1 && o.step < 4);
-  const queue = orders.filter(o => o.step === 0);
-  const completed = orders.filter(o => o.step === 4);
+// 筛选/排序状态（仅前端，刷新后回默认）
+const workshopFilters = {
+  inProgress: { sort: 'newest' },
+  queue: { sort: 'newest' },
+  completed: { sort: 'newest', type: '', tier: '' },
+};
 
-  // Status banner
+function setWorkshopFilter(group, key, value) {
+  if (!workshopFilters[group]) return;
+  workshopFilters[group][key] = value;
+  renderWorkshop();
+}
+
+function sortOrders(orders, sort) {
+  const arr = orders.slice();
+  switch (sort) {
+    case 'oldest': return arr.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    case 'priceDesc': return arr.sort((a, b) => (b.price || 0) - (a.price || 0));
+    case 'priceAsc': return arr.sort((a, b) => (a.price || 0) - (b.price || 0));
+    case 'step': return arr.sort((a, b) => (b.step || 0) - (a.step || 0));  // 越接近完结越前
+    case 'fastest':
+      return arr.sort((a, b) => {
+        const da = (a.completedAt && a.acceptedAt) ? (a.completedAt - a.acceptedAt) : Infinity;
+        const db = (b.completedAt && b.acceptedAt) ? (b.completedAt - b.acceptedAt) : Infinity;
+        return da - db;
+      });
+    case 'newest':
+    default: return arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
+}
+
+function renderWorkshop() {
+  // 同步套餐卡价格（可能被管理员改过）
+  const tierPrices = (Store.about && Store.about.tierPrices) || DEFAULT_ABOUT.tierPrices;
+  const tierDescs = (Store.about && Store.about.tierDescs) || DEFAULT_ABOUT.tierDescs;
+  ['basic', 'standard', 'full'].forEach(k => {
+    const pe = document.getElementById('ws-price-' + k);
+    const de = document.getElementById('ws-desc-' + k);
+    if (pe) pe.textContent = '¥' + (tierPrices[k] != null ? tierPrices[k] : DEFAULT_ABOUT.tierPrices[k]);
+    if (de) de.textContent = tierDescs[k] || DEFAULT_ABOUT.tierDescs[k];
+  });
+
+  const orders = Store.orders || [];
+  let inProgress = orders.filter(o => o.step >= 1 && o.step < 4);
+  let queue = orders.filter(o => o.step === 0);
+  let completed = orders.filter(o => o.step === 4);
+
+  // 风格 select 动态填充（仅完结组用，基于完结订单去重）
+  const typeSelect = document.getElementById('wsCompletedType');
+  if (typeSelect) {
+    const types = Array.from(new Set(completed.map(o => o.type).filter(Boolean))).sort();
+    const cur = workshopFilters.completed.type;
+    typeSelect.innerHTML = '<option value="">全部风格</option>' +
+      types.map(t => `<option value="${escapeHTML(t)}"${t === cur ? ' selected' : ''}>${escapeHTML(t)}</option>`).join('');
+    // 保留下拉框当前选中（如果类型已不存在则回到全部）
+    if (cur && !types.includes(cur)) workshopFilters.completed.type = '';
+    typeSelect.value = workshopFilters.completed.type;
+  }
+  // 同步其它 select 当前值
+  const syncSelect = (id, val) => { const el = document.getElementById(id); if (el && el.value !== val) el.value = val; };
+  syncSelect('wsInProgressSort', workshopFilters.inProgress.sort);
+  syncSelect('wsQueueSort', workshopFilters.queue.sort);
+  syncSelect('wsCompletedSort', workshopFilters.completed.sort);
+  syncSelect('wsCompletedTier', workshopFilters.completed.tier);
+
+  // Status banner（基于"原始"未筛数据）
   const statusEl = document.getElementById('wsStatus');
   if (statusEl) {
     const activeCount = inProgress.length;
@@ -2892,12 +3086,20 @@ function renderWorkshop() {
     statusEl.innerHTML = `🎧 手头 <strong>${activeCount}</strong> 单进行中 · <strong>${queueCount}</strong> 单待开始${slot} · 累计交付 <strong>${totalCompleted}</strong> 单`;
   }
 
-  // In progress (step 1-3)
+  // 完结组应用筛选
+  const cf = workshopFilters.completed;
+  if (cf.type) completed = completed.filter(o => o.type === cf.type);
+  if (cf.tier) completed = completed.filter(o => o.tier === cf.tier);
+
+  // 排序
+  inProgress = sortOrders(inProgress, workshopFilters.inProgress.sort);
+  queue = sortOrders(queue, workshopFilters.queue.sort);
+  completed = sortOrders(completed, cf.sort);
+
+  // 渲染
   renderOrderSection('wsInProgress', inProgress, false, false);
-  // Queue (step 0)
   renderOrderSection('wsQueue', queue, true, false);
-  // Completed (step 4)
-  renderOrderSection('wsCompleted', completed.slice().reverse(), false, true);
+  renderOrderSection('wsCompleted', completed, false, true);
 }
 
 function renderOrderSection(prefix, orders, isQueue, isCompleted) {
@@ -2905,10 +3107,18 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
   const list = document.getElementById(prefix + 'List');
   const count = document.getElementById(prefix + 'Count');
   if (!section || !list) return;
-  if (!orders.length) { section.style.display = 'none'; return; }
+  // 完结组在有筛选时（即便空）也保持可见，便于切回"全部"
+  const cf = workshopFilters.completed;
+  const hasCompletedFilter = isCompleted && (cf.type || cf.tier || cf.sort !== 'newest');
+  if (!orders.length && !hasCompletedFilter) { section.style.display = 'none'; return; }
   section.style.display = '';
   if (count) count.textContent = orders.length;
   const admin = isAdmin();
+
+  if (!orders.length) {
+    list.innerHTML = '<div style="color:var(--gray-500); font-size:0.88rem; padding:1.5rem; text-align:center; background:var(--white); border:1px dashed var(--gray-300);">当前筛选下没有订单</div>';
+    return;
+  }
 
   list.innerHTML = orders.map(o => {
     const seq = '#' + String(o.seq || 0).padStart(3, '0');
@@ -2994,13 +3204,85 @@ async function adminSetStep(orderId, step) {
 }
 
 async function adminSetReview(orderId) {
-  const review = prompt('输入客户评价：');
-  if (!review) return;
+  openReviewModal(orderId);
+}
+
+// ── 工坊：评价 Modal ──
+let _editingReviewOrderId = null;
+function openReviewModal(orderId) {
+  if (window.__VIEWER_MODE__ || !isAdmin()) return;
+  _editingReviewOrderId = orderId;
+  const order = (Store.orders || []).find(o => o.id === orderId);
+  const ta = document.getElementById('rv-content');
+  const title = document.getElementById('reviewModalTitle');
+  if (ta) ta.value = (order && order.review) || '';
+  if (title) title.textContent = (order && order.review) ? '✎ 编辑客户评价' : '✎ 添加客户评价';
+  updateReviewCount();
+  document.getElementById('reviewModal').classList.add('open');
+  setTimeout(() => { if (ta) ta.focus(); }, 100);
+}
+function updateReviewCount() {
+  const ta = document.getElementById('rv-content');
+  const span = document.getElementById('rv-count');
+  if (ta && span) span.textContent = ta.value.length;
+}
+async function saveReviewModal() {
+  const orderId = _editingReviewOrderId;
+  if (!orderId) { closeModal('reviewModal'); return; }
+  const review = document.getElementById('rv-content').value.trim();
   try {
     await Store.updateOrder(orderId, { review });
-    toast('评价已添加');
+    toast(review ? '评价已保存' : '评价已清空');
+    closeModal('reviewModal');
+    _editingReviewOrderId = null;
     renderWorkshop();
   } catch (e) { toast(e.message); }
+}
+
+// ── 工坊：套餐管理 Modal ──
+function openTierModal() {
+  if (window.__VIEWER_MODE__ || !isAdmin()) return;
+  const tp = (Store.about && Store.about.tierPrices) || DEFAULT_ABOUT.tierPrices;
+  const td = (Store.about && Store.about.tierDescs) || DEFAULT_ABOUT.tierDescs;
+  ['basic', 'standard', 'full'].forEach(k => {
+    const pe = document.getElementById('tier-' + k + '-price');
+    const de = document.getElementById('tier-' + k + '-desc');
+    if (pe) pe.value = tp[k] != null ? tp[k] : DEFAULT_ABOUT.tierPrices[k];
+    if (de) de.value = td[k] || DEFAULT_ABOUT.tierDescs[k];
+  });
+  document.getElementById('tierModal').classList.add('open');
+}
+function resetTierPrices() {
+  ['basic', 'standard', 'full'].forEach(k => {
+    const pe = document.getElementById('tier-' + k + '-price');
+    const de = document.getElementById('tier-' + k + '-desc');
+    if (pe) pe.value = DEFAULT_ABOUT.tierPrices[k];
+    if (de) de.value = DEFAULT_ABOUT.tierDescs[k];
+  });
+}
+function saveTierPrices() {
+  const readPrice = k => {
+    const raw = document.getElementById('tier-' + k + '-price').value;
+    const n = Math.floor(Number(raw));
+    if (isNaN(n) || n < 0 || n > 99999) return null;
+    return n;
+  };
+  const readDesc = k => (document.getElementById('tier-' + k + '-desc').value || '').trim().slice(0, 60);
+  const newPrices = { basic: readPrice('basic'), standard: readPrice('standard'), full: readPrice('full') };
+  if (newPrices.basic == null || newPrices.standard == null || newPrices.full == null) {
+    toast('价格必须是 0–99999 的数字');
+    return;
+  }
+  Store.about = {
+    ...DEFAULT_ABOUT,
+    ...(Store.about || {}),
+    tierPrices: newPrices,
+    tierDescs: { basic: readDesc('basic') || DEFAULT_ABOUT.tierDescs.basic, standard: readDesc('standard') || DEFAULT_ABOUT.tierDescs.standard, full: readDesc('full') || DEFAULT_ABOUT.tierDescs.full },
+  };
+  Store.saveAbout();
+  closeModal('tierModal');
+  renderWorkshop();
+  toast('套餐已更新');
 }
 
 async function adminDeleteOrder(orderId) {
