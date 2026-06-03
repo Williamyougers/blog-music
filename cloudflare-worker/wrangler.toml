@@ -1,0 +1,7 @@
+name = "blog-music-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "BLOG"
+id = "445938d2930b4098a1d7e52500761ee2"
