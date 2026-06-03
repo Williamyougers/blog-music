@@ -1858,14 +1858,19 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   display: inline-block;
   font-size: 0.72rem;
   font-family: var(--mono, ui-monospace, monospace);
-  color: var(--accent);
-  background: rgba(194,59,34,0.06);
-  border: 1px dashed rgba(194,59,34,0.4);
+  color: var(--gray-500);
+  background: rgba(0,0,0,0.03);
+  border: 1px dashed rgba(0,0,0,0.15);
   padding: 0.1rem 0.45rem;
   margin-left: 0.5rem;
   border-radius: 2px;
   letter-spacing: 0.02em;
   vertical-align: middle;
+}
+.ws-order__contact--admin {
+  color: var(--accent);
+  background: rgba(194,59,34,0.06);
+  border-color: rgba(194,59,34,0.4);
 }
 .ws-order__type {
   font-size: 0.72rem;
@@ -2816,7 +2821,10 @@ const Store = {
     if (typeof API_BASE === 'string' && API_BASE) {
       setSyncStatus('loading');
       try {
-        const res = await fetch(API_BASE + '/api/data', { cache: 'no-store' });
+        // 管理员带 token 拉数据，后端会返回未脱敏的 contact
+        const _adminToken = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+        const _headers = _adminToken ? { 'Authorization': 'Bearer ' + _adminToken } : {};
+        const res = await fetch(API_BASE + '/api/data', { cache: 'no-store', headers: _headers });
         if (res.ok) {
           const data = await res.json();
           this.works = Array.isArray(data.works) ? data.works : [];
@@ -3418,7 +3426,7 @@ const CHANGELOG = [
       '📝 「非商」按钮副标改为「仅限以个人名义平台发布」，更准确地说明授权范围',
       '🧭 左侧菜单新增「板块」分区，快速跳转「排队」/「订单信息」',
       '📑 「排队」与「订单信息」合并为一个「排单」按钮，与实时状态横幅一起独立成「排单」视图（接单 / 排单 双视图切换）',
-      '🔒 订单卡片新增「联系方式」徽章，仅管理员可见，显示在挂名后面（访客完全看不到）',
+      '🔒 订单卡片新增「联系方式」徽章：访客只看到脱敏后的几位（中间 ****），管理员登录后看到完整联系方式（后端按身份返回，F12 也扒不到）',
     ],
   },
   {
@@ -3875,8 +3883,10 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
   list.innerHTML = orders.map(o => {
     const seq = '#' + String(o.seq || 0).padStart(3, '0');
     const clientDisplay = o.showName && o.clientName ? `<span class="ws-order__client">${escapeHTML(o.clientName)}</span>` : '';
-    // 联系方式仅管理员可见，显示在挂名后面
-    const contactDisplay = (admin && o.contact) ? `<span class="ws-order__contact" title="仅你可见">📇 ${escapeHTML(o.contact)}</span>` : '';
+    // 联系方式：管理员看到完整（后端鉴权后下发原始数据），访客看到的是脱敏后的串
+    const contactDisplay = o.contact
+      ? `<span class="ws-order__contact${admin ? ' ws-order__contact--admin' : ''}" title="${admin ? '仅你可见' : '完整联系方式仅店主可见'}">📇 ${escapeHTML(o.contact)}</span>`
+      : '';
     const dateStr = formatDate(o.createdAt);
     const priceStr = formatPrice(o.price || 0, o.priceMode);
 
@@ -5044,6 +5054,8 @@ async function adminLogin() {
     sessionStorage.removeItem(ADMIN_TOKEN_KEY);
     document.body.classList.add('viewer-mode');
     renderAdminBtn();
+    // 退出后重拉一次数据，让 contact 切回脱敏版
+    try { await Store.load(); } catch (_) {}
     renderAll();
     setSyncStatus('online');
     return;
@@ -5067,6 +5079,8 @@ async function adminLogin() {
       if (Store.works.length === 0 && Store.logs.length === 0) {
         seedSampleData();
       }
+      // 登录后重拉一次数据，让 contact 取到原始版（带 token）
+      try { await Store.load(); } catch (_) {}
       renderAll();
       alert('✅ 登录成功，已解锁编辑功能');
     } else if (res.status === 401) {
