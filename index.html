@@ -2144,6 +2144,21 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+.ws-order__mine {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--gold);
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.ws-order__mine .btn {
+  color: var(--gold);
+  border-color: rgba(184,132,74,0.5);
+}
+.ws-order__mine .btn:hover {
+  background: rgba(184,132,74,0.08);
+}
 
 @media (max-width: 768px) {
   .ws-tiers { grid-template-columns: 1fr; }
@@ -2627,6 +2642,34 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
 </div>
 
+<div class="modal" id="editOrderModal">
+  <div class="modal__panel" style="max-width:560px;">
+    <button class="modal__close" onclick="closeModal('editOrderModal')">×</button>
+    <h3 class="modal__title" id="editOrderModalTitle">✎ 编辑订单</h3>
+    <p class="ws-tip" id="editOrderModalHint" style="margin-bottom:0.8rem;">访客只能改自己提交过的订单；店主可编辑全部订单。</p>
+    <div class="field">
+      <label>需求描述</label>
+      <textarea id="eo-desc" rows="4" maxlength="1000" placeholder="想要的曲风 / 用途 / 参考歌曲……"></textarea>
+    </div>
+    <div class="field">
+      <label>联系方式</label>
+      <input id="eo-contact" type="text" maxlength="200" placeholder="QQ / 微信 / 邮箱">
+    </div>
+    <div class="field">
+      <label>挂名（用于完结后公开展示）</label>
+      <input id="eo-name" type="text" maxlength="30" placeholder="如 L 先生 / 留空则匿名">
+    </div>
+    <label class="ws-checkbox" style="margin-top:-0.4rem;">
+      <input type="checkbox" id="eo-showname">
+      <span>完结后公开挂名展示（不勾则永久匿名）</span>
+    </label>
+    <div class="modal__actions">
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('editOrderModal')">取消</button>
+      <button class="btn btn--sm" onclick="saveEditOrderModal()">保存修改</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="aboutModal">
   <div class="modal__panel" style="max-width:640px;">
     <button class="modal__close" onclick="closeModal('aboutModal')">×</button>
@@ -3013,18 +3056,24 @@ const Store = {
   },
   async updateOrder(orderId, updates) {
     if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const headers = { 'Content-Type': 'application/json', 'X-Visitor-Id': getVisitorId() };
     const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-    if (!token) throw new Error('需要管理员权限');
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    // 后端会按身份决定权限：admin 全字段可改 / 本人仅可改 description+contact+clientName+showName 且 step!==4
     const res = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(orderId), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers,
       body: JSON.stringify(updates),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     if (data.order) {
       const idx = this.orders.findIndex(o => o.id === orderId);
-      if (idx >= 0) this.orders[idx] = data.order;
+      if (idx >= 0) {
+        // 保留前端原来已有的 _isMine 标记（后端 PUT 响应不带这个字段）
+        const wasMine = this.orders[idx]._isMine;
+        this.orders[idx] = wasMine ? { ...data.order, _isMine: true } : data.order;
+      }
       try { localStorage.setItem('tn_orders', JSON.stringify(this.orders)); } catch (_) {}
     }
     return data.order;
@@ -3440,6 +3489,7 @@ const CHANGELOG = [
       '🔒 订单卡片新增「联系方式」徽章：访客只看到脱敏后的几位（中间 ****），管理员登录后看到完整联系方式（后端按身份返回，F12 也扒不到）',
       '🔀 排单视图按「非商 / 商用」分隔：切到非商只显示非商订单，切到商用只显示带 [商用] 前缀的订单，状态横幅 / 进行中 / 排队 / 已完结 全部按当前用途独立计数',
       '🙈 挂名按身份显示：店主看全名（红字）/ 本人看自己订单的全名（金字）/ 其他访客只看首字 +「***」；visitorId 永不下发到客户端',
+      '✏️ 订单可编辑：访客可改自己未完结订单的描述 / 联系方式 / 挂名（金色按钮「✎ 编辑我的订单」）；店主可改任意订单的同字段（已并入现有 admin 操作条）；商用 / 长期合作前缀自动保留',
     ],
   },
   {
@@ -3954,7 +4004,13 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
         `<button class="btn btn--ghost btn--sm" onclick="adminSetStep('${o.id}', ${i})">${s}</button>`
       ).join('') : '';
       const reviewBtn = isCompleted && !o.review ? `<button class="btn btn--ghost btn--sm" onclick="adminSetReview('${o.id}')">加评价</button>` : '';
-      adminHtml = `<div class="ws-order__admin">${stepBtns}${reviewBtn}<button class="btn btn--ghost btn--sm" style="color:var(--accent);" onclick="adminDeleteOrder('${o.id}')">删除</button></div>`;
+      adminHtml = `<div class="ws-order__admin">${stepBtns}${reviewBtn}<button class="btn btn--ghost btn--sm" onclick="openEditOrderModal('${o.id}')">✎ 编辑</button><button class="btn btn--ghost btn--sm" style="color:var(--accent);" onclick="adminDeleteOrder('${o.id}')">删除</button></div>`;
+    }
+
+    // 访客自己的「编辑」按钮（仅 _isMine 且未完结且非 admin；admin 已在 adminHtml 提供）
+    let mineEditHtml = '';
+    if (!admin && o._isMine && o.step !== 4) {
+      mineEditHtml = `<div class="ws-order__mine"><button class="btn btn--ghost btn--sm" onclick="openEditOrderModal('${o.id}')">✎ 编辑我的订单</button></div>`;
     }
 
     return `
@@ -3977,6 +4033,7 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
           <span class="ws-order__price">${priceStr}</span>
         </div>
         ${completedHtml}
+        ${mineEditHtml}
         ${adminHtml}
       </div>`;
   }).join('');
@@ -4030,6 +4087,62 @@ async function saveReviewModal() {
     _editingReviewOrderId = null;
     renderWorkshop();
   } catch (e) { toast(e.message); }
+}
+
+// ── 工坊：编辑订单 Modal（访客可改自己未完结的订单，管理员可改全部） ──
+let _editingOrderId = null;
+function canEditOrder(o) {
+  if (!o) return false;
+  if (isAdmin()) return true;
+  return !!o._isMine && o.step !== 4;
+}
+function openEditOrderModal(orderId) {
+  const order = (Store.orders || []).find(o => o.id === orderId);
+  if (!order) { toast('订单不存在'); return; }
+  if (!canEditOrder(order)) { toast('无权限编辑此订单'); return; }
+  _editingOrderId = orderId;
+  // 编辑时去掉「[商用]」/「[商用] [长期合作 · ...]」等前缀，保存时再加回去（详见 saveEditOrderModal）
+  const rawDesc = order.description || '';
+  const stripped = rawDesc.replace(/^\s*\[商用\]\s*/, '').replace(/^\[长期合作[^\]]*\]\s*/, '');
+  document.getElementById('eo-desc').value = stripped;
+  document.getElementById('eo-contact').value = order.contact || '';
+  document.getElementById('eo-name').value = order.clientName || '';
+  document.getElementById('eo-showname').checked = !!order.showName;
+  const hint = document.getElementById('editOrderModalHint');
+  if (hint) {
+    hint.textContent = isAdmin()
+      ? '店主视角：可改任意订单的描述 / 联系方式 / 挂名（更改 step 与价格请用下方按钮）'
+      : '只能改你提交过的这一单：描述 / 联系方式 / 挂名；编曲完结后不再可改';
+  }
+  document.getElementById('editOrderModal').classList.add('open');
+  setTimeout(() => { document.getElementById('eo-desc').focus(); }, 100);
+}
+async function saveEditOrderModal() {
+  const orderId = _editingOrderId;
+  if (!orderId) { closeModal('editOrderModal'); return; }
+  const order = (Store.orders || []).find(o => o.id === orderId);
+  let description = document.getElementById('eo-desc').value.trim();
+  const contact = document.getElementById('eo-contact').value.trim();
+  const clientName = document.getElementById('eo-name').value.trim();
+  const showName = document.getElementById('eo-showname').checked;
+  if (!contact) { toast('联系方式不能为空'); return; }
+  // 还原原单 description 的固定前缀：[商用] 与 [长期合作 · xxx] 可能并存
+  if (order) {
+    const raw = order.description || '';
+    const commercialM = raw.match(/^\s*\[商用\]\s*/);
+    const afterCommercial = commercialM ? raw.slice(commercialM[0].length) : raw;
+    const planM = afterCommercial.match(/^(\[长期合作[^\]]*\])\s*/);
+    const commercialPrefix = commercialM ? '[商用] ' : '';
+    const planPrefix = planM ? planM[1] + ' ' : '';
+    description = commercialPrefix + planPrefix + description;
+  }
+  try {
+    await Store.updateOrder(orderId, { description, contact, clientName, showName });
+    toast('订单已更新 ✓');
+    closeModal('editOrderModal');
+    _editingOrderId = null;
+    renderWorkshop();
+  } catch (e) { toast(e.message || '保存失败'); }
 }
 
 // ── 工坊：套餐管理 Modal（动态列表，支持增删） ──
