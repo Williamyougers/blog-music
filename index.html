@@ -2109,6 +2109,194 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   color: var(--accent);
 }
 
+/* ════════════════════════════════════════
+   🎨 工坊 UI 美化 · 动效增强
+   ════════════════════════════════════════ */
+
+/* — 状态横幅：金色斜光缓慢扫过 — */
+.ws-status { position: relative; overflow: hidden; }
+.ws-status::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -60%;
+  width: 50%; height: 100%;
+  background: linear-gradient(115deg,
+    transparent 0%,
+    rgba(184,132,74,0) 30%,
+    rgba(184,132,74,0.18) 50%,
+    rgba(184,132,74,0) 70%,
+    transparent 100%);
+  animation: wsStatusShine 6.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes wsStatusShine {
+  0%   { left: -60%; }
+  55%  { left: 120%; }
+  100% { left: 120%; }
+}
+
+/* — 套餐卡：hover 金色发光 + 选中辐射光 — */
+.ws-tier { will-change: transform; }
+.ws-tier:hover {
+  box-shadow: 0 4px 14px rgba(184,132,74,0.18), 0 0 0 1px rgba(184,132,74,0.15);
+}
+.ws-tier:has(input:checked) {
+  box-shadow:
+    0 0 0 1px rgba(194,59,34,0.15),
+    inset 0 0 30px rgba(194,59,34,0.04);
+}
+/* — 选中 ✓ 弹簧入场 — */
+.ws-tier:has(input:checked)::after {
+  animation: wsCheckPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes wsCheckPop {
+  0%   { transform: scale(0) rotate(-90deg); opacity: 0; }
+  60%  { transform: scale(1.25) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* — 套餐 hover 时价格金光闪动 — */
+.ws-tier:hover .ws-tier__price {
+  text-shadow: 0 0 8px rgba(184,132,74,0.35);
+  transition: text-shadow 0.3s;
+}
+
+/* — 价格汇总：金色边框柔和呼吸 — */
+.ws-tier-total {
+  animation: wsTotalIn 0.4s cubic-bezier(0.2,0.9,0.3,1.2) both;
+  position: relative;
+  overflow: hidden;
+}
+.ws-tier-total::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg,
+    transparent 0%, rgba(184,132,74,0.12) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: wsTotalShine 4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes wsTotalIn {
+  from { transform: translateY(-4px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes wsTotalShine {
+  0%   { transform: translateX(-100%); }
+  60%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* — 进度条：当前点呼吸光晕 — */
+.ws-progress__dot--current {
+  animation: wsDotPulse 2.2s ease-in-out infinite;
+}
+@keyframes wsDotPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(184,132,74,0.2); }
+  50%      { box-shadow: 0 0 0 5px rgba(184,132,74,0.08), 0 0 12px rgba(184,132,74,0.35); }
+}
+/* — 已完成连线：金色微光叠加 — */
+.ws-progress__line--done {
+  background: linear-gradient(90deg, var(--accent) 0%, var(--gold) 100%);
+  position: relative;
+}
+
+/* — 订单卡：左侧 hover 金条 + 阴影提升 — */
+.ws-order { position: relative; overflow: hidden; }
+.ws-order::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, var(--gold), var(--accent));
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.35s cubic-bezier(0.2,0.9,0.3,1.1);
+  pointer-events: none;
+}
+.ws-order:hover::before { transform: scaleY(1); }
+.ws-order:hover {
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08), 0 0 0 1px rgba(184,132,74,0.15);
+  transform: translateY(-1px);
+}
+
+/* — 订单卡：入场错位淡入 — */
+.ws-orders .ws-order {
+  animation: wsOrderIn 0.5s cubic-bezier(0.2,0.9,0.3,1) both;
+}
+.ws-orders .ws-order:nth-child(1) { animation-delay: 0.00s; }
+.ws-orders .ws-order:nth-child(2) { animation-delay: 0.06s; }
+.ws-orders .ws-order:nth-child(3) { animation-delay: 0.12s; }
+.ws-orders .ws-order:nth-child(4) { animation-delay: 0.18s; }
+.ws-orders .ws-order:nth-child(5) { animation-delay: 0.24s; }
+.ws-orders .ws-order:nth-child(6) { animation-delay: 0.30s; }
+.ws-orders .ws-order:nth-child(n+7) { animation-delay: 0.36s; }
+@keyframes wsOrderIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* — 新订单徽章（24h 内由 JS 加 data-fresh="1"） — */
+.ws-order[data-fresh="1"] { border-color: rgba(184,132,74,0.45); }
+.ws-order[data-fresh="1"]::after {
+  content: 'NEW';
+  position: absolute;
+  top: 0.7rem; right: 0.85rem;
+  font-family: var(--sans);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--bg);
+  background: linear-gradient(135deg, var(--gold), #d9a76e);
+  padding: 0.12rem 0.45rem;
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px rgba(184,132,74,0.15);
+  animation: wsNewBreath 2.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes wsNewBreath {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(184,132,74,0.15); }
+  50%      { box-shadow: 0 0 0 4px rgba(184,132,74,0.05), 0 0 8px rgba(184,132,74,0.4); }
+}
+
+/* — 完结订单：左边绿色装饰条加粗到 4px，更醒目 — */
+.ws-order--completed { border-left: 4px solid #4a9; }
+.ws-order--completed::before {
+  background: linear-gradient(to bottom, #4a9, #2d7a6a);
+}
+
+/* — 用途菜单 active 态：底部金色横线 + 微辐射 — */
+.ws-mode-btn { position: relative; overflow: hidden; }
+.ws-mode-btn--active::after {
+  content: '';
+  position: absolute;
+  left: 0.8rem; right: 0.8rem; bottom: 0.4rem;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  animation: wsModeUnderline 0.5s ease-out both;
+}
+@keyframes wsModeUnderline {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+/* — 套餐金额、订单金额：等宽数字 — */
+.ws-tier__price, .ws-order__price, .ws-tier-total strong {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* — 移动端动效减弱 — */
+@media (prefers-reduced-motion: reduce) {
+  .ws-status::before,
+  .ws-progress__dot--current,
+  .ws-order[data-fresh="1"]::after,
+  .ws-tier-total::before,
+  .ws-orders .ws-order { animation: none !important; }
+  .ws-order::before { display: none; }
+}
+
 /* ── 订单底栏 ── */
 .ws-order__foot {
   display: flex;
@@ -3730,6 +3918,7 @@ const CHANGELOG = [
       '📱 顶部「管理员登录」与「同步状态」在移动端只显示图标，给小屏腾地方',
       '🪶 页脚文案换上文艺励志版「凡所听过 · 终将回响 · 一首一首，慢慢来」',
       '🔔 新订单微信即时通知：访客一下单，店主微信立即收到推送（挂名 / 模式 / 套餐 / 价格 / 描述 / 联系方式 / 时间），基于 Server 酱免费版，推送失败不影响下单',
+      '✨ 工坊 UI 美化 9 项动效：状态横幅金色斜光扫过 / 套餐卡 hover 金色发光 + 选中弹簧 ✓ + 价格金光 / 汇总区呼吸光 / 进度条当前点呼吸光晕 + 已完成连线渐变 / 订单卡左侧金条 + 错位淡入 + 24h 内 NEW 徽章 / 完结卡绿色条加粗 / 用途菜单 active 底部金线',
     ],
   },
   {
@@ -4288,8 +4477,9 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
       }
     }
 
+    const isFresh = !isCompleted && (Date.now() - (o.createdAt || 0) < 24 * 3600 * 1000);
     return `
-      <div class="ws-order${isCompleted ? ' ws-order--completed' : ''}">
+      <div class="ws-order${isCompleted ? ' ws-order--completed' : ''}"${isFresh ? ' data-fresh="1"' : ''}>
         <div class="ws-order__head">
           <div>
             <span class="ws-order__seq">${seq}</span>${clientDisplay}${contactDisplay}
