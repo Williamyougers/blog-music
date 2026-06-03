@@ -84,6 +84,15 @@ input,textarea,select { font:inherit; color:inherit; }
 }
 .admin-btn:hover { color:var(--gold); border-color:var(--gold); }
 .admin-btn--on { color:var(--gold); border-color:var(--gold); background:rgba(184,132,74,0.08); }
+/* ── top-bar 图标/文字拆分（移动端只显示图标） ── */
+.tb-ic { display:inline-block; }
+.tb-lbl { display:inline-block; margin-left:0.3em; }
+@media (max-width: 600px) {
+  .top-bar__right .tb-lbl { display:none; }
+  .top-bar__right .sync-status { padding:0.15rem 0.45rem; letter-spacing:0; }
+  .top-bar__right .admin-btn { padding:0.2rem 0.55rem; letter-spacing:0; }
+  .top-bar__right { gap:0.55rem; }
+}
 
 /* ── Masthead ── */
 .masthead {
@@ -2341,8 +2350,8 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <span class="top-bar__issue" id="topIssue">Vol. I, No. 1</span>
   </div>
   <div class="top-bar__right">
-    <span id="syncStatus" class="sync-status">☁️ 加载中…</span>
-    <button id="adminBtn" class="admin-btn" onclick="adminLogin()" style="display:none;">🔒 管理员登录</button>
+    <span id="syncStatus" class="sync-status"><span class="tb-ic">☁️</span><span class="tb-lbl">加载中…</span></span>
+    <button id="adminBtn" class="admin-btn" onclick="adminLogin()" style="display:none;"><span class="tb-ic">🔒</span><span class="tb-lbl">管理员登录</span></button>
     <span id="topDate"></span>
   </div>
 </div>
@@ -2929,7 +2938,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <div class="footer__logo">Tracks &amp; Notes</div>
   <div>© 2026 威灵T</div>
   <div class="footer__rule"></div>
-  <div class="footer__note">数据保存在本机浏览器 · 纯手写，零依赖</div>
+  <div class="footer__note">凡所听过 · 终将回响 · 一首一首，慢慢来</div>
 </footer>
 
 <script>
@@ -2959,17 +2968,19 @@ function setSyncStatus(state, msg) {
   const el = document.getElementById('syncStatus');
   if (!el) return;
   const map = {
-    loading: { text: '☁️ 加载中…', cls: 'sync--loading' },
-    online: { text: '☁️ 已联云', cls: 'sync--ok' },
-    offline: { text: '📴 离线（仅本地）', cls: 'sync--warn' },
-    saving: { text: '☁️ 同步中…', cls: 'sync--loading' },
-    saved: { text: '✅ 已同步', cls: 'sync--ok' },
-    error: { text: '⚠️ ' + (msg || '同步失败'), cls: 'sync--err' }
+    loading: { ic:'☁️', lbl:'加载中…',        cls:'sync--loading' },
+    online:  { ic:'☁️', lbl:'已联云',          cls:'sync--ok' },
+    offline: { ic:'📴', lbl:'离线（仅本地）',  cls:'sync--warn' },
+    saving:  { ic:'☁️', lbl:'同步中…',        cls:'sync--loading' },
+    saved:   { ic:'✅', lbl:'已同步',          cls:'sync--ok' },
+    error:   { ic:'⚠️', lbl:(msg || '同步失败'), cls:'sync--err' }
   };
   const m = map[state] || map.online;
-  el.textContent = m.text;
+  const lblEsc = String(m.lbl).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  el.innerHTML = '<span class="tb-ic">'+m.ic+'</span><span class="tb-lbl">'+lblEsc+'</span>';
   el.className = 'sync-status ' + m.cls;
-  if (state === 'saved') setTimeout(() => { if (el.textContent === m.text) setSyncStatus('online'); }, 1500);
+  el.dataset.state = state;
+  if (state === 'saved') setTimeout(() => { if (el.dataset.state === 'saved') setSyncStatus('online'); }, 1500);
 }
 
 const DEFAULT_ABOUT = {
@@ -3716,6 +3727,8 @@ const CHANGELOG = [
       '🙈 挂名按身份显示：店主看全名（红字）/ 本人看自己订单的全名（金字）/ 其他访客只看首字 +「***」；visitorId 永不下发到客户端',
       '✏️ 订单可编辑：访客可改自己未完结订单的描述 / 联系方式 / 挂名（金色按钮「✎ 编辑我的订单」）；店主可改任意订单的同字段（已并入现有 admin 操作条）；商用 / 长期合作前缀自动保留',
       '⭐ 客户评价改为「客户自评」模式：订单完结后下单本人金色按钮「⭐ 给本单评价」/「✎ 改评价 / + 追评」，可打 1-5 星 + 写文字 + 任意时间再追评一条；店主只能写一条「💬 回复评价」（不可修改客户评价内容），所有内容卡片永久展示',
+      '📱 顶部「管理员登录」与「同步状态」在移动端只显示图标，给小屏腾地方',
+      '🪶 页脚文案换上文艺励志版「凡所听过 · 终将回响 · 一首一首，慢慢来」',
     ],
   },
   {
@@ -5554,10 +5567,10 @@ function renderAdminBtn() {
   if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { el.style.display = 'none'; return; }
   el.style.display = '';
   if (isAdmin()) {
-    el.textContent = '🔓 退出管理';
+    el.innerHTML = '<span class="tb-ic">🔓</span><span class="tb-lbl">退出管理</span>';
     el.className = 'admin-btn admin-btn--on';
   } else {
-    el.textContent = '🔒 管理员登录';
+    el.innerHTML = '<span class="tb-ic">🔒</span><span class="tb-lbl">管理员登录</span>';
     el.className = 'admin-btn';
   }
 }
