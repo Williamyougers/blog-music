@@ -1648,6 +1648,118 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   margin: 0.4rem 0 0.8rem;
 }
 
+/* ── 描述参考图上传 ── */
+.ws-images {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.ws-images__btn {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.4rem 0.85rem;
+  border: 1px dashed var(--gray-300, #d6d6d6);
+  border-radius: 4px;
+  font-size: 0.82rem;
+  color: var(--gray-700, #555);
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--paper, #fafaf7);
+}
+.ws-images__btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.ws-images__btn.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.ws-images__thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.ws-images__thumbs:empty {
+  display: none;
+}
+.ws-thumb {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--gray-200, #eaeaea);
+  background: #f5f5f0;
+}
+.ws-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ws-thumb__del {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ws-thumb__del:hover { background: var(--accent); }
+.ws-images__tip {
+  font-size: 0.75rem;
+  color: var(--gray-500, #888);
+}
+
+/* ── 订单卡里的参考图 ── */
+.ws-order__images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 0.7rem;
+}
+.ws-order__img {
+  width: 64px;
+  height: 64px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid var(--gray-200, #eaeaea);
+  cursor: zoom-in;
+  transition: transform 0.18s;
+}
+.ws-order__img:hover { transform: scale(1.04); }
+
+/* ── 套餐管理 Modal ── */
+.tier-edit {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--gray-200, #eaeaea);
+  border-radius: 5px;
+  margin-bottom: 0.7rem;
+  background: var(--paper, #fafaf7);
+}
+.tier-edit__row {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 0.6rem;
+}
+.tier-edit .field { margin-bottom: 0.5rem; }
+.tier-edit .field:last-child { margin-bottom: 0; }
+@media (max-width: 520px) {
+  .tier-edit__row { grid-template-columns: 1fr; }
+}
+
 /* ── 进度条 ── */
 .ws-progress {
   display: flex;
@@ -1926,16 +2038,22 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         </select>
       </div>
       <div class="field">
-        <label>套餐 *</label>
+        <label>价格 *</label>
         <div class="ws-tiers" id="wsTiers">
-          <label class="ws-tier"><input type="radio" name="ws-tier" value="basic"><div class="ws-tier__name">基础</div><div class="ws-tier__price" id="ws-price-basic">¥299</div><div class="ws-tier__desc" id="ws-desc-basic">单段编曲 · 1 次修改</div></label>
-          <label class="ws-tier"><input type="radio" name="ws-tier" value="standard" checked><div class="ws-tier__name">进阶</div><div class="ws-tier__price" id="ws-price-standard">¥599</div><div class="ws-tier__desc" id="ws-desc-standard">完整编曲 · 3 次修改</div></label>
-          <label class="ws-tier"><input type="radio" name="ws-tier" value="full"><div class="ws-tier__name">全包</div><div class="ws-tier__price" id="ws-price-full">¥999</div><div class="ws-tier__desc" id="ws-desc-full">编曲+混音 · 不限修改</div></label>
+          <label class="ws-tier"><input type="radio" name="ws-tier" value="basic"><div class="ws-tier__name" id="ws-name-basic">基础</div><div class="ws-tier__price" id="ws-price-basic">¥299</div><div class="ws-tier__desc" id="ws-desc-basic">单段编曲 · 1 次修改</div></label>
+          <label class="ws-tier"><input type="radio" name="ws-tier" value="standard" checked><div class="ws-tier__name" id="ws-name-standard">进阶</div><div class="ws-tier__price" id="ws-price-standard">¥599</div><div class="ws-tier__desc" id="ws-desc-standard">完整编曲 · 3 次修改</div></label>
+          <label class="ws-tier"><input type="radio" name="ws-tier" value="full"><div class="ws-tier__name" id="ws-name-full">全包</div><div class="ws-tier__price" id="ws-price-full">¥999</div><div class="ws-tier__desc" id="ws-desc-full">编曲+混音 · 不限修改</div></label>
         </div>
       </div>
       <div class="field">
         <label>需求描述</label>
         <textarea id="ws-desc" rows="4" placeholder="风格参考、demo 链接、想要的氛围、交付时间……越具体我越能做好"></textarea>
+        <div class="ws-images">
+          <label class="ws-images__btn" for="ws-img-input">📷 添加参考图（最多 3 张）</label>
+          <input id="ws-img-input" type="file" accept="image/*" multiple onchange="handleOrderImageSelect(event)" style="display:none;">
+          <div class="ws-images__thumbs" id="ws-img-thumbs"></div>
+          <div class="ws-images__tip" id="ws-img-tip" style="display:none;"></div>
+        </div>
       </div>
       <div class="field__row">
         <div class="field">
@@ -2122,41 +2240,43 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 <!-- 编辑 About Modal -->
 <!-- 套餐管理 Modal（admin） -->
 <div class="modal" id="tierModal">
-  <div class="modal__panel" style="max-width:520px;">
+  <div class="modal__panel" style="max-width:560px;">
     <button class="modal__close" onclick="closeModal('tierModal')">×</button>
     <h3 class="modal__title">🎛 套餐管理</h3>
-    <p style="color:var(--gray-500); font-size:0.85rem; margin:0 0 1rem;">改后立即生效；已下订单不变。</p>
-    <div class="field__row">
-      <div class="field">
-        <label>基础 ¥</label>
-        <input id="tier-basic-price" type="number" min="0" max="99999" placeholder="299">
+    <p style="color:var(--gray-500); font-size:0.85rem; margin:0 0 1rem;">名字 / 价格 / 说明都可改；改后立即生效，已下订单不变。</p>
+    <div class="tier-edit">
+      <div class="tier-edit__row">
+        <div class="field"><label>套餐 1 · 名字</label><input id="tier-basic-label" type="text" placeholder="基础" maxlength="10"></div>
+        <div class="field"><label>价格 ¥</label><input id="tier-basic-price" type="number" min="0" max="99999" placeholder="299"></div>
       </div>
-      <div class="field">
-        <label>进阶 ¥</label>
-        <input id="tier-standard-price" type="number" min="0" max="99999" placeholder="599">
+      <div class="field"><label>说明</label><input id="tier-basic-desc" type="text" placeholder="单段编曲 · 1 次修改" maxlength="60"></div>
+    </div>
+    <div class="tier-edit">
+      <div class="tier-edit__row">
+        <div class="field"><label>套餐 2 · 名字</label><input id="tier-standard-label" type="text" placeholder="进阶" maxlength="10"></div>
+        <div class="field"><label>价格 ¥</label><input id="tier-standard-price" type="number" min="0" max="99999" placeholder="599"></div>
       </div>
-      <div class="field">
-        <label>全包 ¥</label>
-        <input id="tier-full-price" type="number" min="0" max="99999" placeholder="999">
+      <div class="field"><label>说明</label><input id="tier-standard-desc" type="text" placeholder="完整编曲 · 3 次修改" maxlength="60"></div>
+    </div>
+    <div class="tier-edit">
+      <div class="tier-edit__row">
+        <div class="field"><label>套餐 3 · 名字</label><input id="tier-full-label" type="text" placeholder="全包" maxlength="10"></div>
+        <div class="field"><label>价格 ¥</label><input id="tier-full-price" type="number" min="0" max="99999" placeholder="999"></div>
       </div>
-    </div>
-    <div class="field">
-      <label>基础 · 说明</label>
-      <input id="tier-basic-desc" type="text" placeholder="单段编曲 · 1 次修改">
-    </div>
-    <div class="field">
-      <label>进阶 · 说明</label>
-      <input id="tier-standard-desc" type="text" placeholder="完整编曲 · 3 次修改">
-    </div>
-    <div class="field">
-      <label>全包 · 说明</label>
-      <input id="tier-full-desc" type="text" placeholder="编曲+混音 · 不限修改">
+      <div class="field"><label>说明</label><input id="tier-full-desc" type="text" placeholder="编曲+混音 · 不限修改" maxlength="60"></div>
     </div>
     <div class="modal__actions">
       <button class="btn btn--ghost btn--sm" onclick="resetTierPrices()" style="margin-right:auto;">恢复默认</button>
       <button class="btn btn--ghost btn--sm" onclick="closeModal('tierModal')">取消</button>
       <button class="btn btn--sm" onclick="saveTierPrices()">保存</button>
     </div>
+  </div>
+</div>
+
+<!-- 图片放大 Lightbox -->
+<div class="modal" id="imgLightbox" onclick="closeImgLightbox(event)">
+  <div class="modal__panel" id="imgLightboxPanel" style="background:transparent; box-shadow:none; padding:0; max-width:92vw;">
+    <img id="imgLightboxImg" alt="" style="max-width:100%; max-height:90vh; display:block; margin:0 auto; border-radius:4px;">
   </div>
 </div>
 
@@ -2260,7 +2380,8 @@ const DEFAULT_ABOUT = {
   quote: '这个站没有评论、没有算法、没有广告。只有作品和文字。如果你恰好喜欢，那便是缘分。',
   body2: '感谢你来到这里。愿你在此找到某种共鸣。',
   tierPrices: { basic: 299, standard: 599, full: 999 },
-  tierDescs: { basic: '单段编曲 · 1 次修改', standard: '完整编曲 · 3 次修改', full: '编曲+混音 · 不限修改' }
+  tierDescs: { basic: '单段编曲 · 1 次修改', standard: '完整编曲 · 3 次修改', full: '编曲+混音 · 不限修改' },
+  tierLabels: { basic: '基础', standard: '进阶', full: '全包' }
 };
 
 // ── 数据层 ──
@@ -2450,12 +2571,12 @@ const Store = {
     return true;
   },
   // ── Orders ──
-  async submitOrder(type, tier, description, clientName, showName, contact, price) {
+  async submitOrder(type, tier, description, clientName, showName, contact, price, tierLabel, images) {
     if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云，无法下单');
     const res = await fetch(API_BASE + '/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, tier, description, clientName, showName, contact, price, visitorId: getVisitorId() }),
+      body: JSON.stringify({ type, tier, description, clientName, showName, contact, price, tierLabel, images, visitorId: getVisitorId() }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
@@ -2867,62 +2988,28 @@ function renderAll() { renderWorks(); renderLogs(); renderStats(); renderAbout()
 const CHANGELOG = [
   {
     date: '2026-06-03',
-    title: '工坊体验升级 · 套餐管理 / 评价 Modal / 筛选排序',
+    title: '全站升级 · 工坊接单 + UI 动效 + 体验细节',
     items: [
-      '管理员可在工坊页一键调整 3 档套餐价格和说明（基础 / 进阶 / 全包）',
-      '客户评价改成 Modal 输入，支持 200 字 + 字数提示，可编辑可清空',
-      '订单列表加筛选 / 排序：进行中 + 排队按时间 / 价格 / 进度排，已完结另加风格 + 套餐 + 交付时长筛排',
-    ],
-  },
-  {
-    date: '2026-06-03',
-    title: '工坊上线 · 编曲约稿透明接单',
-    items: [
-      '新增第 5 个 tab「工坊」，访客可直接下单',
-      '5 步状态进度条：接单中 / 沟通中 / 编曲中 / 待交付 / 完结',
-      '订单永久保留，支持自愿挂名展示，完结订单可附客户评价',
-      '管理员可后台推进状态、调整价格、删除订单',
-    ],
-  },
-  {
-    date: '2026-06-03',
-    title: 'Banner 动起来 + 点击迸发音符',
-    items: [
-      'Masthead 加入金色光晕漂移、标题金光扫过、副标题/装饰呼吸、底部条纹流动',
-      '鼠标点击页面任意处迸发 3-5 个音符粒子，1.1s 消散',
-      '新增「更新公告」页，与作品 / 日志 / 关于并列',
-    ],
-  },
-  {
-    date: '2026-06-03',
-    title: '返回顶部 + 全屏音符粒子',
-    items: [
-      '右下角圆形返回顶部按钮，滚动超过 380px 自动浮现',
-      '页面背景持续飘动金色音符（♪♫♬♩），最多 7 个，慢飘上升',
-    ],
-  },
-  {
-    date: '2026-06-03',
-    title: '全站 UI 美化升级',
-    items: [
-      '11 项动效：首屏淡入、滚动渐入、卡片 hover、tab 切换、同步状态呼吸等',
-      'Modal blur 背景 + 弹簧入场，加群弹簧、字数计数变色',
+      '🎨 全站 UI 美化：11 项动效（首屏淡入 / 滚动渐入 / 卡片 hover / tab 切换 / 同步状态呼吸等），Modal blur 背景 + 弹簧入场',
+      '🎵 Masthead 五层动效叠加（金色光晕漂移 / 标题金光扫过 / 副标题与装饰呼吸 / 底部条纹流动）',
+      '✨ 鼠标点击页面任意处迸发 3-5 个音符粒子，背景持续飘动金色音符（最多 7 个）',
+      '⬆️ 右下角圆形返回顶部按钮，滚动超过 380px 自动浮现',
+      '📋 新增「更新公告」tab，与作品 / 日志 / 关于并列',
+      '🛠️ 新增「工坊」tab：访客直接下单 · 5 步状态进度条 · 永久保留 · 自愿挂名 · 完结后可附客户评价',
+      '👨‍💼 管理员后台：推进订单状态 / 调整价格 / 删除订单 / 套餐名 + 价格 + 说明全可改',
+      '💬 客户评价改 Modal 输入（替代 prompt），200 字 + 实时计数',
+      '🔍 订单列表筛选 / 排序：进行中 + 排队按时间 / 价格 / 进度排，已完结另加风格 + 套餐 + 交付时长',
+      '📷 下单表单「套餐」改「价格」，需求描述支持上传最多 3 张参考图（自动压缩）',
     ],
   },
   {
     date: '2026-06-02',
-    title: 'HTTPS 绿锁修复 + 国内访问加速',
-    items: [
-      '迁移 DNS 到 Cloudflare，绑自定义域 api.weilingt.top（workers.dev 国内不通问题解决）',
-      'Cloudflare Universal SSL 接管，主站 HTTPS 绿锁恢复',
-    ],
-  },
-  {
-    date: '2026-06-02',
-    title: '云端数据同步上线',
+    title: '云端数据同步 + HTTPS 国内加速',
     items: [
       '接入 Cloudflare Worker + KV，访客访问真后端，多设备数据同步',
       '日志评论功能上线，匿名访客可留言（5s 冷却、单访客 30 条限制）',
+      '迁移 DNS 到 Cloudflare，绑自定义域 api.weilingt.top（解决 workers.dev 国内不通）',
+      'Cloudflare Universal SSL 接管，主站 HTTPS 绿锁恢复',
     ],
   },
   {
@@ -2966,12 +3053,15 @@ async function submitOrder() {
   const contact = document.getElementById('ws-contact').value.trim();
 
   if (!type) { toast('请选择风格类型'); return; }
-  if (!tier) { toast('请选择套餐'); return; }
+  if (!tier) { toast('请选择价格档位'); return; }
   if (!contact) { toast('请填写联系方式'); return; }
 
-  // 取当前套餐价格（可能被管理员改过）
+  // 取当前套餐价格 / 名字（可能被管理员改过）
   const tierPrices = (Store.about && Store.about.tierPrices) || DEFAULT_ABOUT.tierPrices;
+  const tierLabels = (Store.about && Store.about.tierLabels) || DEFAULT_ABOUT.tierLabels;
   const price = tierPrices[tier] || 0;
+  const tierLabel = tierLabels[tier] || DEFAULT_ABOUT.tierLabels[tier] || tier;
+  const images = _pendingOrderImages.slice();
 
   const btn = document.querySelector('.ws-submit');
   const orig = btn.textContent;
@@ -2979,7 +3069,7 @@ async function submitOrder() {
   btn.textContent = '提交中…';
 
   try {
-    await Store.submitOrder(type, tier, description, clientName, showName, contact, price);
+    await Store.submitOrder(type, tier, description, clientName, showName, contact, price, tierLabel, images);
     toast('订单已提交 ✓ 我会尽快联系你');
     // reset form
     document.getElementById('ws-type').value = '';
@@ -2990,6 +3080,8 @@ async function submitOrder() {
     if (document.querySelector('input[name="ws-tier"][value="standard"]')) {
       document.querySelector('input[name="ws-tier"][value="standard"]').checked = true;
     }
+    _pendingOrderImages = [];
+    renderPendingOrderImages();
     renderWorkshop();
   } catch (e) {
     toast(e.message || '提交失败');
@@ -2997,6 +3089,104 @@ async function submitOrder() {
     btn.disabled = false;
     btn.textContent = orig;
   }
+}
+
+// ── 工坊：参考图上传（前端压缩 + base64） ──
+let _pendingOrderImages = [];
+const MAX_ORDER_IMAGES = 3;
+const MAX_IMAGE_DIM = 1200;
+const IMAGE_QUALITY = 0.78;
+
+function handleOrderImageSelect(event) {
+  const files = Array.from(event.target.files || []);
+  event.target.value = ''; // 允许同一文件再次选
+  if (!files.length) return;
+  const remaining = MAX_ORDER_IMAGES - _pendingOrderImages.length;
+  if (remaining <= 0) { toast(`最多上传 ${MAX_ORDER_IMAGES} 张`); return; }
+  const todo = files.slice(0, remaining);
+  if (files.length > remaining) toast(`只接收前 ${remaining} 张`);
+  const tip = document.getElementById('ws-img-tip');
+  if (tip) { tip.style.display = 'block'; tip.textContent = '正在压缩…'; }
+  Promise.all(todo.map(compressImage))
+    .then(results => {
+      results.forEach(b64 => { if (b64) _pendingOrderImages.push(b64); });
+      renderPendingOrderImages();
+      if (tip) tip.style.display = 'none';
+    })
+    .catch(err => {
+      toast('图片读取失败：' + (err.message || err));
+      if (tip) tip.style.display = 'none';
+    });
+}
+
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || !file.type.startsWith('image/')) {
+      reject(new Error('不是图片')); return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      reject(new Error('单张图片超过 10MB')); return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > MAX_IMAGE_DIM || h > MAX_IMAGE_DIM) {
+          const ratio = Math.min(MAX_IMAGE_DIM / w, MAX_IMAGE_DIM / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        let dataUrl = canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
+        // 如果还是太大，降画质再压一次
+        if (dataUrl.length > 480000) {
+          dataUrl = canvas.toDataURL('image/jpeg', 0.62);
+        }
+        if (dataUrl.length > 480000) {
+          reject(new Error('图片压缩后仍过大，请选小一点的图')); return;
+        }
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('图片解码失败'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function removePendingOrderImage(idx) {
+  _pendingOrderImages.splice(idx, 1);
+  renderPendingOrderImages();
+}
+
+function renderPendingOrderImages() {
+  const wrap = document.getElementById('ws-img-thumbs');
+  const btn = document.querySelector('.ws-images__btn');
+  if (!wrap) return;
+  wrap.innerHTML = _pendingOrderImages.map((src, i) =>
+    `<div class="ws-thumb"><img src="${src}" alt=""><button type="button" class="ws-thumb__del" onclick="removePendingOrderImage(${i})" title="删除">×</button></div>`
+  ).join('');
+  if (btn) {
+    if (_pendingOrderImages.length >= MAX_ORDER_IMAGES) btn.classList.add('is-disabled');
+    else btn.classList.remove('is-disabled');
+  }
+}
+
+// ── 图片放大 Lightbox ──
+function openImgLightbox(src) {
+  const img = document.getElementById('imgLightboxImg');
+  if (img) img.src = src;
+  document.getElementById('imgLightbox').classList.add('open');
+}
+function closeImgLightbox(e) {
+  // 只在点击遮罩（不是图片本身）时关闭
+  if (e && e.target && e.target.id !== 'imgLightbox') return;
+  document.getElementById('imgLightbox').classList.remove('open');
 }
 
 // ── 工坊：渲染 ──
@@ -3034,12 +3224,15 @@ function sortOrders(orders, sort) {
 }
 
 function renderWorkshop() {
-  // 同步套餐卡价格（可能被管理员改过）
+  // 同步套餐卡名字 / 价格 / 说明（可能被管理员改过）
   const tierPrices = (Store.about && Store.about.tierPrices) || DEFAULT_ABOUT.tierPrices;
   const tierDescs = (Store.about && Store.about.tierDescs) || DEFAULT_ABOUT.tierDescs;
+  const tierLabels = (Store.about && Store.about.tierLabels) || DEFAULT_ABOUT.tierLabels;
   ['basic', 'standard', 'full'].forEach(k => {
+    const ne = document.getElementById('ws-name-' + k);
     const pe = document.getElementById('ws-price-' + k);
     const de = document.getElementById('ws-desc-' + k);
+    if (ne) ne.textContent = tierLabels[k] || DEFAULT_ABOUT.tierLabels[k];
     if (pe) pe.textContent = '¥' + (tierPrices[k] != null ? tierPrices[k] : DEFAULT_ABOUT.tierPrices[k]);
     if (de) de.textContent = tierDescs[k] || DEFAULT_ABOUT.tierDescs[k];
   });
@@ -3178,6 +3371,7 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
           </div>
         </div>
         ${o.description ? `<p class="ws-order__desc">${escapeHTML(o.description)}</p>` : ''}
+        ${(o.images && o.images.length) ? `<div class="ws-order__images" data-order="${o.id}">${o.images.map((src, idx) => `<img class="ws-order__img" src="${src}" alt="参考图" data-img-idx="${idx}" loading="lazy">`).join('')}</div>` : ''}
         ${progressHtml}
         <div class="ws-order__foot">
           <span class="ws-order__date">${dateStr}</span>
@@ -3244,9 +3438,12 @@ function openTierModal() {
   if (window.__VIEWER_MODE__ || !isAdmin()) return;
   const tp = (Store.about && Store.about.tierPrices) || DEFAULT_ABOUT.tierPrices;
   const td = (Store.about && Store.about.tierDescs) || DEFAULT_ABOUT.tierDescs;
+  const tl = (Store.about && Store.about.tierLabels) || DEFAULT_ABOUT.tierLabels;
   ['basic', 'standard', 'full'].forEach(k => {
+    const le = document.getElementById('tier-' + k + '-label');
     const pe = document.getElementById('tier-' + k + '-price');
     const de = document.getElementById('tier-' + k + '-desc');
+    if (le) le.value = tl[k] || DEFAULT_ABOUT.tierLabels[k];
     if (pe) pe.value = tp[k] != null ? tp[k] : DEFAULT_ABOUT.tierPrices[k];
     if (de) de.value = td[k] || DEFAULT_ABOUT.tierDescs[k];
   });
@@ -3254,8 +3451,10 @@ function openTierModal() {
 }
 function resetTierPrices() {
   ['basic', 'standard', 'full'].forEach(k => {
+    const le = document.getElementById('tier-' + k + '-label');
     const pe = document.getElementById('tier-' + k + '-price');
     const de = document.getElementById('tier-' + k + '-desc');
+    if (le) le.value = DEFAULT_ABOUT.tierLabels[k];
     if (pe) pe.value = DEFAULT_ABOUT.tierPrices[k];
     if (de) de.value = DEFAULT_ABOUT.tierDescs[k];
   });
@@ -3268,16 +3467,23 @@ function saveTierPrices() {
     return n;
   };
   const readDesc = k => (document.getElementById('tier-' + k + '-desc').value || '').trim().slice(0, 60);
+  const readLabel = k => (document.getElementById('tier-' + k + '-label').value || '').trim().slice(0, 10);
   const newPrices = { basic: readPrice('basic'), standard: readPrice('standard'), full: readPrice('full') };
   if (newPrices.basic == null || newPrices.standard == null || newPrices.full == null) {
     toast('价格必须是 0–99999 的数字');
     return;
   }
+  const newLabels = {
+    basic: readLabel('basic') || DEFAULT_ABOUT.tierLabels.basic,
+    standard: readLabel('standard') || DEFAULT_ABOUT.tierLabels.standard,
+    full: readLabel('full') || DEFAULT_ABOUT.tierLabels.full,
+  };
   Store.about = {
     ...DEFAULT_ABOUT,
     ...(Store.about || {}),
     tierPrices: newPrices,
     tierDescs: { basic: readDesc('basic') || DEFAULT_ABOUT.tierDescs.basic, standard: readDesc('standard') || DEFAULT_ABOUT.tierDescs.standard, full: readDesc('full') || DEFAULT_ABOUT.tierDescs.full },
+    tierLabels: newLabels,
   };
   Store.saveAbout();
   closeModal('tierModal');
@@ -3938,6 +4144,12 @@ document.querySelectorAll('.modal').forEach(m => {
 // ── ESC 关闭 modal ──
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+});
+
+// ── 订单参考图点击放大（事件委托，避免 base64 入 onclick） ──
+document.addEventListener('click', e => {
+  const img = e.target.closest && e.target.closest('.ws-order__img');
+  if (img && img.src) openImgLightbox(img.src);
 });
 
 // ── 顶部日期 + 期号 ──
