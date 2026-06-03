@@ -37,6 +37,55 @@ function isAdmin(request, env) {
   return !!env.ADMIN_TOKEN && auth === `Bearer ${env.ADMIN_TOKEN}`;
 }
 
+// 新订单微信推送（Server 酱）
+// 需要在 Worker Secret 里设置 SERVERCHAN_KEY；没设置则静默跳过
+async function notifyNewOrder(env, order) {
+  if (!env.SERVERCHAN_KEY) return;
+  try {
+    const desc = (order.description || '').trim();
+    const descShort = desc.length > 100 ? desc.slice(0, 100) + '...' : desc;
+    const isCommercial = /^\[商用\]/.test(desc);
+    const isLongTerm = /^\[长期合作\]/.test(desc);
+    const modeTag = isCommercial ? '🏢 商用' : (isLongTerm ? '📆 长期合作' : '🎵 非商');
+    const showName = order.showName ? (order.clientName || '匿名') : '匿名';
+    const seqStr = String(order.seq || 0).padStart(3, '0');
+    const tierLabel = order.tierLabel || order.tier || '';
+    const priceStr = order.priceMode === 'from' ? `${order.price} 元起` : `${order.price} 元`;
+    const contact = order.contact || '（未留）';
+    const timeStr = new Date(order.createdAt || Date.now())
+      .toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+
+    const title = `📢 新订单 #${seqStr} · ${tierLabel}`;
+    const desp = [
+      `### ${modeTag}`,
+      '',
+      `- **挂名**：${showName}`,
+      `- **套餐**：${tierLabel}`,
+      `- **价格**：${priceStr}`,
+      `- **联系方式**：\`${contact}\``,
+      '',
+      `**描述**`,
+      '',
+      `> ${descShort || '（无）'}`,
+      '',
+      `---`,
+      `🕐 ${timeStr}`,
+      `🔗 https://weilingt.top`,
+    ].join('\n');
+
+    const apiUrl = `https://sctapi.ftqq.com/${env.SERVERCHAN_KEY}.send`;
+    const body = new URLSearchParams({ title, desp });
+    await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+  } catch (e) {
+    // 推送失败不影响订单创建
+    console.error('notifyNewOrder failed:', e && e.message);
+  }
+}
+
 const DEFAULT_ABOUT = {
   intro: '',
   body1: '',
@@ -293,7 +342,7 @@ const ORDER_TIERS = [
 ];
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const cors = corsHeaders(request);
     const method = request.method;
@@ -473,6 +522,12 @@ export default {
         return json({ error: 'Orders storage full' }, 413, cors);
       }
       await env.BLOG.put('orders', ordersJson);
+      // 异步推送微信通知，不阻塞响应（Server 酱挂了也不影响下单）
+      if (ctx && typeof ctx.waitUntil === 'function') {
+        ctx.waitUntil(notifyNewOrder(env, order));
+      } else {
+        notifyNewOrder(env, order).catch(() => {});
+      }
       return json({ ok: true, order: { ...order, visitorId: undefined } }, 200, cors);
     }
 
