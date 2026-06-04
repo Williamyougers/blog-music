@@ -37,6 +37,41 @@ function isAdmin(request, env) {
   return !!env.ADMIN_TOKEN && auth === `Bearer ${env.ADMIN_TOKEN}`;
 }
 
+// ── Multi-role admin (super + sub) ──
+const SUPER_ADMIN_EMAIL = '453203081@qq.com';
+
+async function getSubAdmins(env) {
+  const list = await env.BLOG.get('admin/subadmins', 'json');
+  return Array.isArray(list) ? list : [];
+}
+
+async function isSubAdminEmail(env, email) {
+  if (!email) return false;
+  const list = await getSubAdmins(env);
+  const e = String(email).toLowerCase();
+  return list.some(s => s && s.email === e);
+}
+
+// Returns 'super' | 'sub' | 'user' | null
+async function getRole(request, env) {
+  if (isAdmin(request, env)) return 'super'; // password fallback
+  const user = await getCurrentUser(request, env);
+  if (!user) return null;
+  if (user.email === SUPER_ADMIN_EMAIL) return 'super';
+  if (await isSubAdminEmail(env, user.email)) return 'sub';
+  return 'user';
+}
+
+async function isAdminOrSub(request, env) {
+  const role = await getRole(request, env);
+  return role === 'super' || role === 'sub';
+}
+
+async function isSuperRole(request, env) {
+  const role = await getRole(request, env);
+  return role === 'super';
+}
+
 // 新订单微信推送（Server 酱）
 // 需要在 Worker Secret 里设置 SERVERCHAN_KEY；没设置则静默跳过
 async function notifyNewOrder(env, order) {
@@ -558,7 +593,7 @@ async function handleRequest(request, env, ctx, cors) {
     if (path === '/api/data' && method === 'GET') {
       const data = await loadAll(env);
       if (Array.isArray(data.orders)) {
-        const admin = isAdmin(request, env);
+        const admin = await isAdminOrSub(request, env);
         const viewerId = request.headers.get('X-Visitor-Id') || '';
         data.orders = data.orders.map(o => {
           if (!o) return o;
@@ -579,8 +614,11 @@ async function handleRequest(request, env, ctx, cors) {
     }
 
     // PUT /api/data - admin overwrite for works/logs/about (NOT comments, NOT orders)
+    // super: full access (works/logs/about/logGroups)
+    // sub: works/logs/logGroups only; "about" (含套餐价格) is silently ignored
     if (path === '/api/data' && method === 'PUT') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      const role = await getRole(request, env);
+      if (role !== 'super' && role !== 'sub') return json({ error: 'Unauthorized' }, 401, cors);
       let body;
       try { body = await request.json(); }
       catch { return json({ error: 'Invalid JSON' }, 400, cors); }
@@ -593,25 +631,27 @@ async function handleRequest(request, env, ctx, cors) {
         id: String((g && g.id) || '').slice(0, 32),
         name: sanitizeStr(g && g.name, 20),
       })).filter(g => g.id && g.name) : null;
-      const safeAbout = about && typeof about === 'object' ? (() => {
-        const allowed = pickAllowedKeys(about);
-        const allowedPlans = pickAllowedPlanKeys(about);
+      // Sub admin: forcefully discard "about" (含套餐价格)
+      const aboutInput = (role === 'sub') ? null : about;
+      const safeAbout = aboutInput && typeof aboutInput === 'object' ? (() => {
+        const allowed = pickAllowedKeys(aboutInput);
+        const allowedPlans = pickAllowedPlanKeys(aboutInput);
         return {
-          intro: sanitizeStr(about.intro, 500),
-          body1: sanitizeStr(about.body1, 2000),
-          quote: sanitizeStr(about.quote, 500),
-          body2: sanitizeStr(about.body2, 2000),
+          intro: sanitizeStr(aboutInput.intro, 500),
+          body1: sanitizeStr(aboutInput.body1, 2000),
+          quote: sanitizeStr(aboutInput.quote, 500),
+          body2: sanitizeStr(aboutInput.body2, 2000),
           tierKeys: allowed,
-          tierPrices: sanitizeTierPrices(about.tierPrices, allowed),
-          tierPriceModes: sanitizeTierPriceModes(about.tierPriceModes, allowed),
-          tierDescs: sanitizeTierDescs(about.tierDescs, allowed),
-          tierLabels: sanitizeTierLabels(about.tierLabels, allowed),
+          tierPrices: sanitizeTierPrices(aboutInput.tierPrices, allowed),
+          tierPriceModes: sanitizeTierPriceModes(aboutInput.tierPriceModes, allowed),
+          tierDescs: sanitizeTierDescs(aboutInput.tierDescs, allowed),
+          tierLabels: sanitizeTierLabels(aboutInput.tierLabels, allowed),
           planKeys: allowedPlans,
-          planPrices: sanitizePlanPrices(about.planPrices, allowedPlans),
-          planPriceModes: sanitizePlanPriceModes(about.planPriceModes, allowedPlans),
-          planDescs: sanitizePlanDescs(about.planDescs, allowedPlans),
-          planLabels: sanitizePlanLabels(about.planLabels, allowedPlans),
-          planPeriods: sanitizePlanPeriods(about.planPeriods, allowedPlans),
+          planPrices: sanitizePlanPrices(aboutInput.planPrices, allowedPlans),
+          planPriceModes: sanitizePlanPriceModes(aboutInput.planPriceModes, allowedPlans),
+          planDescs: sanitizePlanDescs(aboutInput.planDescs, allowedPlans),
+          planLabels: sanitizePlanLabels(aboutInput.planLabels, allowedPlans),
+          planPeriods: sanitizePlanPeriods(aboutInput.planPeriods, allowedPlans),
         };
       })() : null;
       const serialized = JSON.stringify({ works, logs, about: safeAbout, logGroups: safeGroups });
@@ -625,7 +665,7 @@ async function handleRequest(request, env, ctx, cors) {
       if (safeAbout) tasks.push(env.BLOG.put('about', JSON.stringify(safeAbout)));
       if (safeGroups) tasks.push(env.BLOG.put('logGroups', JSON.stringify(safeGroups)));
       await Promise.all(tasks);
-      return json({ ok: true, savedAt: Date.now(), works: works.length, logs: logs.length, about: !!safeAbout, logGroups: safeGroups ? safeGroups.length : null }, 200, cors);
+      return json({ ok: true, savedAt: Date.now(), works: works.length, logs: logs.length, about: !!safeAbout, logGroups: safeGroups ? safeGroups.length : null, role }, 200, cors);
     }
 
     // ── Orders API ──
@@ -753,7 +793,7 @@ async function handleRequest(request, env, ctx, cors) {
       if (idx < 0) return json({ error: 'Order not found' }, 404, cors);
 
       const order = orders[idx];
-      const admin = isAdmin(request, env);
+      const admin = await isAdminOrSub(request, env);
       const viewerId = request.headers.get('X-Visitor-Id') || '';
       const isOwner = !admin && !!viewerId && order.visitorId === viewerId;
 
@@ -842,7 +882,7 @@ async function handleRequest(request, env, ctx, cors) {
 
     // DELETE /api/orders/:orderId - admin delete order
     if (orderPutMatch && method === 'DELETE') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
       const orderId = orderPutMatch[1];
       const ordersRaw = await env.BLOG.get('orders');
       const orders = JSON.parse(ordersRaw || '[]');
@@ -912,7 +952,7 @@ async function handleRequest(request, env, ctx, cors) {
     if (delMatch && method === 'DELETE') {
       const logId = delMatch[1];
       const commentId = delMatch[2];
-      const admin = isAdmin(request, env);
+      const admin = await isAdminOrSub(request, env);
       const visitorId = sanitizeStr(request.headers.get('X-Visitor-Id'), 64);
 
       const commentsRaw = await env.BLOG.get('comments');
@@ -994,14 +1034,21 @@ async function handleRequest(request, env, ctx, cors) {
       // Create session (30-day TTL)
       const token = genToken();
       await env.BLOG.put('session/' + token, JSON.stringify({ email }), { expirationTtl: 30 * 86400 });
-      return json({ ok: true, token, user: { email: user.email, userId: user.userId, nickname: user.nickname } }, 200, cors);
+      // Determine role
+      let role = 'user';
+      if (email === SUPER_ADMIN_EMAIL) role = 'super';
+      else if (await isSubAdminEmail(env, email)) role = 'sub';
+      return json({ ok: true, token, user: { email: user.email, userId: user.userId, nickname: user.nickname }, role }, 200, cors);
     }
 
     // GET /api/auth/me — get current user info
     if (path === '/api/auth/me' && method === 'GET') {
       const user = await getCurrentUser(request, env);
       if (!user) return json({ error: 'Not logged in' }, 401, cors);
-      return json({ email: user.email, userId: user.userId, nickname: user.nickname }, 200, cors);
+      let role = 'user';
+      if (user.email === SUPER_ADMIN_EMAIL) role = 'super';
+      else if (await isSubAdminEmail(env, user.email)) role = 'sub';
+      return json({ email: user.email, userId: user.userId, nickname: user.nickname, role }, 200, cors);
     }
 
     // POST /api/auth/logout — invalidate session
@@ -1082,25 +1129,25 @@ async function handleRequest(request, env, ctx, cors) {
     //  Admin DM endpoints (admin reads/replies to user conversations)
     // =============================================================
 
-    // GET /api/admin/dm/threads — list all DM threads (admin only)
+    // GET /api/admin/dm/threads — list all DM threads (super + sub)
     if (path === '/api/admin/dm/threads' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
       const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
       return json({ threads: list }, 200, cors);
     }
 
-    // GET /api/admin/dm/thread/:userId — get a specific user's conversation (admin only)
+    // GET /api/admin/dm/thread/:userId — get a specific user's conversation (super + sub)
     if (path.startsWith('/api/admin/dm/thread/') && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
       const targetUserId = path.slice('/api/admin/dm/thread/'.length);
       if (!targetUserId || targetUserId.length > 32) return json({ error: 'Invalid userId' }, 400, cors);
       const thread = (await env.BLOG.get('dm/thread/' + targetUserId, 'json')) || [];
       return json({ messages: thread }, 200, cors);
     }
 
-    // POST /api/admin/dm/reply — admin replies to a user (admin only)
+    // POST /api/admin/dm/reply — admin replies to a user (super + sub)
     if (path === '/api/admin/dm/reply' && method === 'POST') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
       let body;
       try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
       const targetUserId = String(body.userId || '').trim();
@@ -1127,9 +1174,9 @@ async function handleRequest(request, env, ctx, cors) {
       return json({ ok: true, msg }, 200, cors);
     }
 
-    // POST /api/admin/dm/mark-read — admin marks a thread as read (admin only)
+    // POST /api/admin/dm/mark-read — mark a thread as read (super + sub)
     if (path === '/api/admin/dm/mark-read' && method === 'POST') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
       let body;
       try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
       const targetUserId = String(body.userId || '').trim();
@@ -1140,13 +1187,55 @@ async function handleRequest(request, env, ctx, cors) {
       return json({ ok: true }, 200, cors);
     }
 
-    // POST /api/admin/heartbeat — admin pings to mark online (admin only)
-    // Used by notifyNewDM to skip Server Chan push when admin is actively using inbox
+    // POST /api/admin/heartbeat — admin (super or sub) pings to mark "店主侧在线"
+    // notifyNewDM skips Server Chan push when admin/online is fresh (TTL 90s)
+    // 副管理员在线也算"店主侧"——可以代为响应，无需打扰主人微信
     if (path === '/api/admin/heartbeat' && method === 'POST') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
       const ts = Date.now();
       await env.BLOG.put('admin/online', JSON.stringify({ ts }), { expirationTtl: 90 });
       return json({ ok: true, ts }, 200, cors);
+    }
+
+    // =============================================================
+    //  Sub-admin management (super only)
+    // =============================================================
+
+    // GET /api/admin/subadmins — list sub admins (super only)
+    if (path === '/api/admin/subadmins' && method === 'GET') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      const list = await getSubAdmins(env);
+      return json({ subadmins: list }, 200, cors);
+    }
+
+    // POST /api/admin/subadmins — add a sub admin (super only)
+    if (path === '/api/admin/subadmins' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const email = normalizeEmail(body.email);
+      const note = sanitizeStr(body.note, 50);
+      if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      if (email === SUPER_ADMIN_EMAIL) return json({ error: '不能把主管理员邮箱设为副管理员' }, 400, cors);
+      const list = await getSubAdmins(env);
+      if (list.some(s => s.email === email)) return json({ error: '该邮箱已是副管理员' }, 400, cors);
+      if (list.length >= 20) return json({ error: '副管理员上限 20 个' }, 400, cors);
+      list.push({ email, note, addedAt: Date.now() });
+      await env.BLOG.put('admin/subadmins', JSON.stringify(list));
+      return json({ ok: true, subadmins: list }, 200, cors);
+    }
+
+    // DELETE /api/admin/subadmins/:email — remove a sub admin (super only)
+    const subDelMatch = path.match(/^\/api\/admin\/subadmins\/(.+)$/);
+    if (subDelMatch && method === 'DELETE') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      const email = normalizeEmail(decodeURIComponent(subDelMatch[1]));
+      if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      const list = await getSubAdmins(env);
+      const next = list.filter(s => s.email !== email);
+      if (next.length === list.length) return json({ error: 'Not found' }, 404, cors);
+      await env.BLOG.put('admin/subadmins', JSON.stringify(next));
+      return json({ ok: true, subadmins: next }, 200, cors);
     }
 
     if (path === '/' || path === '/health') {

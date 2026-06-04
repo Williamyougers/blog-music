@@ -2945,6 +2945,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <span id="syncStatus" class="sync-status"><span class="tb-ic">☁️</span><span class="tb-lbl">加载中…</span></span>
     <button id="userBtn" class="admin-btn badge" data-badge="0" onclick="openUserPanel()" title="登录/我的私信"><span class="tb-ic">👤</span><span class="tb-lbl">登录</span></button>
     <button id="inboxBtn" class="admin-btn badge js-write-action" data-badge="0" onclick="openInbox()" style="display:none;" title="管理员收件箱"><span class="tb-ic">📨</span><span class="tb-lbl">收件箱</span></button>
+    <button id="subAdminBtn" class="admin-btn js-write-action" onclick="openSubAdminPanel()" style="display:none;" title="管理副管理员"><span class="tb-ic">🛠</span><span class="tb-lbl">副管理员</span></button>
     <button id="adminBtn" class="admin-btn" onclick="adminLogin()" style="display:none;"><span class="tb-ic">🔒</span><span class="tb-lbl">管理员登录</span></button>
     <span id="topDate"></span>
   </div>
@@ -3117,7 +3118,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <div class="ws-section__head">
       <h3 class="ws-section__title">下单 · Commission</h3>
       <div class="ws-toolbar js-write-action">
-        <button class="btn btn--ghost btn--sm" onclick="openTierModal()" title="管理员：调整套餐价格 / 说明">🎛 套餐管理</button>
+        <button class="btn btn--ghost btn--sm js-super-only" onclick="openTierModal()" title="主管理员：调整套餐价格 / 说明">🎛 套餐管理</button>
       </div>
     </div>
     <div class="ws-form">
@@ -3160,7 +3161,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <div class="ws-section__head">
       <h3 class="ws-section__title">长期合作 · Subscribe &amp; Bulk</h3>
       <div class="ws-toolbar js-write-action">
-        <button class="btn btn--ghost btn--sm" onclick="openPlanModal()" title="管理员：管理订阅与囤单方案">🗓 订阅服务管理</button>
+        <button class="btn btn--ghost btn--sm js-super-only" onclick="openPlanModal()" title="主管理员：管理订阅与囤单方案">🗓 订阅服务管理</button>
       </div>
     </div>
     <p class="ws-plans__intro" id="wsPlansIntro">不想一次只下一首？看看这些长期合作方案，价格更友好，排期更优先。</p>
@@ -3517,6 +3518,26 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
 </div>
 
+<!-- 副管理员管理 Modal（仅主管理员可见） -->
+<div class="modal" id="subAdminModal">
+  <div class="modal__panel" style="max-width:560px;">
+    <button class="modal__close" onclick="closeModal('subAdminModal')">×</button>
+    <h3 class="modal__title">🛠 副管理员管理</h3>
+    <p class="ws-tip" style="margin-bottom:0.8rem;">副管理员可对作品和订单做增删改、看私信回复、自己下单；不能改套餐价格、不能管理副管理员。</p>
+    <div class="field">
+      <label>添加副管理员（邮箱）</label>
+      <div style="display:flex; gap:0.5rem;">
+        <input type="email" id="sa-email" placeholder="example@qq.com" style="flex:1;" />
+        <input type="text" id="sa-note" placeholder="备注（可选）" maxlength="50" style="width:140px;" />
+        <button class="btn btn--sm" onclick="addSubAdmin()">添加</button>
+      </div>
+    </div>
+    <div id="sa-list" style="margin-top:1rem;">
+      <div style="text-align:center; color:var(--gray-400); padding:1rem;">加载中…</div>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="editOrderModal">
   <div class="modal__panel" style="max-width:560px;">
     <button class="modal__close" onclick="closeModal('editOrderModal')">×</button>
@@ -3707,7 +3728,27 @@ const STORAGE_KEY_INIT = 'tn_init_v2';
 const API_BASE = 'https://api.weilingt.top';
 const ADMIN_TOKEN_KEY = 'tn_admin_token';
 const VISITOR_ID_KEY = 'tn_visitor_id';
-function isAdmin() { return !!sessionStorage.getItem(ADMIN_TOKEN_KEY); }
+// 角色识别：登录后由 UserStore.role 决定（'super' | 'sub' | 'user' | null）
+// 应急入口：密码登录 → sessionStorage 存 ADMIN_TOKEN_KEY，等价 super
+function isSuperAdmin() {
+  if (sessionStorage.getItem(ADMIN_TOKEN_KEY)) return true;
+  return typeof UserStore !== 'undefined' && UserStore && UserStore.role === 'super';
+}
+function isSubAdmin() {
+  return typeof UserStore !== 'undefined' && UserStore && UserStore.role === 'sub';
+}
+function isAdmin() { return isSuperAdmin() || isSubAdmin(); }
+
+// 统一 admin 鉴权头：兼容密码 token（应急）+ 邮箱登录 X-User-Token
+function adminAuthHeaders() {
+  const h = {};
+  const t = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+  if (t) h['Authorization'] = 'Bearer ' + t;
+  if (typeof UserStore !== 'undefined' && UserStore && UserStore.token) {
+    h['X-User-Token'] = UserStore.token;
+  }
+  return h;
+}
 function getVisitorId() {
   let v = '';
   try { v = localStorage.getItem(VISITOR_ID_KEY) || ''; } catch (_) {}
@@ -3865,10 +3906,8 @@ const Store = {
     if (typeof API_BASE === 'string' && API_BASE) {
       setSyncStatus('loading');
       try {
-        // 管理员带 token 拉数据，后端会返回未脱敏的 contact
-        const _adminToken = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-        const _headers = { 'X-Visitor-Id': getVisitorId() };
-        if (_adminToken) _headers['Authorization'] = 'Bearer ' + _adminToken;
+        // 管理员/副管理员带 token 拉数据，后端会返回未脱敏的 contact / 完整 orders
+        const _headers = { 'X-Visitor-Id': getVisitorId(), ...adminAuthHeaders() };
         const res = await fetch(API_BASE + '/api/data', { cache: 'no-store', headers: _headers });
         if (res.ok) {
           const data = await res.json();
@@ -3925,13 +3964,12 @@ const Store = {
   },
   async _syncRemote() {
     if (typeof API_BASE !== 'string' || !API_BASE) return;
-    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-    if (!token) return;
+    if (!isAdmin()) return;
     setSyncStatus('saving');
     try {
       const res = await fetch(API_BASE + '/api/data', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
         body: JSON.stringify({ works: this.works, logs: this.logs, about: this.about, logGroups: this.logGroups })
       });
       if (res.ok) {
@@ -4055,9 +4093,7 @@ const Store = {
     if (typeof API_BASE !== 'string' || !API_BASE) {
       throw new Error('未联云，无法删除');
     }
-    const headers = { 'X-Visitor-Id': getVisitorId() };
-    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const headers = { 'X-Visitor-Id': getVisitorId(), ...adminAuthHeaders() };
     const res = await fetch(API_BASE + '/api/comments/' + encodeURIComponent(logId) + '/' + encodeURIComponent(commentId), {
       method: 'DELETE',
       headers
@@ -4086,9 +4122,7 @@ const Store = {
   },
   async updateOrder(orderId, updates) {
     if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
-    const headers = { 'Content-Type': 'application/json', 'X-Visitor-Id': getVisitorId() };
-    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const headers = { 'Content-Type': 'application/json', 'X-Visitor-Id': getVisitorId(), ...adminAuthHeaders() };
     // 后端会按身份决定权限：admin 全字段可改 / 本人仅可改 description+contact+clientName+showName 且 step!==4
     const res = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(orderId), {
       method: 'PUT',
@@ -4110,11 +4144,10 @@ const Store = {
   },
   async deleteOrder(orderId) {
     if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
-    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-    if (!token) throw new Error('需要管理员权限');
+    if (!isAdmin()) throw new Error('需要管理员权限');
     const res = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(orderId), {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token },
+      headers: adminAuthHeaders(),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
@@ -4782,6 +4815,7 @@ const CHANGELOG = [
       '📡 微信推送智能跳过：管理员页面在线（每 30s 心跳，TTL 90s）时，用户发新私信不再推到店主的微信服务号；店主关闭页面 90s 后才恢复推送，避免自己正在用还被打扰',
       '🙈 管理员模式下隐藏顶部「登录」按钮：店主本来就是自己，不需要再用普通用户身份登录；退出管理员模式后按钮恢复显示',
       '👈 收件箱打开时右侧重置为"左侧选一个对话"占位（不再残留上次查看的对话）；点击对话后自动滚到最新私信位置（双 RAF 兜底防止渲染未完成时滚动失败），用户视角私信窗同步优化',
+      '👑 邮箱即角色 · 副管理员系统：主管理员邮箱 453203081@qq.com 登录自动进 super 模式（可改套餐价 / 管理副管理员）；新增「副管理员」按钮，可添加邮箱授权他人协助打理（可改作品/订单/回私信/自己下单，但不能改套餐价、不能管副管理员）；密码登录入口仍保留作为应急；店主侧只要主或副有人在线，私信都不再推到微信',
     ]
   },
   {
@@ -5695,6 +5729,7 @@ function removeTierRow(idx) {
 
 function openTierModal() {
   if (window.__VIEWER_MODE__ || !isAdmin()) return;
+  if (!isSuperAdmin()) { toast('仅主管理员可改套餐价格'); return; }
   const keys = getTierKeys();
   _tierEditState = keys.map(k => {
     const info = getTierInfo(k);
@@ -5822,6 +5857,7 @@ function removePlanRow(idx) {
 
 function openPlanModal() {
   if (window.__VIEWER_MODE__ || !isAdmin()) return;
+  if (!isSuperAdmin()) { toast('仅主管理员可改套餐价格'); return; }
   const keys = getPlanKeys();
   _planEditState = keys.map(k => {
     const info = getPlanInfo(k);
@@ -6946,9 +6982,14 @@ function renderAdminBtn() {
   const el = document.getElementById('adminBtn');
   if (!el) return;
   if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { el.style.display = 'none'; return; }
-  el.style.display = '';
+  // 已登录普通用户（且非管理员）不需要看到管理员登录入口
+  // 注：admin（super/sub）走邮箱自动识别，所以此处主要给"访客"看
+  const userLoggedIn = (typeof UserStore !== 'undefined') && UserStore && UserStore.user;
+  if (userLoggedIn && !isAdmin()) { el.style.display = 'none'; }
+  else { el.style.display = ''; }
   if (isAdmin()) {
-    el.innerHTML = '<span class="tb-ic">🔓</span><span class="tb-lbl">退出管理</span>';
+    const label = isSuperAdmin() ? '主管理员·退出' : '副管理员·退出';
+    el.innerHTML = '<span class="tb-ic">🔓</span><span class="tb-lbl">' + label + '</span>';
     el.className = 'admin-btn admin-btn--on';
   } else {
     el.innerHTML = '<span class="tb-ic">🔒</span><span class="tb-lbl">管理员登录</span>';
@@ -6961,12 +7002,23 @@ function renderAdminBtn() {
     else if (isAdmin()) { ib.style.display = ''; }
     else { ib.style.display = 'none'; }
   }
-  // 同步用户登录按钮（仅访客/普通用户可见，管理员模式下不需要）
+  // 同步用户登录按钮：
+  // - 访客模式：隐藏
+  // - 已登录（含 admin，因为现在 admin 也是邮箱用户）：显示 → 让用户能看自己昵称/退出登录
+  // - 未登录访客：显示 → 让访客能登录
+  // - 密码应急登录（无 UserStore.user 但 isAdmin）：隐藏（避免误以为要点登录）
   const ub = document.getElementById('userBtn');
   if (ub) {
     if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { ub.style.display = 'none'; }
-    else if (isAdmin()) { ub.style.display = 'none'; }
+    else if (isAdmin() && !userLoggedIn) { ub.style.display = 'none'; } // 密码应急 admin
     else { ub.style.display = ''; }
+  }
+  // 副管理员管理按钮：仅 super 可见
+  const sab = document.getElementById('subAdminBtn');
+  if (sab) {
+    if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { sab.style.display = 'none'; }
+    else if (isSuperAdmin()) { sab.style.display = ''; }
+    else { sab.style.display = 'none'; }
   }
 }
 async function adminLogin() {
@@ -7029,9 +7081,50 @@ async function adminLogin() {
 
 const USER_TOKEN_KEY = 'tn_user_token';
 
+// 根据当前角色变化触发副作用：刷新 admin UI / 启停心跳 / 重拉数据
+// 用「上一次的角色」做差，避免重复触发
+let _lastAppliedRole = '__init__';
+function applyRoleSideEffects() {
+  const currentRole = isSuperAdmin() ? 'super' : (isSubAdmin() ? 'sub' : 'user');
+  if (currentRole === _lastAppliedRole) return;
+  const prevRole = _lastAppliedRole;
+  _lastAppliedRole = currentRole;
+
+  // viewer-mode：非 admin 加 class，admin 移除（影响 CSS 显隐）
+  if (isAdmin()) document.body.classList.remove('viewer-mode');
+  else if (!window.__VIEWER_MODE__) document.body.classList.add('viewer-mode');
+
+  // 顶部按钮（adminBtn / inboxBtn / userBtn）联动刷新
+  try { if (typeof renderAdminBtn === 'function') renderAdminBtn(); } catch (_) {}
+
+  // 仅主管理员可见的元素（.js-super-only，如套餐价格管理按钮）
+  try {
+    document.querySelectorAll('.js-super-only').forEach(el => {
+      el.style.display = isSuperAdmin() ? '' : 'none';
+    });
+  } catch (_) {}
+
+  // 心跳：super 或 sub 在线都视为"店主侧在线"，跳过 Server Chan 推送；都不在才通知
+  if (isAdmin()) {
+    try { if (typeof startAdminHeartbeat === 'function') startAdminHeartbeat(); } catch (_) {}
+  } else {
+    try { if (typeof stopAdminHeartbeat === 'function') stopAdminHeartbeat(); } catch (_) {}
+  }
+
+  // 角色切换 → 重拉数据（admin 拿未脱敏 contact / 完整 orders；普通用户拿脱敏版）
+  if (prevRole !== '__init__' && prevRole !== currentRole) {
+    try { Store.load().then(() => { if (typeof renderAll === 'function') renderAll(); }); } catch (_) {}
+    if (currentRole === 'super' || currentRole === 'sub') {
+      const roleLabel = currentRole === 'super' ? '主管理员' : '副管理员';
+      try { toast('已识别身份：' + roleLabel + '，已进入管理界面'); } catch (_) {}
+    }
+  }
+}
+
 const UserStore = {
   token: null,
   user: null, // {email, userId, nickname}
+  role: null, // 'super' | 'sub' | 'user' | null（由后端鉴权返回）
 
   boot() {
     this.token = localStorage.getItem(USER_TOKEN_KEY);
@@ -7042,15 +7135,25 @@ const UserStore = {
   async me() {
     try {
       const r = await fetch(API_BASE + '/api/auth/me', { headers: { 'X-User-Token': this.token } });
-      if (r.ok) { this.user = await r.json(); this.renderBtn(); return; }
+      if (r.ok) {
+        const d = await r.json();
+        this.user = { email: d.email, userId: d.userId, nickname: d.nickname };
+        this.role = d.role || 'user';
+        this.renderBtn();
+        // 角色变化 → 进入/退出管理界面
+        applyRoleSideEffects();
+        return;
+      }
     } catch (_) {}
     this._clear();
   },
 
   _clear() {
     this.token = null; this.user = null;
+    this.role = null;
     localStorage.removeItem(USER_TOKEN_KEY);
     this.renderBtn();
+    applyRoleSideEffects();
   },
 
   async sendCode(email) {
@@ -7072,8 +7175,10 @@ const UserStore = {
     if (d.ok) {
       this.token = d.token;
       this.user = d.user;
+      this.role = d.role || 'user';
       localStorage.setItem(USER_TOKEN_KEY, d.token);
       this.renderBtn();
+      applyRoleSideEffects();
     }
     return d;
   },
@@ -7096,17 +7201,23 @@ const UserStore = {
   renderBtn() {
     const btn = document.getElementById('userBtn');
     if (!btn) return;
-    // 管理员模式下不显示用户登录按钮
-    if (typeof isAdmin === 'function' && isAdmin()) { btn.style.display = 'none'; return; }
+    // 密码应急 admin（没邮箱身份）才隐藏；邮箱登录的 admin 仍然显示昵称
+    const isPasswordOnlyAdmin = (typeof isAdmin === 'function' && isAdmin()) && !this.user;
+    if (isPasswordOnlyAdmin) { btn.style.display = 'none'; return; }
     btn.style.display = '';
     if (this.user) {
       const name = this.user.nickname || this.user.email.split('@')[0];
-      btn.innerHTML = '<span class="tb-ic">👤</span><span class="tb-lbl">' + name + '</span>';
-      btn.title = name + ' — 点击打开私信';
+      // 用角色 emoji 区分：👑 主管理员 / 🛠 副管理员 / 👤 普通用户
+      const icon = this.role === 'super' ? '👑' : (this.role === 'sub' ? '🛠' : '👤');
+      btn.innerHTML = '<span class="tb-ic">' + icon + '</span><span class="tb-lbl">' + name + '</span>';
+      const titleSuffix = this.role === 'super' ? '（主管理员）' : (this.role === 'sub' ? '（副管理员）' : '');
+      btn.title = name + titleSuffix + ' — 点击打开私信';
     } else {
       btn.innerHTML = '<span class="tb-ic">👤</span><span class="tb-lbl">登录</span>';
       btn.title = '登录 / 注册';
     }
+    // 用户登录态变化时联动刷新「管理员登录」按钮显隐
+    if (typeof renderAdminBtn === 'function') renderAdminBtn();
   }
 };
 
@@ -7291,6 +7402,88 @@ async function userDmSend() {
   btn.disabled = false;
 }
 
+// ── 副管理员管理（仅 super 可用） ──
+async function openSubAdminPanel() {
+  if (!isSuperAdmin()) { toast('仅主管理员可用'); return; }
+  openModal('subAdminModal');
+  loadSubAdmins();
+}
+
+async function loadSubAdmins() {
+  const box = document.getElementById('sa-list');
+  if (!box) return;
+  box.innerHTML = '<div style="text-align:center; color:var(--gray-400); padding:1rem;">加载中…</div>';
+  try {
+    const r = await fetch(API_BASE + '/api/admin/subadmins', { headers: adminAuthHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '加载失败');
+    const list = d.subadmins || [];
+    if (!list.length) {
+      box.innerHTML = '<div style="text-align:center; color:var(--gray-400); padding:1rem;">暂无副管理员</div>';
+      return;
+    }
+    box.innerHTML = '<div style="font-size:0.85rem; color:var(--gray-500); margin-bottom:0.5rem;">共 ' + list.length + ' 个 / 上限 20</div>' +
+      list.map(s => {
+        const safeEmail = s.email.replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'}[c]));
+        const safeNote = (s.note || '').replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'}[c]));
+        const dateStr = s.addedAt ? new Date(s.addedAt).toLocaleDateString() : '';
+        return '<div style="display:flex; align-items:center; padding:0.6rem 0.8rem; border:1px solid var(--gray-200); border-radius:6px; margin-bottom:0.4rem; gap:0.6rem;">' +
+          '<div style="flex:1; min-width:0;">' +
+            '<div style="font-weight:600;">🛠 ' + safeEmail + '</div>' +
+            (safeNote ? '<div style="font-size:0.8rem; color:var(--gray-500); margin-top:0.2rem;">' + safeNote + '</div>' : '') +
+            (dateStr ? '<div style="font-size:0.75rem; color:var(--gray-400); margin-top:0.2rem;">添加于 ' + dateStr + '</div>' : '') +
+          '</div>' +
+          '<button class="btn btn--sm btn--danger" onclick="delSubAdmin(\'' + s.email.replace(/'/g, "\\'") + '\')">移除</button>' +
+        '</div>';
+      }).join('');
+  } catch (e) {
+    box.innerHTML = '<div style="text-align:center; color:var(--danger); padding:1rem;">' + (e.message || '加载失败') + '</div>';
+  }
+}
+
+async function addSubAdmin() {
+  const emailEl = document.getElementById('sa-email');
+  const noteEl = document.getElementById('sa-note');
+  const email = (emailEl?.value || '').trim().toLowerCase();
+  const note = (noteEl?.value || '').trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    toast('请输入有效邮箱');
+    return;
+  }
+  try {
+    const r = await fetch(API_BASE + '/api/admin/subadmins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify({ email, note })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '添加失败');
+    toast('✅ 已添加副管理员');
+    if (emailEl) emailEl.value = '';
+    if (noteEl) noteEl.value = '';
+    loadSubAdmins();
+  } catch (e) {
+    toast('❌ ' + (e.message || '添加失败'));
+  }
+}
+
+async function delSubAdmin(email) {
+  if (!email) return;
+  if (!confirm('确定移除副管理员 ' + email + ' 吗？\n移除后对方下次登录将变成普通用户。')) return;
+  try {
+    const r = await fetch(API_BASE + '/api/admin/subadmins/' + encodeURIComponent(email), {
+      method: 'DELETE',
+      headers: adminAuthHeaders()
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '删除失败');
+    toast('✅ 已移除');
+    loadSubAdmins();
+  } catch (e) {
+    toast('❌ ' + (e.message || '删除失败'));
+  }
+}
+
 // ── 管理员收件箱 ──
 
 let _inboxCurrentUserId = null;
@@ -7313,8 +7506,7 @@ async function loadInboxThreads() {
   const cnt = document.getElementById('inboxThreadCount');
   list.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--gray-400);">加载中…</div>';
   try {
-    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-    const r = await fetch(API_BASE + '/api/admin/dm/threads', { headers: { 'Authorization': 'Bearer ' + token } });
+    const r = await fetch(API_BASE + '/api/admin/dm/threads', { headers: adminAuthHeaders() });
     const d = await r.json();
     if (d.threads && d.threads.length) {
       cnt.textContent = d.threads.length + ' 个对话';
@@ -7341,10 +7533,9 @@ async function selectInboxThread(userId) {
   _inboxCurrentUserId = userId;
   // mark read（后端会把该 thread 的 unread 置 0）
   try {
-    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
     fetch(API_BASE + '/api/admin/dm/mark-read', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
       body: JSON.stringify({ userId })
     });
   } catch (_) {}
@@ -7357,8 +7548,7 @@ async function selectInboxThread(userId) {
   const area = document.getElementById('inboxMessages');
   area.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray-400);">加载中…</div>';
   try {
-    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-    const r = await fetch(API_BASE + '/api/admin/dm/thread/' + userId, { headers: { 'Authorization': 'Bearer ' + token } });
+    const r = await fetch(API_BASE + '/api/admin/dm/thread/' + userId, { headers: adminAuthHeaders() });
     const d = await r.json();
     if (d.messages && d.messages.length) {
       area.innerHTML = d.messages.map(m => renderDmBubble(m, true)).join('');
@@ -7382,10 +7572,9 @@ async function inboxReply() {
   const btn = document.getElementById('inboxReplyBtn');
   btn.disabled = true;
   try {
-    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
     const r = await fetch(API_BASE + '/api/admin/dm/reply', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
       body: JSON.stringify({ userId: _inboxCurrentUserId, content })
     });
     const d = await r.json();
@@ -7447,19 +7636,18 @@ function stopUnreadPoll() {
 }
 
 // ── 管理员在线心跳 ──
-// 管理员登录后每 30s ping 一次后端 /api/admin/heartbeat，后端写 admin/online (TTL 90s)。
-// notifyNewDM 检测 admin/online 在 90s 内则跳过 Server Chan 推送，避免店主自己在用还推微信。
+// 主/副管理员登录后每 30s ping 一次后端 /api/admin/heartbeat（写 admin/online TTL 90s）。
+// notifyNewDM 检测 admin/online 在 90s 内则跳过 Server Chan 推送——
+// 主或副管理员任一在线都算"店主侧在线"，可以代为处理；都离线时才推送给主人微信。
 // visibilitychange → visible 立即补一次（防止后台 tab 被节流导致 TTL 过期误判离线）。
 let _heartbeatTimer = null;
 
 async function adminHeartbeat() {
   if (!isAdmin()) return;
-  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-  if (!token) return;
   try {
     await fetch(API_BASE + '/api/admin/heartbeat', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: adminAuthHeaders()
     });
   } catch (_) { /* 心跳失败静默，下次再试 */ }
 }
@@ -7492,8 +7680,7 @@ async function pollUnread() {
   // also poll admin inbox if admin
   if (isAdmin()) {
     try {
-      const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-      const r = await fetch(API_BASE + '/api/admin/dm/threads', { headers: { 'Authorization': 'Bearer ' + token } });
+      const r = await fetch(API_BASE + '/api/admin/dm/threads', { headers: adminAuthHeaders() });
       const d = await r.json();
       if (d.threads) {
         const total = d.threads.reduce((s, t) => s + (t.unread || 0), 0);
@@ -7551,6 +7738,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 刷新页面但仍是 admin（sessionStorage 还在）：恢复心跳
     startAdminHeartbeat();
   }
+  // 角色副作用：对密码应急 admin（无邮箱登录态）也要触发一次，
+  // 让 .js-super-only 元素正确显隐 / viewer-mode 退出 / 顶部按钮刷新
+  try { applyRoleSideEffects(); } catch (_) {}
 })();
 
 // ═══════════════════════════════════════
