@@ -4199,6 +4199,7 @@ const CHANGELOG = [
       '📨 管理员新增「收件箱」按钮：左侧用户对话列表（最新在前，未读红点），右侧实时对话窗 + 回复框',
       '🌙 登录弹窗、用户中心、收件箱全部适配暗色模式',
       '🔒 邮箱不在站点任何公开位置出现，店主端用户列表只显示昵称',
+      '🔄 登录 / 退出后自动刷新页面，确保状态干净一致',
     ]
   },
   {
@@ -6349,7 +6350,8 @@ async function loginSubmit() {
     if (d.ok) {
       closeModal('loginModal');
       toast('✅ 登录成功');
-      startUnreadPoll();
+      // 登录后自动刷新页面，确保所有 UI 状态都是最新的
+      setTimeout(() => location.reload(), 600);
     } else {
       toast(d.error || '登录失败');
       if (d.attemptsLeft !== undefined) {
@@ -6372,8 +6374,8 @@ async function userLogout() {
   closeModal('userModal');
   toast('已退出登录');
   stopUnreadPoll();
-  const ub = document.getElementById('userBtn');
-  if (ub) ub.dataset.badge = '0';
+  // 退出后自动刷新，避免残留状态
+  setTimeout(() => location.reload(), 600);
 }
 
 async function saveProfile() {
