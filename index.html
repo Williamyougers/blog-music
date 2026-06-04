@@ -3408,7 +3408,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       </label>
       <input type="file" id="l-image-file" accept="image/*" style="display:none;" onchange="handleLocalImagePicked(this)">
       <div id="l-content" class="content-editor" contenteditable="true" data-placeholder="想到哪写到哪... 插入图片：点上方「📁 本地图片」选本地图，或「🔗 图片链接」粘外链" onpaste="handleEditorPaste(event)"></div>
-      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数；本地图自动压缩到最长边 1600px，发布后图文按编辑顺序混排</div>
+      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数；本地图自动压缩到最长边 1600px，发布后图文按编辑顺序混排<br>✂️ 支持 Ctrl+V 粘贴：截图、网页带图文章、Word / 微信 / 邮件里的图文都能整段粘进来（外链图若加载失败，建议改用「📁 本地图片」重传）</div>
     </div>
     <div class="field">
       <label>标签</label>
@@ -4439,16 +4439,184 @@ function setEditorContent(content) {
   });
   editor.appendChild(frag);
 }
-// 粘贴时强制纯文本（避免带富文本样式 / 大图 HTML 进编辑器）
-function handleEditorPaste(e) {
+// 粘贴：覆盖以下来源
+//   1. 截图 / 拷贝图片文件 / IM 客户端 → clipboardData.items 含 image file → 自动压缩成 base64
+//   2. 从网页复制带图文章 → text/html 含 <img> → 提取 src 与文字混排
+//   3. 从本地 Word/WPS/邮件/微信文档复制带图 → text/html 中 <img src="file:///..."> 浏览器加载不了，
+//      但同时 items 里也会有图片二进制 → 按 HTML 顺序用 items 里的 image file 替换无效 src
+//   4. 纯文本兜底
+// 富文本样式（颜色/字体/段落 style）一律剥离，只保留文字 + 图片
+async function handleEditorPaste(e) {
   e.preventDefault();
-  const text = (e.clipboardData || window.clipboardData).getData('text');
-  // 用 selection 手动插入纯文本，兼容性比 execCommand 更稳
+  const cd = e.clipboardData || window.clipboardData;
+  if (!cd) return;
+
+  // ── 收集 items 里所有 image file（截图 / IM / 邮件 / Word 内嵌图）
+  const imageFiles = [];
+  if (cd.items && cd.items.length) {
+    for (let i = 0; i < cd.items.length; i++) {
+      const it = cd.items[i];
+      if (it.kind === 'file' && /^image\//i.test(it.type)) {
+        const f = it.getAsFile();
+        if (f) imageFiles.push(f);
+      }
+    }
+  }
+  const html = cd.getData('text/html');
+  const text = cd.getData('text');
+  const hasHtmlImg = html && /<img[\s>]|<v:imagedata|<image\s/i.test(html);
+
+  // ── 路径 A：HTML 含图片标签 → 按 HTML 顺序混排；无效 src 用 imageFiles 替换
+  if (hasHtmlImg) {
+    if (imageFiles.length) toast(`处理 ${imageFiles.length} 张内嵌图片...`);
+    // 一次性把 imageFiles 全部压缩成 base64（保持顺序）
+    const fileDataUrls = [];
+    for (const f of imageFiles) {
+      try { fileDataUrls.push(await compressImageToDataURL(f, 1600, 0.85)); }
+      catch (err) { fileDataUrls.push(null); }
+    }
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const frag = document.createDocumentFragment();
+      const state = { textBuf: '', imgOk: 0, imgSkip: 0, fileIdx: 0 };
+
+      const flushText = () => {
+        if (!state.textBuf) return;
+        const lines = state.textBuf.replace(/\u00A0/g, ' ').split(/\r?\n/);
+        lines.forEach((line, idx) => {
+          if (line) frag.appendChild(document.createTextNode(line));
+          if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
+        });
+        state.textBuf = '';
+      };
+      const pushImg = (url, alt) => {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = alt || '';
+        frag.appendChild(img);
+        frag.appendChild(document.createElement('br'));
+        state.imgOk++;
+      };
+
+      const walk = (node) => {
+        if (node.nodeType === 3) { state.textBuf += node.nodeValue; return; }
+        if (node.nodeType !== 1) return;
+        const tag = node.tagName;
+        if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return;
+        // 标准 <img> 以及 Office VML 的 <v:imagedata> / <image>（DOMParser 解析后 tagName 大写）
+        if (tag === 'IMG' || tag === 'V:IMAGEDATA' || tag === 'IMAGE') {
+          flushText();
+          const rawSrc = (node.getAttribute('src')
+            || node.getAttribute('data-src')
+            || node.getAttribute('data-original')
+            || node.getAttribute('r:href')
+            || node.getAttribute('href')
+            || '').trim();
+          const alt = node.getAttribute('alt') || '';
+          // 可直接显示的 src：http(s) 或 data:image
+          if (/^(https?:|data:image\/)/i.test(rawSrc)) {
+            pushImg(rawSrc, alt);
+            return;
+          }
+          // 无效 src（file:// / cid: / blob: / 相对路径 / 空）→ 用 items 队列里的图替换
+          while (state.fileIdx < fileDataUrls.length && !fileDataUrls[state.fileIdx]) state.fileIdx++;
+          if (state.fileIdx < fileDataUrls.length) {
+            pushImg(fileDataUrls[state.fileIdx++], alt);
+          } else {
+            state.imgSkip++;
+          }
+          return;
+        }
+        if (tag === 'BR') { flushText(); frag.appendChild(document.createElement('br')); return; }
+        const isBlock = /^(P|DIV|LI|TR|H[1-6]|BLOCKQUOTE|PRE|SECTION|ARTICLE)$/.test(tag);
+        if (isBlock && state.textBuf && !/\n$/.test(state.textBuf)) state.textBuf += '\n';
+        for (const c of node.childNodes) walk(c);
+        if (isBlock && state.textBuf && !/\n$/.test(state.textBuf)) state.textBuf += '\n';
+      };
+
+      for (const c of doc.body.childNodes) walk(c);
+      flushText();
+
+      // HTML 里 img 数 < items 里图片数 → 把剩余图片追加到末尾（避免遗漏）
+      while (state.fileIdx < fileDataUrls.length) {
+        if (fileDataUrls[state.fileIdx]) pushImg(fileDataUrls[state.fileIdx], '');
+        state.fileIdx++;
+      }
+
+      insertFragmentAtCursor(frag);
+
+      const tips = [];
+      if (state.imgOk) tips.push(`已插入 ${state.imgOk} 张图片`);
+      if (state.imgSkip) tips.push(`${state.imgSkip} 张无法获取`);
+      tips.push('外链图加载失败请改用「📁 本地图片」重传');
+      toast(tips.join('；'));
+      return;
+    } catch (err) {
+      // HTML 解析失败 → 落到下方 imageFiles / 纯文本兜底
+    }
+  }
+
+  // ── 路径 B：没有 HTML 但 items 里有图（纯截图 / 拷贝图片文件）
+  if (imageFiles.length) {
+    toast(`检测到 ${imageFiles.length} 张图片，处理中...`);
+    for (const f of imageFiles) {
+      try {
+        const dataUrl = await compressImageToDataURL(f, 1600, 0.85);
+        insertImageIntoEditor(dataUrl);
+      } catch (err) {
+        toast('图片粘贴失败：' + (err && err.message || err));
+      }
+    }
+    // 部分截图工具会同时附带文字说明
+    if (text) insertPlainTextAtCursor(text);
+    return;
+  }
+
+  // ── 路径 C：纯文本兜底
+  if (text) insertPlainTextAtCursor(text);
+}
+// 在光标处插入纯文本（保留换行 → <br>）
+function insertPlainTextAtCursor(text) {
+  const editor = document.getElementById('l-content');
+  if (!editor) return;
   const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
+  if (!sel || sel.rangeCount === 0 || !editor.contains(sel.anchorNode)) {
+    editor.focus();
+    const r = document.createRange();
+    r.selectNodeContents(editor);
+    r.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
   const range = sel.getRangeAt(0);
   range.deleteContents();
-  range.insertNode(document.createTextNode(text));
+  const frag = document.createDocumentFragment();
+  const lines = String(text).split(/\r?\n/);
+  lines.forEach((line, i) => {
+    if (line) frag.appendChild(document.createTextNode(line));
+    if (i < lines.length - 1) frag.appendChild(document.createElement('br'));
+  });
+  range.insertNode(frag);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+// 在光标处插入任意 DocumentFragment（用于图文混排）
+function insertFragmentAtCursor(frag) {
+  const editor = document.getElementById('l-content');
+  if (!editor) return;
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || !editor.contains(sel.anchorNode)) {
+    editor.focus();
+    const r = document.createRange();
+    r.selectNodeContents(editor);
+    r.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  range.insertNode(frag);
   range.collapse(false);
   sel.removeAllRanges();
   sel.addRange(range);
@@ -4918,6 +5086,7 @@ const CHANGELOG = [
       '👥 新增「用户管理」tab（仅管理员可见，紧跟「更新」之后）：注册用户增删改查一站式——表格列出邮箱 / 昵称 / 角色 / 注册时间 / 最后登录；昵称行内编辑（失焦保存）；可手动新增用户、删除普通用户（自动清掉私信记录）；主管理员行 + 副管理员行的删除按钮禁用（防误删，副管要先去副管理员管理移除）',
       '🧹 收件箱左侧用户对话支持「清空记录」「删除整条对话」：hover 出现 🧹/🗑 两个小按钮，清空只删消息保留条目，删除连同对话从列表移除（下次该用户再发新消息会自动重新出现）',
       '↩️ 私信支持「2 分钟内撤回自己发的消息」：用户和管理员（super/sub）都可用，hover 到自己发的气泡上出现「撤回」按钮，撤回后双方都显示「此消息已撤回」灰色斜体；只能撤自己的，副管理员无法撤回主管理员的话',
+      '📋 写日志支持「图文整段粘贴」：截图（Win+Shift+S / macOS Cmd+Shift+4）直接 Ctrl+V 自动压缩成本地图；从网页复制带图文章按文字+图片原顺序混排；从本地 Word / WPS / 微信 / 邮件复制图文也能整段粘进来（自动识别内嵌图并替换无效的 file:// 路径），外链图若加载失败可改用「📁 本地图片」重传',
     ]
   },
   {
