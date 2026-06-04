@@ -433,7 +433,7 @@ async function sendVerifyEmail(env, email, code) {
     console.log('[auth] RESEND_API_KEY missing, code for', email, '=', code);
     return { ok: false, dev: true, code }; // dev mode: caller may surface
   }
-  const from = env.MAIL_FROM || 'noreply@weilingt.top';
+  const from = env.MAIL_FROM || 'noreply@send.weilingt.top';
   const fromName = env.MAIL_FROM_NAME || '威灵T · Tracks & Notes';
   const html = `<!doctype html><html><body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,'Segoe UI',sans-serif;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:40px 20px;">
