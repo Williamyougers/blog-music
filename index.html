@@ -599,29 +599,104 @@ input,textarea,select { font:inherit; color:inherit; }
 
 /* 分享按钮 CSS 已移除（功能已下线） */
 
-/* ── PC 端两侧杂志风装饰（≥1400px 才显示，移动端完全不出现）── */
+/* ── PC 端两侧杂志风装饰（≥1400px + 滚过 banner 才出现）── */
+
+/* 外侧极淡竖向画框线 */
+.page-deco-frame {
+  display: none;
+  position: fixed;
+  top: 0;
+  width: 1px;
+  height: 100vh;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.page-deco-frame--left {
+  left: 0.5rem;
+  background: linear-gradient(to bottom, transparent 0%, rgba(184,132,74,0.18) 18%, rgba(184,132,74,0.3) 50%, rgba(184,132,74,0.18) 82%, transparent 100%);
+}
+.page-deco-frame--right {
+  right: 0.5rem;
+  background: linear-gradient(to bottom, transparent 0%, rgba(194,59,34,0.16) 18%, rgba(194,59,34,0.26) 50%, rgba(194,59,34,0.16) 82%, transparent 100%);
+}
+
+/* 主装饰容器 */
 .page-deco {
   display: none;
   position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  height: 100vh;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
   z-index: 5;
   pointer-events: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
   user-select: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.6s ease;
 }
-.page-deco--left  { left: 1.2rem; }
-.page-deco--right { right: 1.2rem; }
+.page-deco--left  { left: 1.5rem; }
+.page-deco--right { right: 1.5rem; }
+
+/* 滚过 banner 后整体淡入 */
+.page-deco.deco--visible,
+.page-deco-frame.deco--visible { opacity: 1; }
+
+/* 八角星 */
+.page-deco__star {
+  color: var(--gold);
+  font-size: 0.9rem;
+  opacity: 0.55;
+  line-height: 1;
+}
+.page-deco__star--accent { color: var(--accent); opacity: 0.6; }
+
+/* 三连菱形 */
+.page-deco__diamond {
+  color: var(--gold);
+  font-size: 0.55rem;
+  letter-spacing: 0.25em;
+  opacity: 0.5;
+  line-height: 1;
+}
+.page-deco__diamond--accent { color: var(--accent); opacity: 0.55; }
+
+/* 分隔线（长 / 短） */
 .page-deco__line {
   width: 1px;
-  height: 70px;
+  height: 48px;
   background: linear-gradient(to bottom, transparent 0%, rgba(184,132,74,0.6) 50%, transparent 100%);
 }
+.page-deco__line--short { height: 18px; }
 .page-deco__line--accent {
   background: linear-gradient(to bottom, transparent 0%, rgba(194,59,34,0.55) 50%, transparent 100%);
 }
+
+/* 横排小章节标识 */
+.page-deco__chapter {
+  font-family: var(--serif);
+  color: var(--gold);
+  font-size: 0.52rem;
+  letter-spacing: 0.3em;
+  font-style: italic;
+  opacity: 0.55;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.page-deco__chapter--cn {
+  color: var(--accent);
+  font-style: normal;
+  letter-spacing: 0.32em;
+  font-size: 0.62rem;
+  opacity: 0.6;
+  text-transform: none;
+}
+
+/* 竖排主文字 */
 .page-deco__text {
   writing-mode: vertical-rl;
   font-family: var(--serif);
@@ -650,34 +725,33 @@ input,textarea,select { font:inherit; color:inherit; }
   opacity: 0.45;
   letter-spacing: 0.4em;
 }
+
+/* 中心音符 */
 .page-deco__icon {
   color: var(--gold);
-  font-size: 1.05rem;
-  opacity: 0.55;
+  font-size: 1.1rem;
+  opacity: 0.6;
   font-family: var(--serif);
   line-height: 1;
 }
-.page-deco__icon--accent { color: var(--accent); opacity: 0.6; }
-.page-deco__diamond {
-  color: var(--gold);
-  font-size: 0.55rem;
-  opacity: 0.5;
-  line-height: 1;
-}
-.page-deco__diamond--accent { color: var(--accent); opacity: 0.55; }
+.page-deco__icon--accent { color: var(--accent); opacity: 0.65; }
 
-[data-theme="dark"] .page-deco__text { opacity: 0.55; }
-[data-theme="dark"] .page-deco__text--small { opacity: 0.32; }
-[data-theme="dark"] .page-deco__icon { opacity: 0.45; }
-[data-theme="dark"] .page-deco__diamond { opacity: 0.4; }
+/* 暗色主题降透明度 */
+[data-theme="dark"] .page-deco__text,
+[data-theme="dark"] .page-deco__chapter { opacity: 0.5; }
+[data-theme="dark"] .page-deco__text--small { opacity: 0.3; }
+[data-theme="dark"] .page-deco__icon,
+[data-theme="dark"] .page-deco__star,
+[data-theme="dark"] .page-deco__diamond { opacity: 0.45; }
 
 @media (min-width: 1400px) {
   .page-deco { display: flex; }
+  .page-deco-frame { display: block; }
 }
 @media (min-width: 1600px) {
-  .page-deco--left  { left: 2rem; }
-  .page-deco--right { right: 2rem; }
-  .page-deco__line { height: 90px; }
+  .page-deco--left  { left: 2.3rem; }
+  .page-deco--right { right: 2.3rem; }
+  .page-deco__line { height: 60px; }
 }
 
 /* ── 访客模式：隐藏所有写操作 UI ── */
@@ -3059,24 +3133,38 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 <div class="note-particles" aria-hidden="true" id="noteParticles"></div>
 <button class="back-to-top" id="backToTop" aria-label="返回顶部" title="返回顶部">↑</button>
 
-<!-- PC 端两侧杂志风装饰（≥1400px 才显示） -->
+<!-- PC 端两侧杂志风装饰（≥1400px + 滚过 banner 才出现） -->
+<div class="page-deco-frame page-deco-frame--left" aria-hidden="true"></div>
+<div class="page-deco-frame page-deco-frame--right" aria-hidden="true"></div>
 <aside class="page-deco page-deco--left" aria-hidden="true">
-  <div class="page-deco__diamond">◆</div>
+  <div class="page-deco__star">✦</div>
   <div class="page-deco__line"></div>
+  <div class="page-deco__chapter">N° 01 · ANNO MMXXVI</div>
+  <div class="page-deco__line page-deco__line--short"></div>
+  <div class="page-deco__diamond">◆ ◇ ◆</div>
   <div class="page-deco__text">TRACKS &amp; COMMUNITY</div>
   <div class="page-deco__icon">♪</div>
-  <div class="page-deco__text page-deco__text--small">VOL. I · EST. MMXXVI</div>
+  <div class="page-deco__text page-deco__text--small">EST. MMXXVI · VOL. I</div>
+  <div class="page-deco__diamond">◆ ◇ ◆</div>
+  <div class="page-deco__line page-deco__line--short"></div>
+  <div class="page-deco__chapter">ÉDITION SPÉCIALE</div>
   <div class="page-deco__line"></div>
-  <div class="page-deco__diamond">◆</div>
+  <div class="page-deco__star">✦</div>
 </aside>
 <aside class="page-deco page-deco--right" aria-hidden="true">
-  <div class="page-deco__diamond page-deco__diamond--accent">◆</div>
+  <div class="page-deco__star page-deco__star--accent">✦</div>
   <div class="page-deco__line page-deco__line--accent"></div>
+  <div class="page-deco__chapter page-deco__chapter--cn">第 壹 卷 · 丙午仲夏</div>
+  <div class="page-deco__line page-deco__line--short page-deco__line--accent"></div>
+  <div class="page-deco__diamond page-deco__diamond--accent">◆ ◇ ◆</div>
   <div class="page-deco__text page-deco__text--cn">凡所听过 · 终将回响</div>
   <div class="page-deco__icon page-deco__icon--accent">♬</div>
   <div class="page-deco__text page-deco__text--cn page-deco__text--small">一首一首 · 慢慢来</div>
+  <div class="page-deco__diamond page-deco__diamond--accent">◆ ◇ ◆</div>
+  <div class="page-deco__line page-deco__line--short page-deco__line--accent"></div>
+  <div class="page-deco__chapter page-deco__chapter--cn">慢板 · 行板 · 急板</div>
   <div class="page-deco__line page-deco__line--accent"></div>
-  <div class="page-deco__diamond page-deco__diamond--accent">◆</div>
+  <div class="page-deco__star page-deco__star--accent">✦</div>
 </aside>
 
 <div class="top-bar">
@@ -8676,6 +8764,34 @@ function setupUiEnhancements() {
   setupRevealObserver();
   setupBackToTop();
   setupNoteParticles();
+  setupPageDeco();
+}
+
+function setupPageDeco() {
+  const decos = document.querySelectorAll('.page-deco, .page-deco-frame');
+  if (!decos.length) return;
+  const masthead = document.querySelector('.masthead');
+  let ticking = false;
+  function update() {
+    // 移动端 / 小屏由 CSS 媒体查询完全隐藏，这里不参与
+    if (window.innerWidth < 1400) {
+      decos.forEach(el => el.classList.remove('deco--visible'));
+      ticking = false;
+      return;
+    }
+    // banner 下沿快滑出视口顶部时整体淡入
+    const bottom = masthead ? masthead.getBoundingClientRect().bottom : 0;
+    const show = bottom < 80;
+    decos.forEach(el => el.classList.toggle('deco--visible', show));
+    ticking = false;
+  }
+  window.addEventListener('scroll', () => {
+    if (!ticking) { window.requestAnimationFrame(update); ticking = true; }
+  }, { passive: true });
+  window.addEventListener('resize', () => {
+    if (!ticking) { window.requestAnimationFrame(update); ticking = true; }
+  });
+  update();
 }
 
 function setupBackToTop() {
