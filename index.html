@@ -2896,11 +2896,11 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 
 .auth-modal-panel { max-width:380px !important; }
 .user-modal-panel { max-width:560px !important; }
-.admin-inbox-panel { max-width:860px !important; height:85vh; }
-.admin-inbox-layout { display:grid; grid-template-columns:240px 1fr; height:calc(100% - 3.2rem); }
-.dm-thread { display:flex; flex-direction:column; height:100%; }
-.dm-thread__messages { flex:1; overflow-y:auto; padding:0.8rem; display:flex; flex-direction:column; }
-.dm-thread__input { padding:0.7rem; border-top:1.5px solid var(--gray-200); display:flex; gap:0.5rem; }
+.admin-inbox-panel { max-width:860px !important; height:85vh; overflow:hidden; display:flex; flex-direction:column; }
+.admin-inbox-layout { display:grid; grid-template-columns:240px 1fr; flex:1; min-height:0; }
+.dm-thread { display:flex; flex-direction:column; height:100%; min-height:0; }
+.dm-thread__messages { flex:1; overflow-y:auto; padding:0.8rem; display:flex; flex-direction:column; min-height:0; }
+.dm-thread__input { padding:0.7rem; border-top:1.5px solid var(--gray-200); display:flex; gap:0.5rem; flex-shrink:0; }
 .dm-thread__input textarea { flex:1; padding:0.5rem 0.7rem; border:1.5px solid var(--gray-200); background:var(--gray-50); font-size:0.82rem; resize:none; font-family:var(--sans); min-height:38px; max-height:80px; }
 .dm-thread__input textarea:focus { outline:none; border-color:var(--black); background:var(--white); }
 
