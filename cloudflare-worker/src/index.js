@@ -474,7 +474,7 @@ async function sendVerifyEmail(env, email, code) {
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
     console.log('[auth] resend failed', resp.status, t);
-    return { ok: false, error: 'mail_send_failed', upstream_status: resp.status, upstream_body: t.slice(0, 500) };
+    return { ok: false, error: 'mail_send_failed' };
   }
   return { ok: true };
 }
@@ -999,7 +999,7 @@ async function handleRequest(request, env, ctx, cors) {
         return json({ ok: true, dev: true, code }, 200, cors);
       }
       if (!mailResult.ok) {
-        return json({ error: 'Failed to send email', upstream_status: mailResult.upstream_status, upstream_body: mailResult.upstream_body }, 500, cors);
+        return json({ error: 'Failed to send email' }, 500, cors);
       }
       return json({ ok: true }, 200, cors);
     }
