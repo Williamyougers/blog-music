@@ -2946,7 +2946,8 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <button id="userBtn" class="admin-btn badge" data-badge="0" onclick="openUserPanel()" title="登录/我的私信"><span class="tb-ic">👤</span><span class="tb-lbl">登录</span></button>
     <button id="inboxBtn" class="admin-btn badge js-write-action" data-badge="0" onclick="openInbox()" style="display:none;" title="管理员收件箱"><span class="tb-ic">📨</span><span class="tb-lbl">收件箱</span></button>
     <button id="subAdminBtn" class="admin-btn js-write-action" onclick="openSubAdminPanel()" style="display:none;" title="管理副管理员"><span class="tb-ic">🛠</span><span class="tb-lbl">副管理员</span></button>
-    <button id="adminBtn" class="admin-btn" onclick="adminLogin()" style="display:none;"><span class="tb-ic">🔒</span><span class="tb-lbl">管理员登录</span></button>
+    <!-- adminBtn 已隐藏入口化：访问 #admin 触发登录/退出。保留 DOM 兼容旧脚本。 -->
+    <button id="adminBtn" class="admin-btn" onclick="adminLogin()" style="display:none !important;" aria-hidden="true"><span class="tb-ic">🔒</span><span class="tb-lbl">管理员登录</span></button>
     <span id="topDate"></span>
   </div>
 </div>
@@ -4816,6 +4817,7 @@ const CHANGELOG = [
       '🙈 管理员模式下隐藏顶部「登录」按钮：店主本来就是自己，不需要再用普通用户身份登录；退出管理员模式后按钮恢复显示',
       '👈 收件箱打开时右侧重置为"左侧选一个对话"占位（不再残留上次查看的对话）；点击对话后自动滚到最新私信位置（双 RAF 兜底防止渲染未完成时滚动失败），用户视角私信窗同步优化',
       '👑 邮箱即角色 · 副管理员系统：主管理员邮箱 453203081@qq.com 登录自动进 super 模式（可改套餐价 / 管理副管理员）；新增「副管理员」按钮，可添加邮箱授权他人协助打理（可改作品/订单/回私信/自己下单，但不能改套餐价、不能管副管理员）；密码登录入口仍保留作为应急；店主侧只要主或副有人在线，私信都不再推到微信',
+      '🙊 顶栏统一极简：所有角色看到的右上角永远只有「登录」/「退出」二字，不再暴露昵称、👑/🛠 角色徽章、「管理员登录/退出」按钮——访客和店主从外观上完全一致；管理员通过隐藏入口访问站点 `#admin`（如 weilingt.top/#admin）触发密码登录/退出，邮箱即角色仍按邮箱自动识别 super/sub',
     ]
   },
   {
@@ -6980,20 +6982,9 @@ function initThemeBtn() {
 
 function renderAdminBtn() {
   const el = document.getElementById('adminBtn');
-  if (!el) return;
-  if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { el.style.display = 'none'; return; }
-  // 已登录普通用户（且非管理员）不需要看到管理员登录入口
-  // 注：admin（super/sub）走邮箱自动识别，所以此处主要给"访客"看
-  const userLoggedIn = (typeof UserStore !== 'undefined') && UserStore && UserStore.user;
-  if (userLoggedIn && !isAdmin()) { el.style.display = 'none'; }
-  else { el.style.display = ''; }
-  if (isAdmin()) {
-    const label = isSuperAdmin() ? '主管理员·退出' : '副管理员·退出';
-    el.innerHTML = '<span class="tb-ic">🔓</span><span class="tb-lbl">' + label + '</span>';
-    el.className = 'admin-btn admin-btn--on';
-  } else {
-    el.innerHTML = '<span class="tb-ic">🔒</span><span class="tb-lbl">管理员登录</span>';
-    el.className = 'admin-btn';
+  if (el) {
+    // adminBtn 已隐藏入口化：始终不在顶栏出现，通过 URL #admin 触发登录/退出
+    el.style.display = 'none';
   }
   // 同步收件箱按钮（仅管理员模式可见）
   const ib = document.getElementById('inboxBtn');
@@ -7201,17 +7192,14 @@ const UserStore = {
   renderBtn() {
     const btn = document.getElementById('userBtn');
     if (!btn) return;
-    // 密码应急 admin（没邮箱身份）才隐藏；邮箱登录的 admin 仍然显示昵称
+    // 密码应急 admin（没邮箱身份）才隐藏；邮箱登录的 admin 仍然显示
     const isPasswordOnlyAdmin = (typeof isAdmin === 'function' && isAdmin()) && !this.user;
     if (isPasswordOnlyAdmin) { btn.style.display = 'none'; return; }
     btn.style.display = '';
+    // 所有角色统一只显示「登录」/「退出」，不暴露昵称、角色徽章
     if (this.user) {
-      const name = this.user.nickname || this.user.email.split('@')[0];
-      // 用角色 emoji 区分：👑 主管理员 / 🛠 副管理员 / 👤 普通用户
-      const icon = this.role === 'super' ? '👑' : (this.role === 'sub' ? '🛠' : '👤');
-      btn.innerHTML = '<span class="tb-ic">' + icon + '</span><span class="tb-lbl">' + name + '</span>';
-      const titleSuffix = this.role === 'super' ? '（主管理员）' : (this.role === 'sub' ? '（副管理员）' : '');
-      btn.title = name + titleSuffix + ' — 点击打开私信';
+      btn.innerHTML = '<span class="tb-ic">👤</span><span class="tb-lbl">退出</span>';
+      btn.title = '我的账户 / 退出';
     } else {
       btn.innerHTML = '<span class="tb-ic">👤</span><span class="tb-lbl">登录</span>';
       btn.title = '登录 / 注册';
@@ -7741,6 +7729,18 @@ document.addEventListener('DOMContentLoaded', function() {
   // 角色副作用：对密码应急 admin（无邮箱登录态）也要触发一次，
   // 让 .js-super-only 元素正确显隐 / viewer-mode 退出 / 顶部按钮刷新
   try { applyRoleSideEffects(); } catch (_) {}
+  // 隐藏入口：访问 #admin 触发管理员登录/退出（adminLogin 内部按 isAdmin 切换）
+  try {
+    const checkAdminHash = () => {
+      if (location.hash === '#admin' || location.hash === '#admin/') {
+        // 清掉 hash，避免刷新重复弹框
+        history.replaceState(null, '', location.pathname + location.search);
+        if (typeof adminLogin === 'function') adminLogin();
+      }
+    };
+    checkAdminHash();
+    window.addEventListener('hashchange', checkAdminHash);
+  } catch (_) {}
 })();
 
 // ═══════════════════════════════════════
