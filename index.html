@@ -3399,14 +3399,14 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <input id="l-title" type="text" placeholder="今天想说点什么">
     </div>
     <div class="field">
-      <label style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.4rem;">
-        <span>正文 *</span>
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.35rem;">
+        <span style="font-size:0.65rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--gray-500); font-weight:600;">正文 *</span>
         <span style="display:inline-flex; gap:0.4rem; flex-wrap:wrap;">
           <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="pickLocalImage()">📁 本地图片</button>
           <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="insertImageUrlAtCursor()">🔗 图片链接</button>
           <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="pickWordFile()">📄 导入 Word</button>
         </span>
-      </label>
+      </div>
       <input type="file" id="l-image-file" accept="image/*" style="display:none;" onchange="handleLocalImagePicked(this)">
       <input type="file" id="l-word-file" accept=".docx" style="display:none;" onchange="handleWordFilePicked(this)">
       <div id="l-content" class="content-editor" contenteditable="true" data-placeholder="想到哪写到哪... 插入图片：点上方「📁 本地图片」选本地图，或「🔗 图片链接」粘外链；也可点「📄 导入 Word」上传 .docx 一键导入" onpaste="handleEditorPaste(event)"></div>
