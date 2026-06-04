@@ -3401,14 +3401,16 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <div class="field">
       <label style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.4rem;">
         <span>正文 *</span>
-        <span style="display:inline-flex; gap:0.4rem;">
+        <span style="display:inline-flex; gap:0.4rem; flex-wrap:wrap;">
           <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="pickLocalImage()">📁 本地图片</button>
           <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="insertImageUrlAtCursor()">🔗 图片链接</button>
+          <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="pickWordFile()">📄 导入 Word</button>
         </span>
       </label>
       <input type="file" id="l-image-file" accept="image/*" style="display:none;" onchange="handleLocalImagePicked(this)">
-      <div id="l-content" class="content-editor" contenteditable="true" data-placeholder="想到哪写到哪... 插入图片：点上方「📁 本地图片」选本地图，或「🔗 图片链接」粘外链" onpaste="handleEditorPaste(event)"></div>
-      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数；本地图自动压缩到最长边 1600px，发布后图文按编辑顺序混排<br>✂️ 支持 Ctrl+V 粘贴：截图、网页带图文章、Word / 微信 / 邮件里的图文都能整段粘进来（外链图若加载失败，建议改用「📁 本地图片」重传）</div>
+      <input type="file" id="l-word-file" accept=".docx" style="display:none;" onchange="handleWordFilePicked(this)">
+      <div id="l-content" class="content-editor" contenteditable="true" data-placeholder="想到哪写到哪... 插入图片：点上方「📁 本地图片」选本地图，或「🔗 图片链接」粘外链；也可点「📄 导入 Word」上传 .docx 一键导入" onpaste="handleEditorPaste(event)"></div>
+      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数；本地图自动压缩到最长边 1600px，发布后图文按编辑顺序混排<br>✂️ 支持 Ctrl+V 粘贴（截图 / 网页 / Word / 微信 / 邮件图文）；📄 导入 Word 仅支持 .docx 格式（旧版 .doc 请先在 Word 里另存为 .docx）</div>
     </div>
     <div class="field">
       <label>标签</label>
@@ -4439,6 +4441,79 @@ function setEditorContent(content) {
   });
   editor.appendChild(frag);
 }
+// ── 通用：HTML → DocumentFragment（文字 + 图片混排，剥离样式）
+// fileDataUrls: 按 HTML 中无效 img src 顺序补位的 base64 队列（粘贴场景由 clipboard items 填充，Word 导入传空数组）
+function htmlToFragment(html, fileDataUrls = []) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const frag = document.createDocumentFragment();
+  const state = { textBuf: '', imgOk: 0, imgSkip: 0, fileIdx: 0 };
+
+  const flushText = () => {
+    if (!state.textBuf) return;
+    const lines = state.textBuf.replace(/\u00A0/g, ' ').split(/\r?\n/);
+    lines.forEach((line, idx) => {
+      if (line) frag.appendChild(document.createTextNode(line));
+      if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
+    });
+    state.textBuf = '';
+  };
+  const pushImg = (url, alt) => {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = alt || '';
+    frag.appendChild(img);
+    frag.appendChild(document.createElement('br'));
+    state.imgOk++;
+  };
+
+  const walk = (node) => {
+    if (node.nodeType === 3) { state.textBuf += node.nodeValue; return; }
+    if (node.nodeType !== 1) return;
+    const tag = node.tagName;
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return;
+    // 标准 <img> 以及 Office VML <v:imagedata> / <image>（DOMParser 大写）
+    if (tag === 'IMG' || tag === 'V:IMAGEDATA' || tag === 'IMAGE') {
+      flushText();
+      const rawSrc = (node.getAttribute('src')
+        || node.getAttribute('data-src')
+        || node.getAttribute('data-original')
+        || node.getAttribute('r:href')
+        || node.getAttribute('href')
+        || '').trim();
+      const alt = node.getAttribute('alt') || '';
+      // 可直接显示的 src：http(s) 或 data:image
+      if (/^(https?:|data:image\/)/i.test(rawSrc)) {
+        pushImg(rawSrc, alt);
+        return;
+      }
+      // 无效 src（file:// / cid: / blob: / 相对路径 / 空）→ 用队列里的图替换
+      while (state.fileIdx < fileDataUrls.length && !fileDataUrls[state.fileIdx]) state.fileIdx++;
+      if (state.fileIdx < fileDataUrls.length) {
+        pushImg(fileDataUrls[state.fileIdx++], alt);
+      } else {
+        state.imgSkip++;
+      }
+      return;
+    }
+    if (tag === 'BR') { flushText(); frag.appendChild(document.createElement('br')); return; }
+    const isBlock = /^(P|DIV|LI|TR|H[1-6]|BLOCKQUOTE|PRE|SECTION|ARTICLE)$/.test(tag);
+    if (isBlock && state.textBuf && !/\n$/.test(state.textBuf)) state.textBuf += '\n';
+    for (const c of node.childNodes) walk(c);
+    if (isBlock && state.textBuf && !/\n$/.test(state.textBuf)) state.textBuf += '\n';
+  };
+
+  for (const c of doc.body.childNodes) walk(c);
+  flushText();
+
+  // 队列里还有剩余图 → 追加到末尾
+  while (state.fileIdx < fileDataUrls.length) {
+    if (fileDataUrls[state.fileIdx]) pushImg(fileDataUrls[state.fileIdx], '');
+    state.fileIdx++;
+  }
+
+  return { frag, imgOk: state.imgOk, imgSkip: state.imgSkip };
+}
+
 // 粘贴：覆盖以下来源
 //   1. 截图 / 拷贝图片文件 / IM 客户端 → clipboardData.items 含 image file → 自动压缩成 base64
 //   2. 从网页复制带图文章 → text/html 含 <img> → 提取 src 与文字混排
@@ -4469,85 +4544,17 @@ async function handleEditorPaste(e) {
   // ── 路径 A：HTML 含图片标签 → 按 HTML 顺序混排；无效 src 用 imageFiles 替换
   if (hasHtmlImg) {
     if (imageFiles.length) toast(`处理 ${imageFiles.length} 张内嵌图片...`);
-    // 一次性把 imageFiles 全部压缩成 base64（保持顺序）
     const fileDataUrls = [];
     for (const f of imageFiles) {
       try { fileDataUrls.push(await compressImageToDataURL(f, 1600, 0.85)); }
       catch (err) { fileDataUrls.push(null); }
     }
     try {
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      const frag = document.createDocumentFragment();
-      const state = { textBuf: '', imgOk: 0, imgSkip: 0, fileIdx: 0 };
-
-      const flushText = () => {
-        if (!state.textBuf) return;
-        const lines = state.textBuf.replace(/\u00A0/g, ' ').split(/\r?\n/);
-        lines.forEach((line, idx) => {
-          if (line) frag.appendChild(document.createTextNode(line));
-          if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
-        });
-        state.textBuf = '';
-      };
-      const pushImg = (url, alt) => {
-        const img = document.createElement('img');
-        img.src = url;
-        img.alt = alt || '';
-        frag.appendChild(img);
-        frag.appendChild(document.createElement('br'));
-        state.imgOk++;
-      };
-
-      const walk = (node) => {
-        if (node.nodeType === 3) { state.textBuf += node.nodeValue; return; }
-        if (node.nodeType !== 1) return;
-        const tag = node.tagName;
-        if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return;
-        // 标准 <img> 以及 Office VML 的 <v:imagedata> / <image>（DOMParser 解析后 tagName 大写）
-        if (tag === 'IMG' || tag === 'V:IMAGEDATA' || tag === 'IMAGE') {
-          flushText();
-          const rawSrc = (node.getAttribute('src')
-            || node.getAttribute('data-src')
-            || node.getAttribute('data-original')
-            || node.getAttribute('r:href')
-            || node.getAttribute('href')
-            || '').trim();
-          const alt = node.getAttribute('alt') || '';
-          // 可直接显示的 src：http(s) 或 data:image
-          if (/^(https?:|data:image\/)/i.test(rawSrc)) {
-            pushImg(rawSrc, alt);
-            return;
-          }
-          // 无效 src（file:// / cid: / blob: / 相对路径 / 空）→ 用 items 队列里的图替换
-          while (state.fileIdx < fileDataUrls.length && !fileDataUrls[state.fileIdx]) state.fileIdx++;
-          if (state.fileIdx < fileDataUrls.length) {
-            pushImg(fileDataUrls[state.fileIdx++], alt);
-          } else {
-            state.imgSkip++;
-          }
-          return;
-        }
-        if (tag === 'BR') { flushText(); frag.appendChild(document.createElement('br')); return; }
-        const isBlock = /^(P|DIV|LI|TR|H[1-6]|BLOCKQUOTE|PRE|SECTION|ARTICLE)$/.test(tag);
-        if (isBlock && state.textBuf && !/\n$/.test(state.textBuf)) state.textBuf += '\n';
-        for (const c of node.childNodes) walk(c);
-        if (isBlock && state.textBuf && !/\n$/.test(state.textBuf)) state.textBuf += '\n';
-      };
-
-      for (const c of doc.body.childNodes) walk(c);
-      flushText();
-
-      // HTML 里 img 数 < items 里图片数 → 把剩余图片追加到末尾（避免遗漏）
-      while (state.fileIdx < fileDataUrls.length) {
-        if (fileDataUrls[state.fileIdx]) pushImg(fileDataUrls[state.fileIdx], '');
-        state.fileIdx++;
-      }
-
+      const { frag, imgOk, imgSkip } = htmlToFragment(html, fileDataUrls);
       insertFragmentAtCursor(frag);
-
       const tips = [];
-      if (state.imgOk) tips.push(`已插入 ${state.imgOk} 张图片`);
-      if (state.imgSkip) tips.push(`${state.imgSkip} 张无法获取`);
+      if (imgOk) tips.push(`已插入 ${imgOk} 张图片`);
+      if (imgSkip) tips.push(`${imgSkip} 张无法获取`);
       tips.push('外链图加载失败请改用「📁 本地图片」重传');
       toast(tips.join('；'));
       return;
@@ -4634,6 +4641,106 @@ function pickLocalImage() {
   if (!inp) return;
   inp.value = ''; // 允许重复选同一张
   inp.click();
+}
+// 「📄 导入 Word」：触发隐藏的 file input
+function pickWordFile() {
+  const inp = document.getElementById('l-word-file');
+  if (!inp) return;
+  inp.value = '';
+  inp.click();
+}
+// 懒加载第三方脚本（首次使用时按需拉 CDN）
+function loadExternalScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[data-src="${src}"]`)) return resolve();
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.setAttribute('data-src', src);
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('script load failed: ' + src));
+    document.head.appendChild(s);
+  });
+}
+// 「📄 导入 Word」回调：mammoth.js 解析 .docx → HTML（图片转 base64 内联）→ 走 htmlToFragment 插入
+async function handleWordFilePicked(input) {
+  const f = input && input.files && input.files[0];
+  if (!f) return;
+  if (!/\.docx$/i.test(f.name)) {
+    toast('请选择 .docx 文件（旧版 .doc 不支持，请先在 Word 里另存为 .docx）');
+    return;
+  }
+  if (f.size > 20 * 1024 * 1024) { toast('文件过大（>20MB），请先精简或拆分'); return; }
+
+  // 懒加载 mammoth.js（约 700KB，首次需联网拉取）
+  if (typeof mammoth === 'undefined') {
+    toast('首次使用，加载解析库（约 700KB）...');
+    try {
+      await loadExternalScript('https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js');
+    } catch (err) {
+      toast('解析库加载失败，请检查网络后重试');
+      return;
+    }
+  }
+  if (typeof mammoth === 'undefined') {
+    toast('解析库加载异常，请刷新页面重试');
+    return;
+  }
+
+  toast('正在解析 Word 文档...');
+  try {
+    const buf = await f.arrayBuffer();
+    // mammoth 把每张内嵌图转成 Blob，再走 compressImageToDataURL 压到最长边 1600px
+    const result = await mammoth.convertToHtml({ arrayBuffer: buf }, {
+      convertImage: mammoth.images.imgElement(function(image) {
+        return image.read('arraybuffer').then(function(imgBuf) {
+          const blob = new Blob([imgBuf], { type: image.contentType || 'image/png' });
+          const imgFile = new File([blob], 'embedded', { type: image.contentType || 'image/png' });
+          return compressImageToDataURL(imgFile, 1600, 0.85).then(function(dataUrl) {
+            return { src: dataUrl };
+          });
+        });
+      })
+    });
+    const html = result && result.value || '';
+    if (!html.trim()) { toast('文档为空，没有可导入的内容'); return; }
+
+    // 若标题输入框为空，用文件名（去扩展名）自动填充
+    const titleInp = document.getElementById('l-title');
+    if (titleInp && !titleInp.value.trim()) {
+      titleInp.value = f.name.replace(/\.docx$/i, '').trim();
+    }
+
+    // 编辑器若有内容，让用户确认是否在末尾追加
+    const editor = document.getElementById('l-content');
+    if (editor && editor.innerHTML.trim() && editor.textContent.trim()) {
+      if (!confirm('正文已有内容，导入将追加到末尾。确定继续？')) return;
+      // 光标移到末尾
+      editor.focus();
+      const sel = window.getSelection();
+      const r = document.createRange();
+      r.selectNodeContents(editor);
+      r.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    } else if (editor) {
+      editor.focus();
+    }
+
+    const { frag, imgOk, imgSkip } = htmlToFragment(html, []);
+    insertFragmentAtCursor(frag);
+
+    const tips = ['Word 文档已导入 ✓'];
+    if (imgOk) tips.push(`含 ${imgOk} 张图片`);
+    if (imgSkip) tips.push(`${imgSkip} 张图片无法识别`);
+    if (result.messages && result.messages.length) {
+      // mammoth 警告通常是不支持的样式（不影响内容）
+      tips.push(`${result.messages.length} 处样式提示已忽略`);
+    }
+    toast(tips.join('；'));
+  } catch (err) {
+    toast('解析失败：' + (err && err.message || err));
+  }
 }
 // file input 选好图后回调：压缩 → base64 → 插入光标处
 async function handleLocalImagePicked(input) {
@@ -5087,6 +5194,7 @@ const CHANGELOG = [
       '🧹 收件箱左侧用户对话支持「清空记录」「删除整条对话」：hover 出现 🧹/🗑 两个小按钮，清空只删消息保留条目，删除连同对话从列表移除（下次该用户再发新消息会自动重新出现）',
       '↩️ 私信支持「2 分钟内撤回自己发的消息」：用户和管理员（super/sub）都可用，hover 到自己发的气泡上出现「撤回」按钮，撤回后双方都显示「此消息已撤回」灰色斜体；只能撤自己的，副管理员无法撤回主管理员的话',
       '📋 写日志支持「图文整段粘贴」：截图（Win+Shift+S / macOS Cmd+Shift+4）直接 Ctrl+V 自动压缩成本地图；从网页复制带图文章按文字+图片原顺序混排；从本地 Word / WPS / 微信 / 邮件复制图文也能整段粘进来（自动识别内嵌图并替换无效的 file:// 路径），外链图若加载失败可改用「📁 本地图片」重传',
+      '📄 写日志新增「📄 导入 Word」按钮：上传 .docx 文件，自动提取文字（标题/段落/列表/加粗等结构）和内嵌图片并按原顺序混排到正文，图片自动压缩到最长边 1600px 内联存储；标题输入框为空时用文件名兜底，编辑器已有内容时弹窗确认追加（不会覆盖）；旧版 .doc 二进制格式不支持，请先在 Word 里另存为 .docx',
     ]
   },
   {
