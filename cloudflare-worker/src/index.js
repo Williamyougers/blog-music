@@ -464,6 +464,14 @@ function sanitizeNickname(s) {
 // Notify owner via Server Chan when user sends new DM
 async function notifyNewDM(env, user, content) {
   if (!env.SERVERCHAN_KEY) return;
+  // Skip push if admin is online (heartbeat within 90s)
+  try {
+    const online = await env.BLOG.get('admin/online', 'json');
+    if (online && online.ts && Date.now() - online.ts < 90000) {
+      console.log('[dm] admin online, skip serverchan');
+      return;
+    }
+  } catch (e) { /* fall through and still notify */ }
   const title = `📨 新私信 · ${user.nickname || maskEmail(user.email)}`;
   const desp = [
     `**昵称**: ${user.nickname || '(未设置)'}`,
@@ -1130,6 +1138,15 @@ async function handleRequest(request, env, ctx, cors) {
       const item = list.find(t => t.userId === targetUserId);
       if (item) { item.unread = 0; await env.BLOG.put('dm/admin/threads', JSON.stringify(list)); }
       return json({ ok: true }, 200, cors);
+    }
+
+    // POST /api/admin/heartbeat — admin pings to mark online (admin only)
+    // Used by notifyNewDM to skip Server Chan push when admin is actively using inbox
+    if (path === '/api/admin/heartbeat' && method === 'POST') {
+      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+      const ts = Date.now();
+      await env.BLOG.put('admin/online', JSON.stringify({ ts }), { expirationTtl: 90 });
+      return json({ ok: true, ts }, 200, cors);
     }
 
     if (path === '/' || path === '/health') {

@@ -4779,6 +4779,7 @@ const CHANGELOG = [
       '✏️ 写日志编辑器升级为「所见即所得」：正文区改为富文本编辑器，「📁 本地图片」选图后直接在正文里显示图片本身（不再显示路径/base64），本地图自动压缩到最长边 1600px / jpeg 0.85，无需上传图床；「🔗 图片链接」粘外链同步插入',
       '💬 私信气泡按视角分左右：用户视角下"自己在右、店主在左"，店主收件箱视角下"自己在右、用户在左"，符合常见 IM 习惯',
       '🔕 收件箱红点优化：店主点开对话查看 / 主动回复后，该对话的未读红点 + 顶部按钮 badge 立即归零（不等下次轮询），直到该用户再次发新消息才会重新亮起',
+      '📡 微信推送智能跳过：管理员页面在线（每 30s 心跳，TTL 90s）时，用户发新私信不再推到店主的微信服务号；店主关闭页面 90s 后才恢复推送，避免自己正在用还被打扰',
     ]
   },
   {
@@ -6965,6 +6966,8 @@ async function adminLogin() {
     sessionStorage.removeItem(ADMIN_TOKEN_KEY);
     document.body.classList.add('viewer-mode');
     renderAdminBtn();
+    // 退出后停止管理员心跳
+    stopAdminHeartbeat();
     // 退出后重拉一次数据，让 contact 切回脱敏版
     try { await Store.load(); } catch (_) {}
     renderAll();
@@ -6995,6 +6998,8 @@ async function adminLogin() {
       renderAll();
       // 启动管理员收件箱未读轮询
       if (typeof startUnreadPoll === 'function' && !_unreadTimer) startUnreadPoll();
+      // 启动管理员在线心跳（让后端知道店主在线，从而跳过 Server Chan 推送）
+      startAdminHeartbeat();
       alert('✅ 登录成功，已解锁编辑功能');
     } else if (res.status === 401) {
       setSyncStatus('error', '密码错误');
@@ -7415,6 +7420,41 @@ function stopUnreadPoll() {
   if (_unreadTimer) { clearInterval(_unreadTimer); _unreadTimer = null; }
 }
 
+// ── 管理员在线心跳 ──
+// 管理员登录后每 30s ping 一次后端 /api/admin/heartbeat，后端写 admin/online (TTL 90s)。
+// notifyNewDM 检测 admin/online 在 90s 内则跳过 Server Chan 推送，避免店主自己在用还推微信。
+// visibilitychange → visible 立即补一次（防止后台 tab 被节流导致 TTL 过期误判离线）。
+let _heartbeatTimer = null;
+
+async function adminHeartbeat() {
+  if (!isAdmin()) return;
+  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+  if (!token) return;
+  try {
+    await fetch(API_BASE + '/api/admin/heartbeat', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+  } catch (_) { /* 心跳失败静默，下次再试 */ }
+}
+
+function startAdminHeartbeat() {
+  stopAdminHeartbeat();
+  adminHeartbeat();
+  _heartbeatTimer = setInterval(adminHeartbeat, 30000);
+}
+
+function stopAdminHeartbeat() {
+  if (_heartbeatTimer) { clearInterval(_heartbeatTimer); _heartbeatTimer = null; }
+}
+
+// 切回前台立即补一次心跳（移动端/后台 tab 容易被节流）
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && isAdmin()) {
+    adminHeartbeat();
+  }
+});
+
 async function pollUnread() {
   if (!UserStore.token) return;
   try {
@@ -7482,6 +7522,8 @@ document.addEventListener('DOMContentLoaded', function() {
   if (isAdmin()) {
     pollUnread();
     if (!_unreadTimer) startUnreadPoll();
+    // 刷新页面但仍是 admin（sessionStorage 还在）：恢复心跳
+    startAdminHeartbeat();
   }
 })();
 
