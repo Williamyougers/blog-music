@@ -599,87 +599,6 @@ input,textarea,select { font:inherit; color:inherit; }
 
 /* 分享按钮 CSS 已移除（功能已下线） */
 
-/* ── PC 端两侧杂志风装饰（≥1400px 才显示，移动端完全不出现）── */
-.page-deco {
-  display: none;
-  position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 5;
-  pointer-events: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  user-select: none;
-}
-.page-deco--left  { left: 1.2rem; }
-.page-deco--right { right: 1.2rem; }
-.page-deco__line {
-  width: 1px;
-  height: 70px;
-  background: linear-gradient(to bottom, transparent 0%, rgba(184,132,74,0.6) 50%, transparent 100%);
-}
-.page-deco__line--accent {
-  background: linear-gradient(to bottom, transparent 0%, rgba(194,59,34,0.55) 50%, transparent 100%);
-}
-.page-deco__text {
-  writing-mode: vertical-rl;
-  font-family: var(--serif);
-  color: var(--gold);
-  letter-spacing: 0.42em;
-  font-size: 0.7rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-.page-deco__text--small {
-  font-size: 0.55rem;
-  opacity: 0.42;
-  letter-spacing: 0.32em;
-}
-.page-deco__text--cn {
-  color: var(--accent);
-  letter-spacing: 0.5em;
-  font-size: 0.78rem;
-  font-style: italic;
-  opacity: 0.75;
-  text-transform: none;
-}
-.page-deco__text--cn.page-deco__text--small {
-  font-size: 0.62rem;
-  opacity: 0.45;
-  letter-spacing: 0.4em;
-}
-.page-deco__icon {
-  color: var(--gold);
-  font-size: 1.05rem;
-  opacity: 0.55;
-  font-family: var(--serif);
-  line-height: 1;
-}
-.page-deco__icon--accent { color: var(--accent); opacity: 0.6; }
-.page-deco__diamond {
-  color: var(--gold);
-  font-size: 0.55rem;
-  opacity: 0.5;
-  line-height: 1;
-}
-.page-deco__diamond--accent { color: var(--accent); opacity: 0.55; }
-
-[data-theme="dark"] .page-deco__text { opacity: 0.55; }
-[data-theme="dark"] .page-deco__text--small { opacity: 0.32; }
-[data-theme="dark"] .page-deco__icon { opacity: 0.45; }
-[data-theme="dark"] .page-deco__diamond { opacity: 0.4; }
-
-@media (min-width: 1400px) {
-  .page-deco { display: flex; }
-}
-@media (min-width: 1600px) {
-  .page-deco--left  { left: 2rem; }
-  .page-deco--right { right: 2rem; }
-  .page-deco__line { height: 90px; }
-}
-
 /* ── 访客模式：隐藏所有写操作 UI ── */
 body.viewer-mode .js-write-action,
 body.viewer-mode .work__edit,
@@ -3058,26 +2977,6 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 
 <div class="note-particles" aria-hidden="true" id="noteParticles"></div>
 <button class="back-to-top" id="backToTop" aria-label="返回顶部" title="返回顶部">↑</button>
-
-<!-- PC 端两侧杂志风装饰（≥1400px 才显示） -->
-<aside class="page-deco page-deco--left" aria-hidden="true">
-  <div class="page-deco__diamond">◆</div>
-  <div class="page-deco__line"></div>
-  <div class="page-deco__text">TRACKS &amp; COMMUNITY</div>
-  <div class="page-deco__icon">♪</div>
-  <div class="page-deco__text page-deco__text--small">VOL. I · EST. MMXXVI</div>
-  <div class="page-deco__line"></div>
-  <div class="page-deco__diamond">◆</div>
-</aside>
-<aside class="page-deco page-deco--right" aria-hidden="true">
-  <div class="page-deco__diamond page-deco__diamond--accent">◆</div>
-  <div class="page-deco__line page-deco__line--accent"></div>
-  <div class="page-deco__text page-deco__text--cn">凡所听过 · 终将回响</div>
-  <div class="page-deco__icon page-deco__icon--accent">♬</div>
-  <div class="page-deco__text page-deco__text--cn page-deco__text--small">一首一首 · 慢慢来</div>
-  <div class="page-deco__line page-deco__line--accent"></div>
-  <div class="page-deco__diamond page-deco__diamond--accent">◆</div>
-</aside>
 
 <div class="top-bar">
   <div class="top-bar__left">
