@@ -4781,6 +4781,7 @@ const CHANGELOG = [
       '🔕 收件箱红点优化：店主点开对话查看 / 主动回复后，该对话的未读红点 + 顶部按钮 badge 立即归零（不等下次轮询），直到该用户再次发新消息才会重新亮起',
       '📡 微信推送智能跳过：管理员页面在线（每 30s 心跳，TTL 90s）时，用户发新私信不再推到店主的微信服务号；店主关闭页面 90s 后才恢复推送，避免自己正在用还被打扰',
       '🙈 管理员模式下隐藏顶部「登录」按钮：店主本来就是自己，不需要再用普通用户身份登录；退出管理员模式后按钮恢复显示',
+      '👈 收件箱打开时右侧重置为"左侧选一个对话"占位（不再残留上次查看的对话）；点击对话后自动滚到最新私信位置（双 RAF 兜底防止渲染未完成时滚动失败），用户视角私信窗同步优化',
     ]
   },
   {
@@ -7249,7 +7250,11 @@ async function loadUserDm() {
     const d = await r.json();
     if (d.messages && d.messages.length) {
       area.innerHTML = d.messages.map(m => renderDmBubble(m, false)).join('');
-      area.scrollTop = area.scrollHeight;
+      // 等渲染完再滚到最新（双 RAF 兜底）
+      requestAnimationFrame(() => {
+        area.scrollTop = area.scrollHeight;
+        requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
+      });
     } else {
       area.innerHTML = '<div class="empty-dm"><div class="empty-dm__icon">💌</div><div>还没有消息，留个言吧</div></div>';
     }
@@ -7295,6 +7300,11 @@ async function openInbox() {
   document.getElementById('inboxModal').classList.add('open');
   _inboxCurrentUserId = null;
   document.getElementById('inboxReplyArea').style.display = 'none';
+  // 每次打开都把右侧重置成"未选择"占位，不显示上次残留对话
+  const area = document.getElementById('inboxMessages');
+  if (area) {
+    area.innerHTML = '<div class="empty-dm" style="margin:auto 0;"><div class="empty-dm__icon">👈</div><div>左侧选一个对话</div></div>';
+  }
   loadInboxThreads();
 }
 
@@ -7352,7 +7362,12 @@ async function selectInboxThread(userId) {
     const d = await r.json();
     if (d.messages && d.messages.length) {
       area.innerHTML = d.messages.map(m => renderDmBubble(m, true)).join('');
-      area.scrollTop = area.scrollHeight;
+      // 等浏览器渲染完再滚到最底（直接赋值时 scrollHeight 可能还没更新）
+      requestAnimationFrame(() => {
+        area.scrollTop = area.scrollHeight;
+        // 兜底再滚一次，应对个别浏览器异步布局延迟
+        requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
+      });
     } else {
       area.innerHTML = '<div class="empty-dm"><div class="empty-dm__icon">💬</div><div>暂无消息</div></div>';
     }
