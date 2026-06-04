@@ -6421,9 +6421,13 @@ async function userDmSend() {
       input.value = '';
       loadUserDm();
     } else {
-      toast(d.error || '发送失败');
+      toast(d.error || ('发送失败 HTTP ' + r.status));
+      console.error('[dm/send] HTTP', r.status, d);
     }
-  } catch (_) { toast('网络异常'); }
+  } catch (e) {
+    console.error('[dm/send] exception', e);
+    toast('网络异常: ' + (e && e.message ? e.message : e));
+  }
   btn.disabled = false;
 }
 
