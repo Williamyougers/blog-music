@@ -6421,8 +6421,10 @@ async function userDmSend() {
       input.value = '';
       loadUserDm();
     } else {
-      toast(d.error || ('发送失败 HTTP ' + r.status));
+      const msg = d.detail ? (d.error + ': ' + d.detail) : (d.error || ('发送失败 HTTP ' + r.status));
+      toast(msg);
       console.error('[dm/send] HTTP', r.status, d);
+      if (r.status === 500) alert('❌ 服务器错误（请截图给灵犀）:\n\n' + msg);
     }
   } catch (e) {
     console.error('[dm/send] exception', e);
