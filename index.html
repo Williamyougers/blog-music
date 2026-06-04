@@ -3273,12 +3273,16 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <input id="l-title" type="text" placeholder="今天想说点什么">
     </div>
     <div class="field">
-      <label style="display:flex; align-items:center; justify-content:space-between;">
+      <label style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.4rem;">
         <span>正文 *</span>
-        <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="insertImageAtCursor()">📷 插入图片</button>
+        <span style="display:inline-flex; gap:0.4rem;">
+          <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="pickLocalImage()">📁 本地图片</button>
+          <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="insertImageUrlAtCursor()">🔗 图片链接</button>
+        </span>
       </label>
-      <textarea id="l-content" rows="10" placeholder="想到哪写到哪...&#10;&#10;插入图片：点上方「插入图片」或手动写 ![](图片URL)"></textarea>
-      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数，可分段；图片用 <code style="background:var(--gray-100); padding:0 0.3rem;">![](图片URL)</code> 直接嵌入正文任意位置</div>
+      <input type="file" id="l-image-file" accept="image/*" style="display:none;" onchange="handleLocalImagePicked(this)">
+      <textarea id="l-content" rows="10" placeholder="想到哪写到哪...&#10;&#10;插入图片：点上方「📁 本地图片」直接选图，或「🔗 图片链接」粘贴外链，也可手动写 ![](图片URL)"></textarea>
+      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数，可分段；本地图自动压缩到最长边 1600px；图片格式：<code style="background:var(--gray-100); padding:0 0.3rem;">![](图片URL 或 data:...)</code></div>
     </div>
     <div class="field">
       <label>标签</label>
@@ -4190,13 +4194,8 @@ function parseLogContent(text) {
 function extractImagesFromContent(text) {
   return parseLogContent(text).filter(s => s.type === 'image').map(s => s.url);
 }
-// 在 l-content 光标处插入 ![](url)；URL 通过 prompt 获取
-function insertImageAtCursor() {
-  const ta = document.getElementById('l-content');
-  if (!ta) return;
-  const url = (prompt('请输入图片 URL（jpg/png/webp/gif 外链）') || '').trim();
-  if (!url) return;
-  if (!/^https?:\/\//i.test(url)) { toast('URL 需以 http:// 或 https:// 开头'); return; }
+// 在 l-content 光标处插入 ![](url) 片段
+function insertImageSnippet(ta, url) {
   const snippet = `\n![](${url})\n`;
   const start = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
   const end = ta.selectionEnd != null ? ta.selectionEnd : ta.value.length;
@@ -4204,6 +4203,76 @@ function insertImageAtCursor() {
   const pos = start + snippet.length;
   ta.focus();
   ta.setSelectionRange(pos, pos);
+}
+// 「🔗 图片链接」：通过 prompt 拿 http(s) URL 插入
+function insertImageUrlAtCursor() {
+  const ta = document.getElementById('l-content');
+  if (!ta) return;
+  const url = (prompt('请输入图片 URL（jpg/png/webp/gif 外链）') || '').trim();
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) { toast('URL 需以 http:// 或 https:// 开头'); return; }
+  insertImageSnippet(ta, url);
+}
+// 「📁 本地图片」：触发隐藏的 file input
+function pickLocalImage() {
+  const inp = document.getElementById('l-image-file');
+  if (!inp) return;
+  inp.value = ''; // 允许重复选同一张
+  inp.click();
+}
+// file input 选好图后回调：压缩 → base64 → 插入光标处
+async function handleLocalImagePicked(input) {
+  const f = input && input.files && input.files[0];
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { toast('请选择图片文件'); return; }
+  if (f.size > 10 * 1024 * 1024) { toast('图片过大（>10MB），请先裁切或压缩'); return; }
+  toast('图片处理中...');
+  try {
+    const dataUrl = await compressImageToDataURL(f, 1600, 0.85);
+    // 简单提醒：base64 长度换算后 KB
+    const kb = Math.round(dataUrl.length * 0.75 / 1024);
+    const ta = document.getElementById('l-content');
+    if (!ta) return;
+    insertImageSnippet(ta, dataUrl);
+    toast(`图片已插入（约 ${kb} KB）`);
+  } catch (e) {
+    toast('图片处理失败：' + (e && e.message || e));
+  }
+}
+// Canvas 压缩图片到 base64 data URL；png 小图保留透明，其他统一转 jpeg
+function compressImageToDataURL(file, maxEdge, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('读取文件失败'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('图片解码失败'));
+      img.onload = () => {
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (w > maxEdge || h > maxEdge) {
+          const ratio = Math.min(maxEdge / w, maxEdge / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        // png 小图（≤800px）保留透明，其余统一 jpeg 减体积
+        const mime = (file.type === 'image/png' && w <= 800 && h <= 800) ? 'image/png' : 'image/jpeg';
+        try {
+          const dataUrl = canvas.toDataURL(mime, quality);
+          resolve(dataUrl);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 let currentCategory = '古风'; // 当前选中的分类
@@ -4591,6 +4660,8 @@ const CHANGELOG = [
       '🐞 修复点「未分组」分组报错（onclick 引号嵌套冲突）',
       '🖼 图片改为直接嵌入正文：写日志时点「📷 插入图片」即可在光标处插入图片，与文字按位置混排展示',
       '📰 日志详情改为「就地展开」（不再弹窗）：桌面端正文居左、评论区固定在右侧栏，移动端评论自动折到内容下方；顶部「← 返回日志列表」按钮回到列表',
+      '🐞 修复发私信报「Internal Server Error: KV PUT failed」：Cloudflare KV 限速键 TTL 从 10s 调到 60s（业务限速仍是 3s 一条）',
+      '📁 写日志支持「📁 本地图片」直接选图：前端 canvas 自动压缩到最长边 1600px / jpeg 质量 0.85，转 base64 嵌入正文，无需上传图床',
     ]
   },
   {

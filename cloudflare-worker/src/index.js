@@ -1039,7 +1039,8 @@ async function handleRequest(request, env, ctx, cors) {
       // Cap thread at 1000 messages (drop oldest)
       if (thread.length > 1000) thread.splice(0, thread.length - 1000);
       await env.BLOG.put(threadKey, JSON.stringify(thread));
-      await env.BLOG.put('ratelimit/dm/' + user.userId, JSON.stringify({ ts: Date.now() }), { expirationTtl: 10 });
+      // KV expirationTtl minimum is 60s; rate limit logic still uses 3s window via ts
+      await env.BLOG.put('ratelimit/dm/' + user.userId, JSON.stringify({ ts: Date.now() }), { expirationTtl: 60 });
       // Update admin index (+1 unread)
       await updateAdminThreadsIndex(env, user, content, Date.now(), 1);
       // Notify admin via Server Chan
