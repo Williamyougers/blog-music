@@ -677,61 +677,81 @@ async function handleRequest(request, env, ctx, cors) {
     }
 
     // ── R2 upload ──
-    // POST /api/upload - body: { kind: 'image'|'audio', data: 'data:...;base64,...', visitorId, name?, type?, size? }
+    // POST /api/upload
+    //   方式 A (推荐，新前端)：multipart/form-data，字段 file + kind + visitorId
+    //   方式 B (兼容旧前端)：application/json，{ kind, data: 'data:...;base64,...', visitorId }
     // 返回: { ok, url, key, size, mime }
     if (path === '/api/upload' && method === 'POST') {
       if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
-      let body;
-      try { body = await request.json(); }
-      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
 
-      const kind = body && body.kind;
+      const ctype = (request.headers.get('Content-Type') || '').toLowerCase();
+      const isMultipart = ctype.startsWith('multipart/form-data');
+
+      let kind, visitorId, bytes, mime;
+
+      if (isMultipart) {
+        let form;
+        try { form = await request.formData(); }
+        catch { return json({ error: 'Invalid form data' }, 400, cors); }
+
+        kind = sanitizeStr(form.get('kind'), 16);
+        visitorId = sanitizeStr(form.get('visitorId'), 64);
+        const file = form.get('file');
+        if (!file || typeof file === 'string') return json({ error: 'file required' }, 400, cors);
+
+        mime = (file.type || '').toLowerCase();
+        const buf = await file.arrayBuffer();
+        bytes = new Uint8Array(buf);
+      } else {
+        let body;
+        try { body = await request.json(); }
+        catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+        kind = body && body.kind;
+        visitorId = sanitizeStr(body && body.visitorId, 64);
+        const dataUrl = typeof body.data === 'string' ? body.data : '';
+        if (!dataUrl) return json({ error: 'data required' }, 400, cors);
+        if (dataUrl.length > 20 * 1024 * 1024) return json({ error: 'Payload too large' }, 413, cors);
+        const parsed = dataUrlToBytes(dataUrl);
+        if (!parsed) return json({ error: 'Invalid data URL' }, 400, cors);
+        bytes = parsed.bytes;
+        mime = parsed.mime;
+      }
+
       if (kind !== 'image' && kind !== 'audio') return json({ error: 'Invalid kind' }, 400, cors);
-
-      const visitorId = sanitizeStr(body && body.visitorId, 64);
       if (!visitorId) return json({ error: 'visitorId required' }, 400, cors);
 
-      // Rate limit: 单 visitor 每 60s 最多 12 次上传（够一次下单的 3 图 + 3 音频，留余量）
+      // Rate limit: 单 visitor 每 60s 最多 12 次上传
       const rlKey = 'ratelimit/upload/' + visitorId;
       const rl = await env.BLOG.get(rlKey, 'json');
       if (rl && rl.count >= 12) return json({ error: 'Too many uploads, please wait' }, 429, cors);
 
-      const dataUrl = typeof body.data === 'string' ? body.data : '';
-      if (!dataUrl) return json({ error: 'data required' }, 400, cors);
-      // 防超大 base64 字符串直接拒（CF Worker 单 request 体上限 100MB，但我们更严格）
-      if (dataUrl.length > 20 * 1024 * 1024) return json({ error: 'Payload too large' }, 413, cors);
-
-      const parsed = dataUrlToBytes(dataUrl);
-      if (!parsed) return json({ error: 'Invalid data URL' }, 400, cors);
-
       // 按 kind 校验 MIME + 大小
       if (kind === 'image') {
-        if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(parsed.mime)) return json({ error: 'Invalid image type' }, 400, cors);
-        if (parsed.bytes.length > 2 * 1024 * 1024) return json({ error: 'Image too large' }, 413, cors); // 2MB
+        if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(mime)) return json({ error: 'Invalid image type' }, 400, cors);
+        if (bytes.length > 2 * 1024 * 1024) return json({ error: 'Image too large' }, 413, cors); // 2MB
       } else {
-        if (!/^audio\/[a-z0-9.+-]+$/i.test(parsed.mime)) return json({ error: 'Invalid audio type' }, 400, cors);
-        if (parsed.bytes.length > 15 * 1024 * 1024) return json({ error: 'Audio too large' }, 413, cors); // 15MB
+        if (!/^audio\/[a-z0-9.+-]+$/i.test(mime)) return json({ error: 'Invalid audio type' }, 400, cors);
+        if (bytes.length > 15 * 1024 * 1024) return json({ error: 'Audio too large' }, 413, cors); // 15MB
       }
 
       // Key: orders/{visitorHash8}/{ts}_{rand}.{ext}
       const visHash = (await sha256Hex(visitorId)).slice(0, 8);
-      const ext = mimeToExt(parsed.mime);
+      const ext = mimeToExt(mime);
       const ts = Date.now();
       const rand = Math.random().toString(36).slice(2, 8);
       const key = `orders/${visHash}/${ts}_${rand}.${ext}`;
 
-      await env.R2.put(key, parsed.bytes, {
-        httpMetadata: { contentType: parsed.mime },
+      await env.R2.put(key, bytes, {
+        httpMetadata: { contentType: mime },
       });
 
-      // 更新 ratelimit（写完文件再写，避免上传失败也消耗配额）
       const newCount = (rl && rl.count ? rl.count : 0) + 1;
       await env.BLOG.put(rlKey, JSON.stringify({ count: newCount }), { expirationTtl: 60 });
 
       const origin = new URL(request.url).origin;
       const fileUrl = `${origin}/files/${key}`;
 
-      return json({ ok: true, url: fileUrl, key, size: parsed.bytes.length, mime: parsed.mime }, 200, cors);
+      return json({ ok: true, url: fileUrl, key, size: bytes.length, mime }, 200, cors);
     }
 
     // GET /api/data - public read (works + logs + about + comments + orders)
