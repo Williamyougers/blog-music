@@ -6998,6 +6998,7 @@ function renderAdminBtn() {
   // - 已登录（含 admin，因为现在 admin 也是邮箱用户）：显示 → 让用户能看自己昵称/退出登录
   // - 未登录访客：显示 → 让访客能登录
   // - 密码应急登录（无 UserStore.user 但 isAdmin）：隐藏（避免误以为要点登录）
+  const userLoggedIn = (typeof UserStore !== 'undefined') && UserStore && UserStore.user;
   const ub = document.getElementById('userBtn');
   if (ub) {
     if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { ub.style.display = 'none'; }
@@ -7167,9 +7168,9 @@ const UserStore = {
       this.token = d.token;
       this.user = d.user;
       this.role = d.role || 'user';
-      localStorage.setItem(USER_TOKEN_KEY, d.token);
-      this.renderBtn();
-      applyRoleSideEffects();
+      try { localStorage.setItem(USER_TOKEN_KEY, d.token); } catch (_) {}
+      try { this.renderBtn(); } catch (e) { console.error('renderBtn after login failed:', e); }
+      try { applyRoleSideEffects(); } catch (e) { console.error('applyRoleSideEffects after login failed:', e); }
     }
     return d;
   },
@@ -7263,7 +7264,7 @@ async function loginSendCode(isResend) {
       }
     }
   } catch (e) {
-    toast('网络异常');
+    toast('网络异常: ' + (e && e.message ? e.message : e));
   }
   btn.disabled = false;
   btn.textContent = isResend ? '重新发送' : '发送验证码';
@@ -7311,7 +7312,7 @@ async function loginSubmit() {
         document.getElementById('loginCodeHint').textContent = '剩余 ' + d.attemptsLeft + ' 次机会';
       }
     }
-  } catch (e) { toast('网络异常'); }
+  } catch (e) { toast('网络异常: ' + (e && e.message ? e.message : e)); }
   btn.disabled = false; btn.textContent = '登 录';
 }
 
