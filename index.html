@@ -4690,20 +4690,51 @@ async function handleWordFilePicked(input) {
   toast('正在解析 Word 文档...');
   try {
     const buf = await f.arrayBuffer();
-    // mammoth 把每张内嵌图转成 Blob，再走 compressImageToDataURL 压到最长边 1600px
+    let imgFound = 0, imgCompressed = 0, imgFallback = 0, imgFailed = 0;
+    // mammoth 把每张内嵌图转成 Blob → 优先走 compressImageToDataURL 压缩；
+    // 压缩失败（EMF/WMF/TIFF 等浏览器不支持的格式）→ 原 base64 兜底；
+    // 仍失败 → 灰色 SVG 占位（保证至少有 img 标签让用户看到位置）
     const result = await mammoth.convertToHtml({ arrayBuffer: buf }, {
       convertImage: mammoth.images.imgElement(function(image) {
+        imgFound++;
         return image.read('arraybuffer').then(function(imgBuf) {
-          const blob = new Blob([imgBuf], { type: image.contentType || 'image/png' });
-          const imgFile = new File([blob], 'embedded', { type: image.contentType || 'image/png' });
-          return compressImageToDataURL(imgFile, 1600, 0.85).then(function(dataUrl) {
-            return { src: dataUrl };
-          });
+          const mime = (image.contentType || 'image/png').toLowerCase();
+          const blob = new Blob([imgBuf], { type: mime });
+          const imgFile = new File([blob], 'embedded', { type: mime });
+          return compressImageToDataURL(imgFile, 1600, 0.85)
+            .then(function(dataUrl) { imgCompressed++; return { src: dataUrl }; })
+            .catch(function(err) {
+              // EMF/WMF/TIFF 等浏览器不支持 → 原 base64 兜底（虽可能仍渲染不出，但至少 img 标签在）
+              console.warn('[Word导入] 图片压缩失败，使用原始数据：', mime, err && err.message);
+              try {
+                const bytes = new Uint8Array(imgBuf);
+                let bin = '';
+                for (let i = 0; i < bytes.length; i += 0x8000) {
+                  bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+                }
+                imgFallback++;
+                return { src: 'data:' + mime + ';base64,' + btoa(bin) };
+              } catch (e2) {
+                console.error('[Word导入] base64 转换也失败：', e2);
+                imgFailed++;
+                const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="100%" height="100%" fill="#eee"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#999" font-family="sans-serif" font-size="14">图片无法解析（' + mime + '）</text></svg>';
+                return { src: 'data:image/svg+xml;utf8,' + encodeURIComponent(svg), alt: '图片无法解析' };
+              }
+            });
         });
       })
     });
     const html = result && result.value || '';
     if (!html.trim()) { toast('文档为空，没有可导入的内容'); return; }
+
+    // 诊断信息打到 console（F12 可查）
+    const htmlImgCount = (html.match(/<img\s/gi) || []).length;
+    console.log('[Word导入] 文件:', f.name, '大小:', f.size);
+    console.log('[Word导入] HTML 长度:', html.length, '生成 <img> 标签数:', htmlImgCount);
+    console.log('[Word导入] 图片统计：发现', imgFound, '成功压缩', imgCompressed, '原图兜底', imgFallback, '占位', imgFailed);
+    if (result.messages && result.messages.length) {
+      console.log('[Word导入] mammoth 警告:', result.messages);
+    }
 
     // 若标题输入框为空，用文件名（去扩展名）自动填充
     const titleInp = document.getElementById('l-title');
@@ -4715,7 +4746,6 @@ async function handleWordFilePicked(input) {
     const editor = document.getElementById('l-content');
     if (editor && editor.innerHTML.trim() && editor.textContent.trim()) {
       if (!confirm('正文已有内容，导入将追加到末尾。确定继续？')) return;
-      // 光标移到末尾
       editor.focus();
       const sel = window.getSelection();
       const r = document.createRange();
@@ -4730,15 +4760,18 @@ async function handleWordFilePicked(input) {
     const { frag, imgOk, imgSkip } = htmlToFragment(html, []);
     insertFragmentAtCursor(frag);
 
-    const tips = ['Word 文档已导入 ✓'];
-    if (imgOk) tips.push(`含 ${imgOk} 张图片`);
-    if (imgSkip) tips.push(`${imgSkip} 张图片无法识别`);
-    if (result.messages && result.messages.length) {
-      // mammoth 警告通常是不支持的样式（不影响内容）
-      tips.push(`${result.messages.length} 处样式提示已忽略`);
+    // 详细 toast：让用户清楚每张图的去向
+    const tips = ['Word 导入完成 ✓'];
+    if (imgFound === 0) {
+      tips.push('未在文档里检测到图片');
+    } else {
+      tips.push(`识别 ${imgFound} 张图`);
+      if (imgFallback) tips.push(`${imgFallback} 张为 EMF/WMF 矢量图（浏览器可能显示不出，建议在 Word 里右键图片→另存为 png 后重传）`);
+      if (imgFailed) tips.push(`${imgFailed} 张完全解析失败`);
     }
     toast(tips.join('；'));
   } catch (err) {
+    console.error('[Word导入] 解析失败:', err);
     toast('解析失败：' + (err && err.message || err));
   }
 }
