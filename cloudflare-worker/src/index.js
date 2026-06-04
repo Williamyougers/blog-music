@@ -655,8 +655,11 @@ async function handleRequest(request, env, ctx, cors) {
         };
       })() : null;
       const serialized = JSON.stringify({ works, logs, about: safeAbout, logGroups: safeGroups });
-      if (serialized.length > 1024 * 1024) {
-        return json({ error: 'Payload too large' }, 413, cors);
+      // KV 单 value 上限 25MB，留余量到 10MB。
+      // 日志含内联 base64 图（Word 导入 / 截图粘贴）时体积会快速增长，
+      // 旧上限 1MB 一次导入十几张图就会超，导致前端"图片消失"假象。
+      if (serialized.length > 10 * 1024 * 1024) {
+        return json({ error: 'Payload too large', size: serialized.length, limit: 10 * 1024 * 1024 }, 413, cors);
       }
       const tasks = [
         env.BLOG.put('works', JSON.stringify(works)),

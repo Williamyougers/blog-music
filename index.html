@@ -4066,10 +4066,12 @@ const Store = {
     if (!isAdmin()) return;
     setSyncStatus('saving');
     try {
+      const body = JSON.stringify({ works: this.works, logs: this.logs, about: this.about, logGroups: this.logGroups });
+      const sizeMB = (body.length / 1024 / 1024).toFixed(2);
       const res = await fetch(API_BASE + '/api/data', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
-        body: JSON.stringify({ works: this.works, logs: this.logs, about: this.about, logGroups: this.logGroups })
+        body
       });
       if (res.ok) {
         setSyncStatus('saved');
@@ -4078,11 +4080,21 @@ const Store = {
         document.body.classList.add('viewer-mode');
         if (typeof renderAdminBtn === 'function') renderAdminBtn();
         setSyncStatus('error', '登录已失效，请重新登录');
+        if (typeof toast === 'function') toast('登录已失效，请重新登录');
+      } else if (res.status === 413) {
+        // payload 超 worker 上限：前端用户能看到的高亮反馈 + console 详情
+        setSyncStatus('error', `体积超限 ${sizeMB}MB`);
+        if (typeof toast === 'function') {
+          toast(`内容体积过大（${sizeMB}MB），请精简后再保存`);
+        }
+        console.warn('[Store] sync 413 Payload too large, size=', body.length, 'bytes');
       } else {
         setSyncStatus('error', 'HTTP ' + res.status);
+        if (typeof toast === 'function') toast(`保存失败：HTTP ${res.status}`);
       }
     } catch (e) {
       setSyncStatus('error', (e && e.message) || '网络异常');
+      if (typeof toast === 'function') toast('保存失败：' + ((e && e.message) || '网络异常'));
     }
   },
   saveWorks() { this._scheduleSync(); },
