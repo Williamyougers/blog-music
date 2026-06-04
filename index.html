@@ -597,15 +597,10 @@ input,textarea,select { font:inherit; color:inherit; }
 .work.drag-over { box-shadow:inset 0 0 0 2px var(--gold); }
 .featured.drag-over { box-shadow:inset 0 0 0 3px var(--gold); }
 
-/* 分享按钮 */
-.btn--share {
-  background:transparent; color:var(--black); border:1px solid var(--gray-300);
-}
-.btn--share:hover { background:var(--gold); color:var(--white); border-color:var(--gold); }
+/* 分享按钮 CSS 已移除（功能已下线） */
 
 /* ── 访客模式：隐藏所有写操作 UI ── */
 body.viewer-mode .js-write-action,
-body.viewer-mode .btn--share,
 body.viewer-mode .work__edit,
 body.viewer-mode .work__del,
 body.viewer-mode .work__move,
@@ -1593,7 +1588,6 @@ body { animation: pageFadeIn 0.6s ease both; }
 
 /* ── 访客模式下写操作按钮静默隐藏（不破坏现有功能）── */
 body.viewer-mode .js-write-action,
-body.viewer-mode .btn--share,
 body.viewer-mode .work__edit,
 body.viewer-mode .work__del,
 body.viewer-mode .work__move,
@@ -3036,7 +3030,6 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <p class="page-header__desc">收录我创作或分享的曲目</p>
     </div>
     <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
-      <button class="btn btn--share" onclick="exportShareableHTML()" title="导出一个独立 HTML 文件，发给朋友双击就能看">📤 分享</button>
       <button class="btn js-write-action" onclick="openWorkModal()">+ 添加作品</button>
     </div>
   </div>
@@ -6460,44 +6453,7 @@ function moveWork(id, direction) {
   }
 }
 
-// ── 导出分享版 HTML（内嵌数据 + 访客模式）──
-async function exportShareableHTML() {
-  try {
-    toast('正在打包分享版…');
-    // 取当前页面完整 HTML
-    let html;
-    try {
-      const res = await fetch(location.href);
-      html = await res.text();
-    } catch(_) {
-      html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
-    }
-    // 构造注入脚本
-    const data = JSON.stringify({ works: Store.works, logs: Store.logs, about: Store.about, comments: Store.comments })
-      .replace(/</g, '\\u003c').replace(/>/g, '\\u003e'); // 防数据里含 \x3c/script\x3e 截断
-    const inject = `<script>window.__VIEWER_MODE__=true;window.__EMBEDDED_DATA__=${data};</` + `script>`;
-    if (html.includes('</head>')) {
-      html = html.replace('</head>', inject + '\n</head>');
-    } else {
-      html = inject + html;
-    }
-    // 触发下载
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const d = new Date();
-    const ts = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-    a.href = url;
-    a.download = `威灵T的音乐社区_${ts}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast('已导出 ✓ 直接发给朋友双击打开即可');
-  } catch (e) {
-    toast('导出失败：' + (e.message || e));
-  }
-}
+// ── 导出分享版 HTML 功能已下线 ──
 
 let _dragSrcId = null;
 function bindWorksDnD() {
