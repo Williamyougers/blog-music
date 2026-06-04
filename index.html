@@ -941,6 +941,95 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 .comments__count { font-size:0.72rem; color:var(--gray-400); }
 .comments__empty { font-size:0.82rem; color:var(--gray-400); font-style:italic; padding:0.6rem 0; }
+.comments__form-foot-left { display:flex; align-items:center; gap:0.5rem; }
+
+/* ── Emoji Picker（评论 / 私信 / 收件箱共用） ── */
+.emoji-trigger {
+  background: transparent;
+  border: 1px solid var(--gray-200);
+  cursor: pointer;
+  font-size: 1.02rem;
+  line-height: 1;
+  padding: 0 0.5rem;
+  height: 28px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji",sans-serif;
+}
+.emoji-trigger:hover { border-color: var(--gold); background: var(--gray-50); }
+[data-theme="dark"] .emoji-trigger { border-color:#333; }
+[data-theme="dark"] .emoji-trigger:hover { border-color: var(--gold); background:#252525; }
+
+.emoji-picker {
+  position: fixed;
+  z-index: 9999;
+  width: 296px;
+  height: 280px;
+  background: var(--white);
+  border: 1.5px solid var(--gray-200);
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji",sans-serif;
+}
+.emoji-picker.show { display: flex; }
+[data-theme="dark"] .emoji-picker { background:#1e1e1e; border-color:#333; box-shadow:0 12px 32px rgba(0,0,0,0.5); }
+
+.emoji-picker__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--gray-50);
+  flex-shrink: 0;
+}
+.emoji-picker__tab {
+  flex: 1;
+  padding: 0.45rem 0;
+  text-align: center;
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+.emoji-picker__tab:hover { background: var(--white); }
+.emoji-picker__tab.active { border-bottom-color: var(--accent); background: var(--white); }
+[data-theme="dark"] .emoji-picker__tabs { background:#252525; border-bottom-color:#333; }
+[data-theme="dark"] .emoji-picker__tab:hover { background:#1e1e1e; }
+[data-theme="dark"] .emoji-picker__tab.active { background:#1e1e1e; }
+
+.emoji-picker__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.4rem;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  align-content: start;
+}
+.emoji-picker__item {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.1s;
+  border: none;
+  background: transparent;
+  padding: 0;
+  line-height: 1;
+}
+.emoji-picker__item:hover { background: var(--gray-100); }
+[data-theme="dark"] .emoji-picker__item:hover { background:#333; }
 
 /* ── Empty State ── */
 .empty {
@@ -3748,6 +3837,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         </div>
         <div class="dm-thread__input">
           <textarea id="userDmInput" placeholder="想说点什么……（Enter 发送，Shift+Enter 换行）" maxlength="2000" rows="2"></textarea>
+          <button type="button" class="emoji-trigger" onclick="openEmojiPicker('userDmInput', this)" title="表情">😊</button>
           <button class="btn btn--sm" id="userDmSendBtn" onclick="userDmSend()">发送</button>
         </div>
       </div>
@@ -3793,6 +3883,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         </div>
         <div class="dm-thread__input" id="inboxReplyArea" style="display:none;">
           <textarea id="inboxReplyInput" placeholder="回复…（Enter 发送，Shift+Enter 换行）" maxlength="2000" rows="2"></textarea>
+          <button type="button" class="emoji-trigger" onclick="openEmojiPicker('inboxReplyInput', this)" title="表情">😊</button>
           <button class="btn btn--sm" id="inboxReplyBtn" onclick="inboxReply()">回复</button>
         </div>
       </div>
@@ -3806,6 +3897,12 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <div class="footer__rule"></div>
   <div class="footer__note">凡所听过 · 终将回响 · 一首一首，慢慢来</div>
 </footer>
+
+<!-- 全局 Emoji Picker（评论 / 私信 / 收件箱共用） -->
+<div class="emoji-picker" id="emojiPicker" role="dialog" aria-label="表情选择器">
+  <div class="emoji-picker__tabs" id="emojiTabs"></div>
+  <div class="emoji-picker__body" id="emojiBody"></div>
+</div>
 
 <script>
 // ═══════════════════════════════════════
@@ -5111,7 +5208,10 @@ function renderCommentSection(logId) {
         <textarea class="comments__input" id="cc-${logId}" maxlength="500" placeholder="说点什么…（最多 500 字）" oninput='updateCommentCount(this, ${JSON.stringify(String(logId))})'></textarea>
       </div>
       <div class="comments__form-foot">
-        <span class="comments__count" id="cn-count-${logId}">0 / 500</span>
+        <div class="comments__form-foot-left">
+          <button type="button" class="emoji-trigger" onclick='openEmojiPicker(${JSON.stringify("cc-" + logId)}, this)' title="表情">😊</button>
+          <span class="comments__count" id="cn-count-${logId}">0 / 500</span>
+        </div>
         <button class="btn btn--sm" onclick='submitComment(${JSON.stringify(String(logId))})'>发布评论</button>
       </div>
     </div>` : '';
@@ -8575,6 +8675,115 @@ function setupUiEnhancements() {
   setupRevealObserver();
   setupBackToTop();
   setupNoteParticles();
+  setupEmojiPicker();
+}
+
+// ── Emoji 表情包系统 ──
+const EMOJI_GROUPS = [
+  { label: '😀', name: '表情', emojis: ['😀','😃','😄','😁','😆','🥹','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🥵','🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','👻','🎃','💀','👽','🤖'] },
+  { label: '👍', name: '手势', emojis: ['👍','👎','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👋','🤚','🖐️','✋','🖖','👏','🙌','🤝','🙏','✍️','💪','🦾','👀','👁️','👅','👄','🫶','🫰','🫡','🫢','🫣','🫥'] },
+  { label: '❤️', name: '心 / 闪', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','💌','💋','💯','✨','🌟','⭐','💫','🌠','💥','🔥','🌈','☀️','🌙','⛅','☁️','❄️','💧','🌸','🌹','🌻','🌷','🌼','🍀','🌿','🍃'] },
+  { label: '🎵', name: '音乐', emojis: ['🎵','🎶','🎼','🎤','🎧','🎙️','🎚️','🎛️','🎸','🎹','🥁','🎷','🎺','🎻','🪕','🪗','🪘','📻','📯','🎬','🎨','🎭','🎯','🎲','🃏','🎮','📀','💿','🎙','🔊','🔉','🔔'] },
+  { label: '🎉', name: '活动 / 食', emojis: ['🎉','🎊','🎁','🎂','🍰','🧁','🍭','🍬','🍫','🍩','🍪','🍻','🥂','🍷','🍸','🍹','🍺','☕','🍵','🧋','🥛','🍕','🍔','🍟','🍣','🍱','🍦','🍇','🍓','🍒','🍎','🍊','🍌','🍑','🍍','🌮','🍜','🥗'] },
+  { label: '🐱', name: '动物', emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🐺','🐗','🐴','🦄','🐝','🦋','🐌','🐞','🐢','🐍','🐳','🐬','🐟','🦀','🐙','🦑','🐑','🐳'] }
+];
+
+let _emojiPickerTarget = null;
+let _emojiCurrentGroup = 0;
+
+function renderEmojiPicker() {
+  const tabs = document.getElementById('emojiTabs');
+  const body = document.getElementById('emojiBody');
+  if (!tabs || !body) return;
+  tabs.innerHTML = EMOJI_GROUPS.map((g, i) =>
+    `<div class="emoji-picker__tab ${i===_emojiCurrentGroup?'active':''}" data-gi="${i}" title="${g.name}">${g.label}</div>`
+  ).join('');
+  body.innerHTML = EMOJI_GROUPS[_emojiCurrentGroup].emojis.map(e =>
+    `<button type="button" class="emoji-picker__item" data-emoji="${e}">${e}</button>`
+  ).join('');
+  body.scrollTop = 0;
+}
+
+function setupEmojiPicker() {
+  const picker = document.getElementById('emojiPicker');
+  if (!picker) return;
+  renderEmojiPicker();
+  // 委托：点击 tab 切分类 / 点击 item 插入
+  picker.addEventListener('mousedown', (e) => {
+    // mousedown + preventDefault 避免 textarea 失焦
+    const t = e.target.closest('.emoji-picker__tab');
+    const item = e.target.closest('.emoji-picker__item');
+    if (t || item) e.preventDefault();
+  });
+  picker.addEventListener('click', (e) => {
+    const t = e.target.closest('.emoji-picker__tab');
+    if (t) { _emojiCurrentGroup = +t.dataset.gi; renderEmojiPicker(); return; }
+    const item = e.target.closest('.emoji-picker__item');
+    if (item) insertEmojiToTarget(item.dataset.emoji);
+  });
+  // 点击外部关闭
+  document.addEventListener('mousedown', (e) => {
+    if (!_emojiPickerTarget) return;
+    if (picker.contains(e.target)) return;
+    if (e.target.closest('.emoji-trigger')) return;
+    closeEmojiPicker();
+  });
+  // Esc 关闭
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && _emojiPickerTarget) closeEmojiPicker();
+  });
+}
+
+function openEmojiPicker(targetId, anchorEl) {
+  const picker = document.getElementById('emojiPicker');
+  if (!picker || !anchorEl) return;
+  // 同一按钮再次点击 → 关闭
+  if (_emojiPickerTarget === targetId && picker.classList.contains('show')) {
+    closeEmojiPicker();
+    return;
+  }
+  _emojiPickerTarget = targetId;
+  picker.classList.add('show');
+  // 定位：默认在按钮上方（输入区在页面下方更常见），溢出则翻到下方
+  const rect = anchorEl.getBoundingClientRect();
+  const pw = 296, ph = 280, gap = 6;
+  let left = rect.left;
+  let top = rect.top - ph - gap;
+  if (top < 8) top = rect.bottom + gap;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (left < 8) left = 8;
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, window.innerHeight - ph - 8);
+  picker.style.left = left + 'px';
+  picker.style.top = top + 'px';
+}
+
+function closeEmojiPicker() {
+  const picker = document.getElementById('emojiPicker');
+  if (picker) picker.classList.remove('show');
+  _emojiPickerTarget = null;
+}
+
+function insertEmojiToTarget(emoji) {
+  if (!_emojiPickerTarget) return;
+  const el = document.getElementById(_emojiPickerTarget);
+  if (!el) { closeEmojiPicker(); return; }
+  const start = (typeof el.selectionStart === 'number') ? el.selectionStart : el.value.length;
+  const end   = (typeof el.selectionEnd   === 'number') ? el.selectionEnd   : el.value.length;
+  const before = el.value.slice(0, start);
+  const after  = el.value.slice(end);
+  const next   = before + emoji + after;
+  // 超过 maxlength 时拦截
+  const max = parseInt(el.getAttribute('maxlength') || '0', 10);
+  if (max && next.length > max) {
+    if (typeof toast === 'function') toast('已达字数上限');
+    return;
+  }
+  el.value = next;
+  const pos = start + emoji.length;
+  el.focus();
+  try { el.setSelectionRange(pos, pos); } catch (_) {}
+  // 触发 input 事件（评论字数计数依赖 oninput）
+  el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function setupBackToTop() {
