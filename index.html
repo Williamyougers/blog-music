@@ -2499,9 +2499,13 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   border: 1px solid var(--gray-300, #d6d6d6);
   border-radius: 3px;
   color: var(--gray-700);
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
 }
+.ws-order__audio-dl:disabled { opacity: 0.7; cursor: progress; }
 .ws-order__audio-dl:hover { border-color: var(--gold); color: var(--gold); }
 [data-theme="dark"] .ws-order__audio { background:#1e1e1e; border-color:#333; }
 [data-theme="dark"] .ws-order__audio-name { color:#ddd; }
@@ -4647,6 +4651,39 @@ function escapeHTML(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// 强制下载文件到本地（绕过跨域 <a download> 在子域名 / 移动端被忽略的问题）
+async function downloadOrderFile(btn) {
+  if (!btn) return;
+  const url = btn.getAttribute('data-dl-url') || '';
+  const name = btn.getAttribute('data-dl-name') || 'download';
+  if (!url) return;
+  const oldHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ 下载中…';
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+    btn.innerHTML = '✓ 已下载';
+    setTimeout(() => { btn.innerHTML = oldHtml; btn.disabled = false; }, 1500);
+  } catch (e) {
+    console.error('[下载失败]', e);
+    btn.innerHTML = oldHtml;
+    btn.disabled = false;
+    if (typeof toast === 'function') toast('下载失败：' + (e.message || e) + '，已在新标签打开，请长按选择「下载」');
+    window.open(url, '_blank');
+  }
+}
+window.downloadOrderFile = downloadOrderFile;
+
 // 把日志正文按 ![alt](url) 切分成 segments：[{type:'text',value} | {type:'image',url,alt}]
 function parseLogContent(text) {
   const segs = [];
@@ -5542,6 +5579,7 @@ const CHANGELOG = [
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
+      '⬇ 订单音频「下载」按钮改为强制下载到本地：原本 <a download> 在跨子域（api.weilingt.top → blog）和移动端会被浏览器忽略，点击只是打开 / 播放；现改成 fetch 拉成 blob 后用 blob URL 触发真下载，移动端 Chrome / Safari 都能正常存到下载目录',
       '📱 移动端顶栏：emoji 图标统一字号 + 居中渲染（不再一大一小），按钮文字「登录/资料/退出/收件箱/私信/副管理员」继续显示；按钮多时自动换行不挤出去',
       '⚡ 订单图 / 订单音频上传提速 + 进度条：改为 multipart 二进制直传（不再走 base64，省掉 33% 体积 + 前后端各一次编解码），移动网络上速度提升约 30~50%；上传时显示「文件名 · 当前进度 (1/N)」+ 横向进度条，串行多文件可看到当前在传第几个',
       '📨 移动端收件箱适配：原本左侧 240px 列表 + 右侧详情双栏在窄屏下溢出（详情和回复框被挤出屏幕）；改为「单栏切换式」—— 默认显示对话列表，点进某条对话切到详情视图 + 顶部「← 返回对话列表」按钮，桌面端双栏布局保持不变',
@@ -6331,7 +6369,7 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
             <span class="ws-order__audio-name" title="${safeName}">🎵 ${safeName}</span>
             ${sizeStr ? `<span class="ws-order__audio-size">${sizeStr}</span>` : ''}
             <audio controls preload="none" src="${src}"></audio>
-            <a class="ws-order__audio-dl" href="${src}" download="${escapeHTML(dlName)}" title="下载">⬇ 下载</a>
+            <button class="ws-order__audio-dl" type="button" data-dl-url="${escAttr(src)}" data-dl-name="${escAttr(dlName)}" onclick="downloadOrderFile(this)" title="下载到本地">⬇ 下载</button>
           </div>`;
         }).join('')}</div>` : ''}
         ${progressHtml}
