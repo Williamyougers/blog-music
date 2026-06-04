@@ -3406,7 +3406,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
           <div class="ws-images__tip" id="ws-img-tip" style="display:none;"></div>
         </div>
         <div class="ws-audios">
-          <label class="ws-audios__btn" for="ws-audio-input">🎵 添加参考音频（最多 2 个，每个 ≤ 4MB）</label>
+          <label class="ws-audios__btn" for="ws-audio-input">🎵 添加参考音频（最多 3 个，每个 ≤ 10MB）</label>
           <input id="ws-audio-input" type="file" accept="audio/*" multiple onchange="handleOrderAudioSelect(event)" style="display:none;">
           <div class="ws-audios__list" id="ws-audio-list"></div>
           <div class="ws-audios__tip" id="ws-audio-tip" style="display:none;"></div>
@@ -4403,6 +4403,23 @@ const Store = {
     return true;
   },
   // ── Orders ──
+  // 上传单个文件到 R2（订单图 / 订单音频）
+  async uploadFile(kind, dataUrl) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    if (!dataUrl || !/^data:[^;]+;base64,/.test(dataUrl)) throw new Error('Invalid data URL');
+    const res = await fetch(API_BASE + '/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, data: dataUrl, visitorId: getVisitorId() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 413) throw new Error('文件过大');
+      if (res.status === 429) throw new Error('上传太频繁，请稍等');
+      throw new Error(data.error || ('HTTP ' + res.status));
+    }
+    return data; // { ok, url, key, size, mime }
+  },
   async submitOrder(type, tier, description, clientName, showName, contact, price, tierLabel, images, tiers, priceMode, audios) {
     if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云，无法下单');
     const res = await fetch(API_BASE + '/api/orders', {
@@ -5426,7 +5443,8 @@ const CHANGELOG = [
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
-      '🎵 下单表单新增「参考音频」上传：客户可附 1-2 个音频文件（每个 ≤ 4MB，mp3 / wav / m4a 等通用格式都行），管理员订单卡可直接播放预览和一键下载',
+      '🪣 订单图 / 订单音频改走 Cloudflare R2 存储：不再塞进 KV，单订单不再受体积限制；图片上限放宽到 2MB / 张，音频放宽到 10MB × 3 个；老订单的内联图音频仍正常显示',
+      '🎵 下单表单新增「参考音频」上传：客户可附 1-3 个音频文件（每个 ≤ 10MB，mp3 / wav / m4a 等通用格式都行），管理员订单卡可直接播放预览和一键下载',
       '😊 评论 / 私信店主 / 收件箱回复 全部支持 emoji 表情包：6 个分类（表情 / 手势 / 心 / 音乐 / 活动·食物 / 动物），点 😊 在按钮上方弹出选择器，插到光标位置',
       '👤 顶部加「登录」按钮：邮箱收 6 位验证码即可登录，首次自动建账号；登录后按钮变成你的昵称',
       '💌 登录后开放「私信店主」：消息会发到店主的微信，店主回复后顶部按钮浮出红点提示',
@@ -5689,8 +5707,8 @@ async function submitOrder() {
   }
 }
 
-// ── 工坊：参考图上传（前端压缩 + base64） ──
-let _pendingOrderImages = [];
+// ── 工坊：参考图上传（前端压缩 → R2） ──
+let _pendingOrderImages = []; // [url string]
 const MAX_ORDER_IMAGES = 3;
 const MAX_IMAGE_DIM = 1200;
 const IMAGE_QUALITY = 0.78;
@@ -5704,17 +5722,22 @@ function handleOrderImageSelect(event) {
   const todo = files.slice(0, remaining);
   if (files.length > remaining) toast(`只接收前 ${remaining} 张`);
   const tip = document.getElementById('ws-img-tip');
-  if (tip) { tip.style.display = 'block'; tip.textContent = '正在压缩…'; }
-  Promise.all(todo.map(compressImage))
-    .then(results => {
-      results.forEach(b64 => { if (b64) _pendingOrderImages.push(b64); });
+  if (tip) { tip.style.display = 'block'; tip.textContent = '正在压缩并上传…'; }
+  // 串行上传，避免占满 worker 并发
+  (async () => {
+    for (const file of todo) {
+      try {
+        const b64 = await compressImage(file);
+        if (!b64) continue;
+        const r = await Store.uploadFile('image', b64);
+        if (r && r.url) _pendingOrderImages.push(r.url);
+      } catch (err) {
+        toast('图片上传失败：' + (err && err.message || err));
+      }
       renderPendingOrderImages();
-      if (tip) tip.style.display = 'none';
-    })
-    .catch(err => {
-      toast('图片读取失败：' + (err.message || err));
-      if (tip) tip.style.display = 'none';
-    });
+    }
+    if (tip) tip.style.display = 'none';
+  })();
 }
 
 function compressImage(file) {
@@ -5740,11 +5763,11 @@ function compressImage(file) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
         let dataUrl = canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
-        // 如果还是太大，降画质再压一次
-        if (dataUrl.length > 480000) {
+        // 走 R2 后单图上限 2MB，再保险压一次
+        if (dataUrl.length > 1800000) {
           dataUrl = canvas.toDataURL('image/jpeg', 0.62);
         }
-        if (dataUrl.length > 480000) {
+        if (dataUrl.length > 2600000) {
           reject(new Error('图片压缩后仍过大，请选小一点的图')); return;
         }
         resolve(dataUrl);
@@ -5775,10 +5798,10 @@ function renderPendingOrderImages() {
   }
 }
 
-// ── 工坊：参考音频上传（前端转 base64） ──
-let _pendingOrderAudios = []; // [{name, type, size, data}]
-const MAX_ORDER_AUDIOS = 2;
-const MAX_AUDIO_BYTES = 4 * 1024 * 1024; // 单个 4MB
+// ── 工坊：参考音频上传（前端读 base64 → R2） ──
+let _pendingOrderAudios = []; // [{name, type, size, url}]
+const MAX_ORDER_AUDIOS = 3;
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 单个 10MB（走 R2 后放宽）
 
 function formatBytes(n) {
   if (!n || n < 1024) return (n || 0) + ' B';
@@ -5795,35 +5818,43 @@ function handleOrderAudioSelect(event) {
   const todo = files.slice(0, remaining);
   if (files.length > remaining) toast(`只接收前 ${remaining} 个`);
   const tip = document.getElementById('ws-audio-tip');
-  if (tip) { tip.style.display = 'block'; tip.textContent = '正在读取…'; }
-  Promise.all(todo.map(readAudioToB64))
-    .then(results => {
-      results.forEach(a => { if (a) _pendingOrderAudios.push(a); });
+  if (tip) { tip.style.display = 'block'; tip.textContent = '正在上传…'; }
+  // 串行上传
+  (async () => {
+    for (const file of todo) {
+      try {
+        const item = await uploadAudioFile(file);
+        if (item) _pendingOrderAudios.push(item);
+      } catch (err) {
+        toast('音频上传失败：' + (err && err.message || err));
+      }
       renderPendingOrderAudios();
-      if (tip) tip.style.display = 'none';
-    })
-    .catch(err => {
-      toast('音频读取失败：' + (err.message || err));
-      if (tip) tip.style.display = 'none';
-    });
+    }
+    if (tip) tip.style.display = 'none';
+  })();
 }
 
-function readAudioToB64(file) {
+function uploadAudioFile(file) {
   return new Promise((resolve, reject) => {
     if (!file.type || !file.type.startsWith('audio/')) {
       reject(new Error('不是音频：' + (file.name || ''))); return;
     }
     if (file.size > MAX_AUDIO_BYTES) {
-      reject(new Error(`单个音频超过 4MB（${formatBytes(file.size)}）`)); return;
+      reject(new Error(`单个音频超过 10MB（${formatBytes(file.size)}）`)); return;
     }
     const reader = new FileReader();
-    reader.onload = e => {
-      resolve({
-        name: (file.name || 'audio').slice(0, 120),
-        type: file.type || 'audio/mpeg',
-        size: file.size,
-        data: e.target.result, // data:audio/...;base64,...
-      });
+    reader.onload = async e => {
+      try {
+        const dataUrl = e.target.result;
+        const r = await Store.uploadFile('audio', dataUrl);
+        if (!r || !r.url) { reject(new Error('上传未返回 URL')); return; }
+        resolve({
+          name: (file.name || 'audio').slice(0, 120),
+          type: file.type || 'audio/mpeg',
+          size: file.size,
+          url: r.url,
+        });
+      } catch (err) { reject(err); }
     };
     reader.onerror = () => reject(new Error('文件读取失败'));
     reader.readAsDataURL(file);
@@ -6157,11 +6188,12 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
           const safeName = escapeHTML(a.name || ('音频 ' + (idx + 1)));
           const sizeStr = a.size ? formatBytes(a.size) : '';
           const dlName = (a.name || ('audio_' + (idx + 1))).replace(/["'<>]/g, '');
+          const src = a.url || a.data || ''; // 兼容新 R2 url / 老 data URL
           return `<div class="ws-order__audio">
             <span class="ws-order__audio-name" title="${safeName}">🎵 ${safeName}</span>
             ${sizeStr ? `<span class="ws-order__audio-size">${sizeStr}</span>` : ''}
-            <audio controls preload="none" src="${a.data}"></audio>
-            <a class="ws-order__audio-dl" href="${a.data}" download="${escapeHTML(dlName)}" title="下载">⬇ 下载</a>
+            <audio controls preload="none" src="${src}"></audio>
+            <a class="ws-order__audio-dl" href="${src}" download="${escapeHTML(dlName)}" title="下载">⬇ 下载</a>
           </div>`;
         }).join('')}</div>` : ''}
         ${progressHtml}

@@ -355,41 +355,88 @@ function sanitizePlanPriceModes(pm, allowedKeys) {
   });
   return Object.keys(out).length ? out : undefined;
 }
-// Whitelist order images: array of <=3 strings, each <=500000 chars (data URL)
+// ── R2 file URL pattern ──
+// 新订单图/音频走 R2，URL 形如：
+//   https://api.weilingt.top/files/orders/xxx/yyy.jpg
+//   https://blog-music-api.<acct>.workers.dev/files/orders/xxx/yyy.mp3
+const SELF_FILES_URL_RE = /^https:\/\/(api\.weilingt\.top|blog-music-api\.[a-z0-9.-]+\.workers\.dev)\/files\/orders\/[a-z0-9_./-]+$/i;
+
+// Whitelist order images: array of <=3 strings (R2 URL 或老 data URL)
+const MAX_ORDER_IMAGES = 3;
 function sanitizeOrderImages(imgs) {
   if (!Array.isArray(imgs)) return [];
   const out = [];
   for (const s of imgs) {
     if (typeof s !== 'string') continue;
-    if (s.length > 500000) continue; // single image too big, skip
-    // Only accept data:image/... URLs or https URLs
-    if (!/^data:image\/(png|jpe?g|gif|webp);base64,/.test(s) && !/^https:\/\//.test(s)) continue;
-    out.push(s);
-    if (out.length >= 3) break;
+    if (SELF_FILES_URL_RE.test(s) && s.length <= 500) {
+      // 新格式：R2 反代 URL
+      out.push(s);
+    } else if (/^data:image\/(png|jpe?g|gif|webp);base64,/.test(s) && s.length <= 500000) {
+      // 老格式：data URL（兼容旧订单）
+      out.push(s);
+    } else {
+      continue;
+    }
+    if (out.length >= MAX_ORDER_IMAGES) break;
   }
   return out;
 }
-// Whitelist order audios: array of <=2 items {name,type,size,data}, each data <=6MB base64
-const MAX_ORDER_AUDIOS = 2;
-const MAX_AUDIO_DATA_LEN = 6 * 1024 * 1024; // ~4.4MB binary
+// Whitelist order audios: array of <=3 items
+//   新格式：{ name, type, size, url }     -- R2 反代 URL
+//   老格式：{ name, type, size, data }    -- data URL（兼容旧订单）
+const MAX_ORDER_AUDIOS = 3;
+const MAX_AUDIO_DATA_LEN = 12 * 1024 * 1024; // 老 data URL 上限放宽到 ~8.5MB 原始；新走 R2 不受限
 function sanitizeOrderAudios(audios) {
   if (!Array.isArray(audios)) return [];
   const out = [];
   for (const a of audios) {
     if (!a || typeof a !== 'object') continue;
+    const url = typeof a.url === 'string' ? a.url : '';
     const data = typeof a.data === 'string' ? a.data : '';
-    if (!data) continue;
-    if (data.length > MAX_AUDIO_DATA_LEN) continue;
-    if (!/^data:audio\/[a-z0-9.+-]+;base64,/i.test(data) && !/^https:\/\//.test(data)) continue;
+    let payload = null;
+    if (url && SELF_FILES_URL_RE.test(url) && url.length <= 500) {
+      payload = { url };
+    } else if (data && data.length <= MAX_AUDIO_DATA_LEN && /^data:audio\/[a-z0-9.+-]+;base64,/i.test(data)) {
+      payload = { data };
+    } else {
+      continue;
+    }
     const name = sanitizeStr(a.name, 120) || 'audio';
     const type = sanitizeStr(a.type, 60) || 'audio/mpeg';
     let size = Number(a.size);
     if (!isFinite(size) || size < 0) size = 0;
     if (size > 50 * 1024 * 1024) size = 50 * 1024 * 1024;
-    out.push({ name, type, size, data });
+    out.push({ name, type, size, ...payload });
     if (out.length >= MAX_ORDER_AUDIOS) break;
   }
   return out;
+}
+
+// data URL → bytes（Worker 端解 base64）
+function dataUrlToBytes(dataUrl) {
+  const m = /^data:([^;,]+);base64,([\s\S]+)$/i.exec(dataUrl || '');
+  if (!m) return null;
+  const mime = m[1];
+  const b64 = m[2].replace(/\s+/g, '');
+  let bin;
+  try { bin = atob(b64); } catch { return null; }
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return { mime, bytes };
+}
+
+function mimeToExt(mime) {
+  const m = String(mime || '').toLowerCase();
+  const map = {
+    'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
+    'image/gif': 'gif', 'image/webp': 'webp',
+    'audio/mpeg': 'mp3', 'audio/mp3': 'mp3',
+    'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac',
+    'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav',
+    'audio/ogg': 'ogg', 'audio/flac': 'flac', 'audio/x-flac': 'flac',
+    'audio/webm': 'webm',
+  };
+  return map[m] || (m.split('/')[1] || 'bin').replace(/[^a-z0-9]/g, '').slice(0, 6) || 'bin';
 }
 
 const ORDER_STEPS = ['接单中', '沟通中', '编曲中', '待交付', '完结'];
@@ -605,6 +652,87 @@ async function handleRequest(request, env, ctx, cors) {
   if (method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: cors });
   }
+
+    // ── R2 file reverse proxy ──
+    // GET /files/orders/xxx/yyy.ext - 公开访问 R2 文件（订单图/音频）
+    // 不在 /api 下，便于浏览器缓存；任意 Origin 都可 fetch（<img>/<audio> 直接拿）
+    const filesMatch = path.match(/^\/files\/(.+)$/);
+    if (filesMatch && method === 'GET') {
+      if (!env.R2) return new Response('R2 not configured', { status: 500 });
+      const key = decodeURIComponent(filesMatch[1]);
+      // 安全校验：只允许 orders/ 前缀，禁止 .. 和过长 key
+      if (key.length > 300 || /\.\./.test(key) || !/^orders\//.test(key)) {
+        return new Response('Bad key', { status: 400 });
+      }
+      const obj = await env.R2.get(key);
+      if (!obj) return new Response('Not found', { status: 404 });
+      const headers = {
+        'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Access-Control-Allow-Origin': '*',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+      };
+      if (obj.size != null) headers['Content-Length'] = String(obj.size);
+      return new Response(obj.body, { status: 200, headers });
+    }
+
+    // ── R2 upload ──
+    // POST /api/upload - body: { kind: 'image'|'audio', data: 'data:...;base64,...', visitorId, name?, type?, size? }
+    // 返回: { ok, url, key, size, mime }
+    if (path === '/api/upload' && method === 'POST') {
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+
+      const kind = body && body.kind;
+      if (kind !== 'image' && kind !== 'audio') return json({ error: 'Invalid kind' }, 400, cors);
+
+      const visitorId = sanitizeStr(body && body.visitorId, 64);
+      if (!visitorId) return json({ error: 'visitorId required' }, 400, cors);
+
+      // Rate limit: 单 visitor 每 60s 最多 12 次上传（够一次下单的 3 图 + 3 音频，留余量）
+      const rlKey = 'ratelimit/upload/' + visitorId;
+      const rl = await env.BLOG.get(rlKey, 'json');
+      if (rl && rl.count >= 12) return json({ error: 'Too many uploads, please wait' }, 429, cors);
+
+      const dataUrl = typeof body.data === 'string' ? body.data : '';
+      if (!dataUrl) return json({ error: 'data required' }, 400, cors);
+      // 防超大 base64 字符串直接拒（CF Worker 单 request 体上限 100MB，但我们更严格）
+      if (dataUrl.length > 20 * 1024 * 1024) return json({ error: 'Payload too large' }, 413, cors);
+
+      const parsed = dataUrlToBytes(dataUrl);
+      if (!parsed) return json({ error: 'Invalid data URL' }, 400, cors);
+
+      // 按 kind 校验 MIME + 大小
+      if (kind === 'image') {
+        if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(parsed.mime)) return json({ error: 'Invalid image type' }, 400, cors);
+        if (parsed.bytes.length > 2 * 1024 * 1024) return json({ error: 'Image too large' }, 413, cors); // 2MB
+      } else {
+        if (!/^audio\/[a-z0-9.+-]+$/i.test(parsed.mime)) return json({ error: 'Invalid audio type' }, 400, cors);
+        if (parsed.bytes.length > 15 * 1024 * 1024) return json({ error: 'Audio too large' }, 413, cors); // 15MB
+      }
+
+      // Key: orders/{visitorHash8}/{ts}_{rand}.{ext}
+      const visHash = (await sha256Hex(visitorId)).slice(0, 8);
+      const ext = mimeToExt(parsed.mime);
+      const ts = Date.now();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const key = `orders/${visHash}/${ts}_${rand}.${ext}`;
+
+      await env.R2.put(key, parsed.bytes, {
+        httpMetadata: { contentType: parsed.mime },
+      });
+
+      // 更新 ratelimit（写完文件再写，避免上传失败也消耗配额）
+      const newCount = (rl && rl.count ? rl.count : 0) + 1;
+      await env.BLOG.put(rlKey, JSON.stringify({ count: newCount }), { expirationTtl: 60 });
+
+      const origin = new URL(request.url).origin;
+      const fileUrl = `${origin}/files/${key}`;
+
+      return json({ ok: true, url: fileUrl, key, size: parsed.bytes.length, mime: parsed.mime }, 200, cors);
+    }
 
     // GET /api/data - public read (works + logs + about + comments + orders)
     // Order privacy:
