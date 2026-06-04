@@ -3099,6 +3099,35 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .user-modal-panel { max-width:560px !important; }
 .admin-inbox-panel { max-width:860px !important; height:85vh; overflow:hidden; display:flex; flex-direction:column; }
 .admin-inbox-layout { display:grid; grid-template-columns:240px 1fr; flex:1; min-height:0; }
+.inbox-back-btn {
+  display:none;
+  align-items:center; gap:0.3rem;
+  margin:0 0.7rem 0.5rem; padding:0.35rem 0.7rem;
+  background:transparent; border:1.5px solid var(--gray-200);
+  font-size:0.78rem; cursor:pointer; align-self:flex-start;
+  font-family:var(--sans); color:var(--gray-700);
+}
+.inbox-back-btn:hover { border-color:var(--accent); color:var(--accent); }
+[data-theme="dark"] .inbox-back-btn { border-color:#333; color:#bbb; }
+[data-theme="dark"] .inbox-back-btn:hover { border-color:var(--accent); color:var(--accent); }
+@media (max-width: 768px) {
+  /* 收件箱面板：移动端铺满弹窗可用宽度 */
+  .admin-inbox-panel {
+    max-width:100% !important;
+    height:90vh;
+    padding:1.4rem 0.6rem 0.6rem;
+  }
+  .admin-inbox-panel .modal__title { padding-left:0.4rem; font-size:1.2rem; }
+  /* 单栏切换：默认显示列表，data-view="thread" 时只显示详情 */
+  .admin-inbox-layout { grid-template-columns:1fr !important; }
+  .admin-inbox-layout > .dm-thread { display:none; }
+  .admin-inbox-panel[data-view="thread"] .admin-inbox-layout > .inbox-list { display:none; }
+  .admin-inbox-panel[data-view="thread"] .admin-inbox-layout > .dm-thread { display:flex; }
+  .admin-inbox-panel[data-view="thread"] .inbox-back-btn { display:inline-flex; }
+  .inbox-list { border-right:none; }
+  /* 列表项 hover/active 上的操作按钮在触屏始终显示 */
+  .inbox-item__actions { opacity:1 !important; }
+}
 .dm-thread { display:flex; flex-direction:column; height:100%; min-height:0; }
 .dm-thread__messages { flex:1; overflow-y:auto; padding:0.8rem; display:flex; flex-direction:column; min-height:0; }
 .dm-thread__input { padding:0.7rem; border-top:1.5px solid var(--gray-200); display:flex; gap:0.5rem; flex-shrink:0; }
@@ -3983,6 +4012,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         </div>
       </div>
       <div class="dm-thread" id="inboxThread">
+        <button type="button" class="inbox-back-btn" onclick="inboxBackToList()">← 返回对话列表</button>
         <div class="dm-thread__messages" id="inboxMessages">
           <div class="empty-dm" style="margin:auto 0;">
             <div class="empty-dm__icon">👈</div>
@@ -5459,6 +5489,7 @@ const CHANGELOG = [
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
       '📱 移动端顶栏：emoji 图标统一字号 + 居中渲染（不再一大一小），按钮文字「登录/资料/退出/收件箱/私信/副管理员」继续显示；按钮多时自动换行不挤出去',
+      '📨 移动端收件箱适配：原本左侧 240px 列表 + 右侧详情双栏在窄屏下溢出（详情和回复框被挤出屏幕）；改为「单栏切换式」—— 默认显示对话列表，点进某条对话切到详情视图 + 顶部「← 返回对话列表」按钮，桌面端双栏布局保持不变',
       '✏️ 套餐 / 订阅方案管理：价格类型下拉文案统一改成「固定价 / 多少元起」（原本是「XX 起」，对小白用户太抽象）',
       '🐛 修复：编辑「关于」点保存会把套餐价格 / 标签 / 描述全部清空回默认值的严重 bug（saveAbout 用对象字面量覆盖了 Store.about，丢失 tier/plan 字段）；现已 ...Store.about 保留其他字段',
       '🪣 订单图 / 订单音频改走 Cloudflare R2 存储：不再塞进 KV，单订单不再受体积限制；图片上限放宽到 2MB / 张，音频放宽到 10MB × 3 个；老订单的内联图音频仍正常显示',
@@ -8379,12 +8410,22 @@ async function openInbox() {
   document.getElementById('inboxModal').classList.add('open');
   _inboxCurrentUserId = null;
   document.getElementById('inboxReplyArea').style.display = 'none';
+  // 移动端默认显示列表视图
+  const panel = document.querySelector('.admin-inbox-panel');
+  if (panel) panel.removeAttribute('data-view');
   // 每次打开都把右侧重置成"未选择"占位，不显示上次残留对话
   const area = document.getElementById('inboxMessages');
   if (area) {
     area.innerHTML = '<div class="empty-dm" style="margin:auto 0;"><div class="empty-dm__icon">👈</div><div>左侧选一个对话</div></div>';
   }
   loadInboxThreads();
+}
+
+function inboxBackToList() {
+  const panel = document.querySelector('.admin-inbox-panel');
+  if (panel) panel.removeAttribute('data-view');
+  _inboxCurrentUserId = null;
+  document.querySelectorAll('.inbox-item').forEach(el => el.classList.remove('active'));
 }
 
 async function loadInboxThreads() {
@@ -8422,6 +8463,9 @@ async function loadInboxThreads() {
 
 async function selectInboxThread(userId) {
   _inboxCurrentUserId = userId;
+  // 移动端切到对话视图
+  const panel = document.querySelector('.admin-inbox-panel');
+  if (panel) panel.setAttribute('data-view', 'thread');
   // mark read（后端会把该 thread 的 unread 置 0）
   try {
     fetch(API_BASE + '/api/admin/dm/mark-read', {
