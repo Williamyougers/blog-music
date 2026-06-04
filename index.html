@@ -4709,30 +4709,37 @@ async function handleWordFilePicked(input) {
     const result = await mammoth.convertToHtml({ arrayBuffer: buf }, {
       convertImage: mammoth.images.imgElement(function(image) {
         imgFound++;
-        return image.read('arraybuffer').then(function(imgBuf) {
+        // ⚠️ mammoth.js 浏览器版 image.read 只支持 'base64'，旧版用 'arraybuffer' 会 reject
+        // 进而被 mammoth 当 warning 静默吞掉（imgFound>0 但 HTML 里 0 个 <img> 标签）
+        return image.read('base64').then(function(base64) {
           const mime = (image.contentType || 'image/png').toLowerCase();
-          const blob = new Blob([imgBuf], { type: mime });
-          const imgFile = new File([blob], 'embedded', { type: mime });
-          return compressImageToDataURL(imgFile, 1600, 0.85)
-            .then(function(dataUrl) { imgCompressed++; return { src: dataUrl }; })
-            .catch(function(err) {
-              // EMF/WMF/TIFF 等浏览器不支持 → 原 base64 兜底（虽可能仍渲染不出，但至少 img 标签在）
-              console.warn('[Word导入] 图片压缩失败，使用原始数据：', mime, err && err.message);
-              try {
-                const bytes = new Uint8Array(imgBuf);
-                let bin = '';
-                for (let i = 0; i < bytes.length; i += 0x8000) {
-                  bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-                }
+          // base64 → bytes → Blob → File，便于复用 compressImageToDataURL
+          try {
+            const bin = atob(base64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const blob = new Blob([bytes], { type: mime });
+            const imgFile = new File([blob], 'embedded', { type: mime });
+            return compressImageToDataURL(imgFile, 1600, 0.85)
+              .then(function(dataUrl) { imgCompressed++; return { src: dataUrl }; })
+              .catch(function(err) {
+                // 压缩失败（EMF/WMF/TIFF 浏览器不支持）→ 原始 base64 兜底
+                console.warn('[Word导入] 压缩失败，原图兜底：', mime, err && err.message);
                 imgFallback++;
-                return { src: 'data:' + mime + ';base64,' + btoa(bin) };
-              } catch (e2) {
-                console.error('[Word导入] base64 转换也失败：', e2);
-                imgFailed++;
-                const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="100%" height="100%" fill="#eee"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#999" font-family="sans-serif" font-size="14">图片无法解析（' + mime + '）</text></svg>';
-                return { src: 'data:image/svg+xml;utf8,' + encodeURIComponent(svg), alt: '图片无法解析' };
-              }
-            });
+                return { src: 'data:' + mime + ';base64,' + base64 };
+              });
+          } catch (e2) {
+            console.error('[Word导入] base64 解码失败：', e2);
+            imgFailed++;
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="100%" height="100%" fill="#eee"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#999" font-family="sans-serif" font-size="14">图片无法解析（' + mime + '）</text></svg>';
+            return { src: 'data:image/svg+xml;utf8,' + encodeURIComponent(svg), alt: '图片无法解析' };
+          }
+        }).catch(function(err) {
+          // image.read 本身失败（如某 encoding 不支持）→ 必须返回 src，否则 mammoth 静默丢图
+          console.error('[Word导入] image.read 失败：', err && err.message, err);
+          imgFailed++;
+          const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="100%" height="100%" fill="#eee"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#999" font-family="sans-serif" font-size="14">图片读取失败</text></svg>';
+          return { src: 'data:image/svg+xml;utf8,' + encodeURIComponent(svg), alt: '读取失败' };
         });
       })
     });
