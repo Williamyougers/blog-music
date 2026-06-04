@@ -2886,13 +2886,29 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .dm-bubble--me .dm-bubble__time { text-align:right; }
 
 .inbox-list { border-right:1.5px solid var(--gray-200); overflow-y:auto; }
-.inbox-item { padding:0.7rem 0.9rem; cursor:pointer; border-bottom:1px solid var(--gray-100); transition:background 0.15s; }
+.inbox-item { position:relative; padding:0.7rem 0.9rem; cursor:pointer; border-bottom:1px solid var(--gray-100); transition:background 0.15s; }
 .inbox-item:hover, .inbox-item.active { background:var(--gray-50); }
 .inbox-item.active { border-left:3px solid var(--accent); }
-.inbox-item__name { font-weight:600; font-size:0.82rem; margin-bottom:0.15rem; display:flex; align-items:center; gap:0.4rem; }
-.inbox-item__preview { font-size:0.7rem; color:var(--gray-500); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.inbox-item__name { font-weight:600; font-size:0.82rem; margin-bottom:0.15rem; display:flex; align-items:center; gap:0.4rem; padding-right:54px; }
+.inbox-item__preview { font-size:0.7rem; color:var(--gray-500); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:54px; }
 .inbox-item__time { font-size:0.6rem; color:var(--gray-400); }
 .inbox-unread-dot { width:8px; height:8px; background:var(--accent); border-radius:50%; flex-shrink:0; }
+.inbox-item__actions { position:absolute; top:6px; right:6px; display:flex; gap:4px; opacity:0; transition:opacity 0.15s; }
+.inbox-item:hover .inbox-item__actions, .inbox-item.active .inbox-item__actions { opacity:1; }
+.inbox-item__actions button { width:22px; height:22px; padding:0; border:1px solid var(--gray-200); background:var(--white); color:var(--gray-500); font-size:0.7rem; cursor:pointer; border-radius:3px; display:flex; align-items:center; justify-content:center; transition:all 0.15s; line-height:1; }
+.inbox-item__actions button:hover { border-color:var(--accent); color:var(--accent); background:var(--white); }
+[data-theme="dark"] .inbox-item__actions button { background:#1a1a1a; border-color:#333; color:#888; }
+[data-theme="dark"] .inbox-item__actions button:hover { border-color:var(--accent); color:var(--accent); }
+.dm-bubble--recalled { opacity:0.55; font-style:italic; }
+.dm-bubble--recalled .dm-bubble__time { font-style:normal; }
+.dm-bubble__recall { display:none; position:absolute; bottom:-12px; padding:1px 6px; border:1px solid var(--gray-200); background:var(--white); color:var(--gray-500); font-size:0.62rem; cursor:pointer; border-radius:10px; line-height:1.4; z-index:2; }
+.dm-bubble--me .dm-bubble__recall { right:0; }
+.dm-bubble--peer .dm-bubble__recall { left:0; }
+.dm-bubble { position:relative; }
+.dm-bubble:hover .dm-bubble__recall { display:inline-block; }
+.dm-bubble__recall:hover { border-color:var(--accent); color:var(--accent); }
+[data-theme="dark"] .dm-bubble__recall { background:#1a1a1a; border-color:#333; color:#888; }
+[data-theme="dark"] .dm-bubble__recall:hover { border-color:var(--accent); color:var(--accent); }
 
 .auth-modal-panel { max-width:380px !important; }
 .user-modal-panel { max-width:560px !important; }
@@ -4900,6 +4916,8 @@ const CHANGELOG = [
       '🙊 顶栏统一极简：所有角色看到的右上角永远只有「登录」/「退出」二字，不再暴露昵称、👑/🛠 角色徽章、「管理员登录/退出」按钮——访客和店主从外观上完全一致；管理员通过隐藏入口访问站点 `#admin`（如 weilingt.top/#admin）触发密码登录/退出，邮箱即角色仍按邮箱自动识别 super/sub',
       '🎛 顶栏按钮拆分：原本「登录」按钮点开是一个集成模态框（私信 + 资料 tab），现拆为三个独立按钮——「💌 私信」「🪪 资料」「🚪 退出」；普通用户三件齐全，管理员（super/sub）取消私信店主功能（自己私信自己没意义），只保留「🪪 资料」「🚪 退出」；退出按钮加二次确认',
       '👥 新增「用户管理」tab（仅管理员可见，紧跟「更新」之后）：注册用户增删改查一站式——表格列出邮箱 / 昵称 / 角色 / 注册时间 / 最后登录；昵称行内编辑（失焦保存）；可手动新增用户、删除普通用户（自动清掉私信记录）；主管理员行 + 副管理员行的删除按钮禁用（防误删，副管要先去副管理员管理移除）',
+      '🧹 收件箱左侧用户对话支持「清空记录」「删除整条对话」：hover 出现 🧹/🗑 两个小按钮，清空只删消息保留条目，删除连同对话从列表移除（下次该用户再发新消息会自动重新出现）',
+      '↩️ 私信支持「2 分钟内撤回自己发的消息」：用户和管理员（super/sub）都可用，hover 到自己发的气泡上出现「撤回」按钮，撤回后双方都显示「此消息已撤回」灰色斜体；只能撤自己的，副管理员无法撤回主管理员的话',
     ]
   },
   {
@@ -7740,7 +7758,12 @@ async function loadInboxThreads() {
       list.innerHTML = d.threads.map(t => {
         const name = t.nickname || t.email.split('@')[0];
         const time = new Date(t.lastTs).toLocaleDateString('zh-CN', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
-        return '<div class="inbox-item' + (_inboxCurrentUserId === t.userId ? ' active' : '') + '" data-uid="' + t.userId + '" onclick="selectInboxThread(\'' + t.userId + '\')">' +
+        const uid = escAttr(t.userId);
+        return '<div class="inbox-item' + (_inboxCurrentUserId === t.userId ? ' active' : '') + '" data-uid="' + uid + '" onclick="selectInboxThread(\'' + uid + '\')">' +
+          '<div class="inbox-item__actions" onclick="event.stopPropagation()">' +
+            '<button title="清空聊天记录" onclick="inboxClearThread(\'' + uid + '\', \'' + escAttr(name) + '\')">🧹</button>' +
+            '<button title="删除对话" onclick="inboxDeleteThread(\'' + uid + '\', \'' + escAttr(name) + '\')">🗑</button>' +
+          '</div>' +
           '<div class="inbox-item__name">' + escHtml(name) + (t.unread ? ' <span class="inbox-unread-dot"></span>' : '') + '</div>' +
           '<div class="inbox-item__preview">' + escHtml(t.lastMsg || '') + '</div>' +
           '<div class="inbox-item__time">' + time + '</div></div>';
@@ -7829,14 +7852,110 @@ function clearInboxUnreadLocal(userId) {
   }
 }
 
+// 清空某用户的聊天记录（保留对话条目）
+async function inboxClearThread(userId, name) {
+  if (!userId) return;
+  if (!confirm('清空与 "' + name + '" 的聊天记录？\n（对话条目保留，仅删除消息）')) return;
+  try {
+    const r = await fetch(API_BASE + '/api/admin/dm/thread/' + encodeURIComponent(userId) + '/clear', {
+      method: 'POST', headers: adminAuthHeaders()
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('✅ 已清空');
+      // 当前若正展示这个对话，重新拉空消息列表
+      if (_inboxCurrentUserId === userId) selectInboxThread(userId);
+      loadInboxThreads();
+    } else { toast(d.error || '清空失败'); }
+  } catch (_) { toast('网络异常'); }
+}
+
+// 删除整个对话（连同消息一起从左侧列表移除）
+async function inboxDeleteThread(userId, name) {
+  if (!userId) return;
+  if (!confirm('删除与 "' + name + '" 的整个对话？\n左侧列表会移除该条；下次该用户再发消息会重新出现。')) return;
+  try {
+    const r = await fetch(API_BASE + '/api/admin/dm/thread/' + encodeURIComponent(userId), {
+      method: 'DELETE', headers: adminAuthHeaders()
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('✅ 已删除');
+      // 若删的是当前选中的对话，把右侧重置为占位
+      if (_inboxCurrentUserId === userId) {
+        _inboxCurrentUserId = null;
+        const area = document.getElementById('inboxMessages');
+        if (area) area.innerHTML = '<div class="empty-dm" style="margin:auto 0;"><div class="empty-dm__icon">👈</div><div>左侧选一个对话</div></div>';
+        const reply = document.getElementById('inboxReplyArea');
+        if (reply) reply.style.display = 'none';
+      }
+      loadInboxThreads();
+    } else { toast(d.error || '删除失败'); }
+  } catch (_) { toast('网络异常'); }
+}
+
 // ── 通用：渲染消息气泡 ──
 // viewerIsAdmin=true → 店主视角：admin 消息在右边（自己），user 消息在左边（对方）
 // viewerIsAdmin=false → 用户视角：user 消息在右边（自己），admin 消息在左边（对方）
 function renderDmBubble(msg, viewerIsAdmin) {
   const isMe = viewerIsAdmin ? (msg.from === 'admin') : (msg.from === 'user');
-  const cls = isMe ? 'dm-bubble dm-bubble--me' : 'dm-bubble dm-bubble--peer';
+  const recalled = !!msg.recalled;
+  let cls = isMe ? 'dm-bubble dm-bubble--me' : 'dm-bubble dm-bubble--peer';
+  if (recalled) cls += ' dm-bubble--recalled';
   const time = new Date(msg.ts).toLocaleString('zh-CN', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
-  return '<div class="' + cls + '"><div>' + escHtml(msg.content) + '</div><div class="dm-bubble__time">' + time + '</div></div>';
+  const body = recalled ? '此消息已撤回' : escHtml(msg.content);
+  // 撤回按钮：仅展示给"自己发的、未撤回、2分钟内"的消息
+  let recallBtn = '';
+  if (canRecallMsg(msg, viewerIsAdmin)) {
+    // 管理员侧需要 userId 参数；用户侧不需要（后端走自己 thread）
+    const uid = viewerIsAdmin ? (_inboxCurrentUserId || '') : '';
+    recallBtn = '<button class="dm-bubble__recall" onclick="recallMsg(\'' + escAttr(msg.id) + '\',' + (viewerIsAdmin ? 'true' : 'false') + ',\'' + escAttr(uid) + '\')">撤回</button>';
+  }
+  return '<div class="' + cls + '" data-mid="' + escAttr(msg.id || '') + '">' + recallBtn +
+    '<div>' + body + '</div>' +
+    '<div class="dm-bubble__time">' + time + '</div></div>';
+}
+
+// 撤回条件：自己发的、未撤回、2 分钟内
+function canRecallMsg(msg, viewerIsAdmin) {
+  if (!msg || msg.recalled) return false;
+  if (Date.now() - (msg.ts || 0) > 120000) return false;
+  if (viewerIsAdmin) {
+    if (msg.from !== 'admin') return false;
+    // 密码模式 super（应急入口）等价 super → 放行
+    if (sessionStorage.getItem(ADMIN_TOKEN_KEY)) return true;
+    // 历史无 byEmail 的旧消息 → 放行
+    if (!msg.byEmail) return true;
+    const myEmail = (typeof UserStore !== 'undefined' && UserStore && UserStore.user && UserStore.user.email) || '';
+    return myEmail && myEmail === msg.byEmail;
+  }
+  return msg.from === 'user';
+}
+
+// 撤回消息（user / admin 公用）
+async function recallMsg(msgId, viewerIsAdmin, userId) {
+  if (!msgId) return;
+  if (!confirm('撤回此消息？')) return;
+  try {
+    const url = viewerIsAdmin ? '/api/admin/dm/recall' : '/api/dm/recall';
+    const headers = { 'Content-Type': 'application/json' };
+    if (viewerIsAdmin) Object.assign(headers, adminAuthHeaders());
+    else headers['X-User-Token'] = UserStore.token;
+    const body = viewerIsAdmin ? { userId, msgId } : { msgId };
+    const r = await fetch(API_BASE + url, { method: 'POST', headers, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (d.ok) {
+      // 局部刷新对应面板
+      if (viewerIsAdmin) {
+        if (_inboxCurrentUserId) selectInboxThread(_inboxCurrentUserId);
+        loadInboxThreads();
+      } else {
+        loadUserDm();
+      }
+    } else {
+      toast(d.error || '撤回失败');
+    }
+  } catch (_) { toast('网络异常'); }
 }
 
 function escHtml(s) {

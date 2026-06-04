@@ -1125,6 +1125,34 @@ async function handleRequest(request, env, ctx, cors) {
       return json({ unread }, 200, cors);
     }
 
+    // POST /api/dm/recall — user recalls own message (within 2 min window)
+    // body: { msgId }
+    if (path === '/api/dm/recall' && method === 'POST') {
+      const user = await getCurrentUser(request, env);
+      if (!user) return json({ error: 'Not logged in' }, 401, cors);
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const msgId = String(body.msgId || '').trim();
+      if (!msgId) return json({ error: 'Invalid msgId' }, 400, cors);
+      const threadKey = 'dm/thread/' + user.userId;
+      const thread = (await env.BLOG.get(threadKey, 'json')) || [];
+      const target = thread.find(m => m.id === msgId);
+      if (!target) return json({ error: '消息不存在' }, 404, cors);
+      if (target.recalled) return json({ error: '已撤回' }, 400, cors);
+      if (target.from !== 'user') return json({ error: '只能撤回自己的消息' }, 403, cors);
+      if (Date.now() - target.ts > 120000) return json({ error: '超过 2 分钟，无法撤回' }, 400, cors);
+      target.recalled = true;
+      target.content = '';
+      await env.BLOG.put(threadKey, JSON.stringify(thread));
+      // 若撤回的是最后一条 → 更新索引 lastMsg
+      if (thread[thread.length - 1] && thread[thread.length - 1].id === msgId) {
+        const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+        const item = list.find(t => t.userId === user.userId);
+        if (item) { item.lastMsg = '[消息已撤回]'; await env.BLOG.put('dm/admin/threads', JSON.stringify(list)); }
+      }
+      return json({ ok: true, msg: target }, 200, cors);
+    }
+
     // =============================================================
     //  Admin DM endpoints (admin reads/replies to user conversations)
     // =============================================================
@@ -1156,7 +1184,10 @@ async function handleRequest(request, env, ctx, cors) {
       if (!content) return json({ error: 'Message cannot be empty' }, 400, cors);
       const threadKey = 'dm/thread/' + targetUserId;
       const thread = (await env.BLOG.get(threadKey, 'json')) || [];
-      const msg = { id: genMsgId(), from: 'admin', content, ts: Date.now() };
+      // 当前管理员身份（用于撤回时校验"只能撤回自己的"）
+      const me = await getCurrentUser(request, env);
+      const byEmail = (me && me.email) ? me.email : 'admin';
+      const msg = { id: genMsgId(), from: 'admin', byEmail, content, ts: Date.now() };
       thread.push(msg);
       if (thread.length > 1000) thread.splice(0, thread.length - 1000);
       await env.BLOG.put(threadKey, JSON.stringify(thread));
@@ -1184,6 +1215,74 @@ async function handleRequest(request, env, ctx, cors) {
       const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
       const item = list.find(t => t.userId === targetUserId);
       if (item) { item.unread = 0; await env.BLOG.put('dm/admin/threads', JSON.stringify(list)); }
+      return json({ ok: true }, 200, cors);
+    }
+
+    // POST /api/admin/dm/recall — admin recalls own admin-message (within 2 min)
+    // body: { userId, msgId }
+    // 只能撤回自己发的：msg.byEmail === 当前管理员 email；若 msg 无 byEmail（历史数据）默认允许 admin 组互撤
+    if (path === '/api/admin/dm/recall' && method === 'POST') {
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const targetUserId = String(body.userId || '').trim();
+      const msgId = String(body.msgId || '').trim();
+      if (!targetUserId || targetUserId.length > 32) return json({ error: 'Invalid userId' }, 400, cors);
+      if (!msgId) return json({ error: 'Invalid msgId' }, 400, cors);
+      const threadKey = 'dm/thread/' + targetUserId;
+      const thread = (await env.BLOG.get(threadKey, 'json')) || [];
+      const target = thread.find(m => m.id === msgId);
+      if (!target) return json({ error: '消息不存在' }, 404, cors);
+      if (target.recalled) return json({ error: '已撤回' }, 400, cors);
+      if (target.from !== 'admin') return json({ error: '只能撤回自己的消息' }, 403, cors);
+      // 校验"只能撤自己的"：若有 byEmail，必须匹配当前操作者；否则放行（兼容历史无 byEmail 的旧消息）
+      if (target.byEmail) {
+        const me = await getCurrentUser(request, env);
+        const myEmail = me && me.email;
+        if (!myEmail || myEmail !== target.byEmail) return json({ error: '只能撤回自己的消息' }, 403, cors);
+      }
+      if (Date.now() - target.ts > 120000) return json({ error: '超过 2 分钟，无法撤回' }, 400, cors);
+      target.recalled = true;
+      target.content = '';
+      await env.BLOG.put(threadKey, JSON.stringify(thread));
+      if (thread[thread.length - 1] && thread[thread.length - 1].id === msgId) {
+        const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+        const item = list.find(t => t.userId === targetUserId);
+        if (item) { item.lastMsg = '[消息已撤回]'; await env.BLOG.put('dm/admin/threads', JSON.stringify(list)); }
+      }
+      return json({ ok: true, msg: target }, 200, cors);
+    }
+
+    // POST /api/admin/dm/thread/:userId/clear — clear messages but keep thread entry (super + sub)
+    // 仅清空消息内容（dm/thread/{id} 置空数组），保留 dm/admin/threads 中的索引条目并把 lastMsg 清掉
+    if (path.startsWith('/api/admin/dm/thread/') && path.endsWith('/clear') && method === 'POST') {
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      const targetUserId = path.slice('/api/admin/dm/thread/'.length, -'/clear'.length);
+      if (!targetUserId || targetUserId.length > 32) return json({ error: 'Invalid userId' }, 400, cors);
+      await env.BLOG.put('dm/thread/' + targetUserId, JSON.stringify([]));
+      const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+      const item = list.find(t => t.userId === targetUserId);
+      if (item) {
+        item.lastMsg = '';
+        item.unread = 0;
+        item.lastTs = Date.now();
+        await env.BLOG.put('dm/admin/threads', JSON.stringify(list));
+      }
+      return json({ ok: true }, 200, cors);
+    }
+
+    // DELETE /api/admin/dm/thread/:userId — delete an entire conversation (super + sub)
+    // 删除消息历史 + 从 dm/admin/threads 索引数组移除该 userId
+    if (path.startsWith('/api/admin/dm/thread/') && method === 'DELETE') {
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      const targetUserId = path.slice('/api/admin/dm/thread/'.length);
+      if (!targetUserId || targetUserId.length > 32) return json({ error: 'Invalid userId' }, 400, cors);
+      await env.BLOG.delete('dm/thread/' + targetUserId);
+      const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+      const filtered = list.filter(t => t.userId !== targetUserId);
+      if (filtered.length !== list.length) {
+        await env.BLOG.put('dm/admin/threads', JSON.stringify(filtered));
+      }
       return json({ ok: true }, 200, cors);
     }
 
