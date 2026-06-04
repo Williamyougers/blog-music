@@ -1114,6 +1114,30 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   box-shadow:0 0 0 3px rgba(10,10,10,0.06);
 }
 .field textarea { resize:vertical; min-height:120px; font-family:var(--sans); line-height:1.7; }
+/* contenteditable 富文本编辑器（写日志正文） */
+.content-editor {
+  width:100%; padding:0.75rem 1rem;
+  background:var(--gray-50); border:1.5px solid var(--gray-200);
+  font-size:0.92rem; font-family:var(--sans); line-height:1.7;
+  min-height:200px; max-height:400px; overflow-y:auto;
+  outline:none; transition:border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  white-space:pre-wrap; word-wrap:break-word;
+  color:var(--ink);
+}
+.content-editor:focus {
+  border-color:var(--black); background:var(--white);
+  box-shadow:0 0 0 3px rgba(10,10,10,0.06);
+}
+.content-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--gray-400);
+  pointer-events: none;
+}
+.content-editor img {
+  display:block; max-width:100%; height:auto;
+  margin:0.6rem auto; border-radius:2px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.1);
+}
 .field__hint { font-size:0.68rem; color:var(--gray-400); margin-top:0.3rem; }
 .field__row { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
 
@@ -3281,8 +3305,8 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         </span>
       </label>
       <input type="file" id="l-image-file" accept="image/*" style="display:none;" onchange="handleLocalImagePicked(this)">
-      <textarea id="l-content" rows="10" placeholder="想到哪写到哪...&#10;&#10;插入图片：点上方「📁 本地图片」直接选图，或「🔗 图片链接」粘贴外链，也可手动写 ![](图片URL)"></textarea>
-      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数，可分段；本地图自动压缩到最长边 1600px；图片格式：<code style="background:var(--gray-100); padding:0 0.3rem;">![](图片URL 或 data:...)</code></div>
+      <div id="l-content" class="content-editor" contenteditable="true" data-placeholder="想到哪写到哪... 插入图片：点上方「📁 本地图片」选本地图，或「🔗 图片链接」粘外链" onpaste="handleEditorPaste(event)"></div>
+      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数；本地图自动压缩到最长边 1600px，发布后图文按编辑顺序混排</div>
     </div>
     <div class="field">
       <label>标签</label>
@@ -4194,24 +4218,114 @@ function parseLogContent(text) {
 function extractImagesFromContent(text) {
   return parseLogContent(text).filter(s => s.type === 'image').map(s => s.url);
 }
-// 在 l-content 光标处插入 ![](url) 片段
-function insertImageSnippet(ta, url) {
-  const snippet = `\n![](${url})\n`;
-  const start = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
-  const end = ta.selectionEnd != null ? ta.selectionEnd : ta.value.length;
-  ta.value = ta.value.slice(0, start) + snippet + ta.value.slice(end);
-  const pos = start + snippet.length;
-  ta.focus();
-  ta.setSelectionRange(pos, pos);
+// ── 富文本编辑器（contenteditable 版 #l-content）──
+// 在编辑器光标处插入 <img>，所见即所得
+function insertImageIntoEditor(url) {
+  const editor = document.getElementById('l-content');
+  if (!editor) return;
+  editor.focus();
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = '';
+  const sel = window.getSelection();
+  let range;
+  if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+    range = sel.getRangeAt(0);
+    range.deleteContents();
+  } else {
+    range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+  }
+  // 图片前后各塞一个换行，便于继续编辑
+  const brBefore = document.createElement('br');
+  const brAfter = document.createElement('br');
+  const frag = document.createDocumentFragment();
+  frag.appendChild(brBefore);
+  frag.appendChild(img);
+  frag.appendChild(brAfter);
+  range.insertNode(frag);
+  // 光标移到 brAfter 后
+  range.setStartAfter(brAfter);
+  range.setEndAfter(brAfter);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+// 序列化编辑器内容为 markdown（文字 + ![](url) 图片 token）
+function getEditorContent() {
+  const editor = document.getElementById('l-content');
+  if (!editor) return '';
+  const parts = [];
+  function walk(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      parts.push(node.nodeValue || '');
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = node.tagName;
+    if (tag === 'IMG') {
+      const src = node.getAttribute('src') || '';
+      const alt = node.getAttribute('alt') || '';
+      if (src) parts.push(`\n![${alt}](${src})\n`);
+      return;
+    }
+    if (tag === 'BR') {
+      parts.push('\n');
+      return;
+    }
+    // 块级元素前后补换行
+    const isBlock = tag === 'DIV' || tag === 'P' || tag === 'LI';
+    if (isBlock && parts.length && !parts[parts.length - 1].endsWith('\n')) parts.push('\n');
+    for (const child of node.childNodes) walk(child);
+    if (isBlock) parts.push('\n');
+  }
+  for (const child of editor.childNodes) walk(child);
+  // 折叠 3+ 连续换行为 2 个
+  return parts.join('').replace(/\n{3,}/g, '\n\n').trim();
+}
+// 把 markdown content 还原成编辑器 DOM
+function setEditorContent(content) {
+  const editor = document.getElementById('l-content');
+  if (!editor) return;
+  editor.innerHTML = '';
+  const segs = parseLogContent(content || '');
+  const frag = document.createDocumentFragment();
+  segs.forEach(seg => {
+    if (seg.type === 'text') {
+      const lines = (seg.value || '').split('\n');
+      lines.forEach((line, i) => {
+        if (line) frag.appendChild(document.createTextNode(line));
+        if (i < lines.length - 1) frag.appendChild(document.createElement('br'));
+      });
+    } else if (seg.type === 'image') {
+      const img = document.createElement('img');
+      img.src = seg.url;
+      img.alt = seg.alt || '';
+      frag.appendChild(img);
+    }
+  });
+  editor.appendChild(frag);
+}
+// 粘贴时强制纯文本（避免带富文本样式 / 大图 HTML 进编辑器）
+function handleEditorPaste(e) {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  // 用 selection 手动插入纯文本，兼容性比 execCommand 更稳
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  range.insertNode(document.createTextNode(text));
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
 }
 // 「🔗 图片链接」：通过 prompt 拿 http(s) URL 插入
 function insertImageUrlAtCursor() {
-  const ta = document.getElementById('l-content');
-  if (!ta) return;
   const url = (prompt('请输入图片 URL（jpg/png/webp/gif 外链）') || '').trim();
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) { toast('URL 需以 http:// 或 https:// 开头'); return; }
-  insertImageSnippet(ta, url);
+  insertImageIntoEditor(url);
 }
 // 「📁 本地图片」：触发隐藏的 file input
 function pickLocalImage() {
@@ -4231,9 +4345,7 @@ async function handleLocalImagePicked(input) {
     const dataUrl = await compressImageToDataURL(f, 1600, 0.85);
     // 简单提醒：base64 长度换算后 KB
     const kb = Math.round(dataUrl.length * 0.75 / 1024);
-    const ta = document.getElementById('l-content');
-    if (!ta) return;
-    insertImageSnippet(ta, dataUrl);
+    insertImageIntoEditor(dataUrl);
     toast(`图片已插入（约 ${kb} KB）`);
   } catch (e) {
     toast('图片处理失败：' + (e && e.message || e));
@@ -4661,7 +4773,7 @@ const CHANGELOG = [
       '🖼 图片改为直接嵌入正文：写日志时点「📷 插入图片」即可在光标处插入图片，与文字按位置混排展示',
       '📰 日志详情改为「就地展开」（不再弹窗）：桌面端正文居左、评论区固定在右侧栏，移动端评论自动折到内容下方；顶部「← 返回日志列表」按钮回到列表',
       '🐞 修复发私信报「Internal Server Error: KV PUT failed」：Cloudflare KV 限速键 TTL 从 10s 调到 60s（业务限速仍是 3s 一条）',
-      '📁 写日志支持「📁 本地图片」直接选图：前端 canvas 自动压缩到最长边 1600px / jpeg 质量 0.85，转 base64 嵌入正文，无需上传图床',
+      '✏️ 写日志编辑器升级为「所见即所得」：正文区改为富文本编辑器，「📁 本地图片」选图后直接在正文里显示图片本身（不再显示路径/base64），本地图自动压缩到最长边 1600px / jpeg 0.85，无需上传图床；「🔗 图片链接」粘外链同步插入',
     ]
   },
   {
@@ -6374,7 +6486,8 @@ function openWorkModal(workId) {
   setTimeout(() => document.getElementById('w-title').focus(), 100);
 }
 function openLogModal(editLogId) {
-  ['l-title','l-content','l-tags'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['l-title','l-tags'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  setEditorContent(''); // 清空富文本编辑器
   // 填充分组下拉
   const sel = document.getElementById('l-group');
   if (sel) {
@@ -6400,7 +6513,7 @@ function openLogModal(editLogId) {
           contentInit += '\n' + toAppend.map(u => `![](${u})`).join('\n');
         }
       }
-      document.getElementById('l-content').value = contentInit;
+      setEditorContent(contentInit);
       document.getElementById('l-tags').value = (log.tags || []).join(', ');
       if (sel) sel.value = log.groupId || '';
       if (titleEl) titleEl.textContent = '✎ 编辑日志';
@@ -6453,7 +6566,7 @@ function saveWork() {
 
 function saveLog() {
   const title = document.getElementById('l-title').value.trim();
-  const content = document.getElementById('l-content').value.trim();
+  const content = getEditorContent();
   if (!title || !content) { toast('标题和正文不能为空'); return; }
   const tagsRaw = document.getElementById('l-tags').value.trim();
   const tags = tagsRaw ? tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
