@@ -4758,15 +4758,32 @@ async function handleWordFilePicked(input) {
     }
 
     const { frag, imgOk, imgSkip } = htmlToFragment(html, []);
+    // 插入前先数 fragment 自身里的 img 数（在被 insertNode 消费掉之前）
+    const fragImgCount = frag.querySelectorAll ? frag.querySelectorAll('img').length : 0;
     insertFragmentAtCursor(frag);
+    // 插入后立即数 editor 内 img 节点（验证 DOM 是否真的有图）
+    const editorImgCount = editor ? editor.querySelectorAll('img').length : 0;
+    console.log('[Word导入] htmlToFragment 返回 imgOk:', imgOk, 'imgSkip:', imgSkip);
+    console.log('[Word导入] fragment 内 img 数:', fragImgCount, '插入后 editor 内 img 数:', editorImgCount);
+
+    // 编辑器只有 400px 高 + overflow:auto，16 张图大概率都在视口下方
+    // 滚到第一张图，让用户立刻看到"图片确实在"
+    if (editor && editorImgCount > 0) {
+      const firstImg = editor.querySelector('img');
+      if (firstImg) {
+        setTimeout(() => {
+          try { firstImg.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+        }, 120);
+      }
+    }
 
     // 详细 toast：让用户清楚每张图的去向
     const tips = ['Word 导入完成 ✓'];
     if (imgFound === 0) {
       tips.push('未在文档里检测到图片');
     } else {
-      tips.push(`识别 ${imgFound} 张图`);
-      if (imgFallback) tips.push(`${imgFallback} 张为 EMF/WMF 矢量图（浏览器可能显示不出，建议在 Word 里右键图片→另存为 png 后重传）`);
+      tips.push(`含 ${editorImgCount} 张图（已插入正文，上下滚动查看）`);
+      if (imgFallback) tips.push(`${imgFallback} 张为 EMF/WMF 矢量图（建议在 Word 里右键→另存为 png 后重传）`);
       if (imgFailed) tips.push(`${imgFailed} 张完全解析失败`);
     }
     toast(tips.join('；'));
