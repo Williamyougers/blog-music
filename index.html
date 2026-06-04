@@ -5416,7 +5416,9 @@ function openAboutModal() {
 }
 
 function saveAbout() {
+  // ⚠ 必须保留 tier/plan 等字段，否则会把套餐价格/标签/描述全部清空
   Store.about = {
+    ...(Store.about || {}),
     intro: document.getElementById('ab-intro').value.trim(),
     body1: document.getElementById('ab-body1').value.trim(),
     quote: document.getElementById('ab-quote').value.trim(),
@@ -5443,6 +5445,7 @@ const CHANGELOG = [
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
+      '🐛 修复：编辑「关于」点保存会把套餐价格 / 标签 / 描述全部清空回默认值的严重 bug（saveAbout 用对象字面量覆盖了 Store.about，丢失 tier/plan 字段）；现已 ...Store.about 保留其他字段',
       '🪣 订单图 / 订单音频改走 Cloudflare R2 存储：不再塞进 KV，单订单不再受体积限制；图片上限放宽到 2MB / 张，音频放宽到 10MB × 3 个；老订单的内联图音频仍正常显示',
       '🎵 下单表单新增「参考音频」上传：客户可附 1-3 个音频文件（每个 ≤ 10MB，mp3 / wav / m4a 等通用格式都行），管理员订单卡可直接播放预览和一键下载',
       '😊 评论 / 私信店主 / 收件箱回复 全部支持 emoji 表情包：6 个分类（表情 / 手势 / 心 / 音乐 / 活动·食物 / 动物），点 😊 在按钮上方弹出选择器，插到光标位置',
