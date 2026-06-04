@@ -678,6 +678,155 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 .log__expand:hover { border-bottom-color:var(--accent); }
 
+/* ── Log card (clickable) ── */
+.log--clickable { cursor:pointer; }
+.log--clickable:hover .log__title { color:var(--accent); }
+.log__preview {
+  font-size:0.92rem; color:var(--gray-600); line-height:1.7;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
+  overflow:hidden; margin-top:0.4rem;
+}
+.log__card-row { display:flex; gap:1.2rem; align-items:flex-start; }
+.log__card-row .log__card-main { flex:1; min-width:0; }
+.log__thumb {
+  width:140px; height:96px; object-fit:cover;
+  border:1px solid var(--gray-200); flex-shrink:0;
+  background:var(--gray-50);
+}
+.log__thumb-more {
+  position:relative;
+}
+.log__thumb-more::after {
+  content: '+' attr(data-extra);
+  position:absolute; right:6px; bottom:6px;
+  background:rgba(0,0,0,0.65); color:#fff;
+  padding:1px 6px; font-size:0.65rem; letter-spacing:0.05em;
+}
+@media (max-width: 640px) {
+  .log__thumb { width:88px; height:72px; }
+}
+.log__group-badge {
+  display:inline-block; font-size:0.65rem; padding:0.15rem 0.55rem;
+  background:var(--gold); color:#fff; letter-spacing:0.08em;
+  margin-top:0.3rem; vertical-align:middle;
+}
+[data-theme="dark"] .log__group-badge { background:#8a6534; color:#f0e6d8; }
+
+/* ── Log detail Modal ── */
+.log-detail__panel { max-width:780px; }
+.log-detail__date {
+  font-size:0.72rem; color:var(--gray-400); letter-spacing:0.08em;
+  font-variant-numeric:tabular-nums; margin-bottom:0.4rem;
+}
+.log-detail__title {
+  font-family:var(--serif); font-size:1.9rem; font-weight:700;
+  line-height:1.3; margin:0 0 1rem;
+}
+.log-detail__content {
+  font-size:1rem; color:var(--gray-700); line-height:1.95;
+  white-space:pre-wrap; word-wrap:break-word;
+  border-top:1px dashed var(--gray-200); padding-top:1.2rem;
+}
+.log-detail__images { display:grid; gap:0.8rem; margin-top:1.4rem; }
+.log-detail__images.cols-1 { grid-template-columns: 1fr; }
+.log-detail__images.cols-2 { grid-template-columns: 1fr 1fr; }
+.log-detail__images.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.log-detail__images img {
+  width:100%; height:auto; display:block;
+  border:1px solid var(--gray-200); cursor:zoom-in;
+  transition:opacity 0.2s;
+}
+.log-detail__images img:hover { opacity:0.92; }
+.log-detail__tags { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:1.2rem; }
+.log-detail__comments { margin-top:1.6rem; }
+
+/* lightbox for full image */
+.lightbox {
+  position:fixed; inset:0; background:rgba(0,0,0,0.92);
+  display:none; align-items:center; justify-content:center;
+  z-index:9999; cursor:zoom-out; padding:2rem;
+}
+.lightbox.open { display:flex; }
+.lightbox img {
+  max-width:100%; max-height:100%; display:block;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+}
+[data-theme="dark"] .log__thumb { border-color:var(--gray-700); background:var(--gray-800); }
+[data-theme="dark"] .log-detail__content { border-top-color:var(--gray-700); }
+[data-theme="dark"] .log-detail__images img { border-color:var(--gray-700); }
+
+/* ── Log groups bar ── */
+.log-groups-bar {
+  max-width: 880px; margin: 0 auto 1rem;
+  display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center;
+  padding-bottom:0.6rem; border-bottom:1px solid var(--gray-200);
+}
+.log-group-chip {
+  font-size:0.75rem; padding:0.35rem 0.85rem;
+  background:var(--gray-50); color:var(--gray-600);
+  border:1px solid var(--gray-200); cursor:pointer;
+  transition:all 0.15s; letter-spacing:0.04em;
+}
+.log-group-chip:hover { border-color:var(--gray-400); color:var(--ink); }
+.log-group-chip.active {
+  background:var(--ink); color:var(--white);
+  border-color:var(--ink);
+}
+.log-group-chip__count {
+  font-size:0.65rem; opacity:0.65; margin-left:0.3rem;
+  font-variant-numeric:tabular-nums;
+}
+.log-group-manage-btn {
+  margin-left:auto;
+  font-size:0.7rem; color:var(--gray-500);
+  border:1px dashed var(--gray-300);
+  padding:0.3rem 0.7rem; cursor:pointer; background:transparent;
+  transition:all 0.15s;
+}
+.log-group-manage-btn:hover { color:var(--accent); border-color:var(--accent); border-style:solid; }
+
+/* ── Log groups manage Modal ── */
+.group-mgr__list {
+  display:flex; flex-direction:column; gap:0.4rem;
+  margin-bottom:1rem;
+}
+.group-mgr__row {
+  display:flex; gap:0.5rem; align-items:center;
+  padding:0.5rem 0.7rem; background:var(--gray-50);
+  border:1px solid var(--gray-200);
+}
+.group-mgr__row input {
+  flex:1; min-width:0; border:1px solid transparent;
+  background:transparent; padding:0.3rem 0.4rem;
+  font-size:0.9rem; color:var(--ink);
+}
+.group-mgr__row input:focus { border-color:var(--gold); background:var(--white); outline:none; }
+.group-mgr__row .group-mgr__count {
+  font-size:0.7rem; color:var(--gray-400); white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.group-mgr__row .group-mgr__del {
+  font-size:0.7rem; color:var(--accent); cursor:pointer;
+  background:transparent; border:none; padding:0.2rem 0.4rem;
+}
+.group-mgr__row .group-mgr__del:hover { text-decoration:underline; }
+.group-mgr__add {
+  display:flex; gap:0.5rem;
+  padding-top:0.8rem; border-top:1px dashed var(--gray-200);
+}
+.group-mgr__add input { flex:1; min-width:0; }
+
+[data-theme="dark"] .log-groups-bar { border-bottom-color:#333; }
+[data-theme="dark"] .log-group-chip { background:#1f1f1f; color:#aaa; border-color:#333; }
+[data-theme="dark"] .log-group-chip:hover { color:#eee; border-color:#555; }
+[data-theme="dark"] .log-group-chip.active { background:#f0e6d8; color:#1a1a1a; border-color:#f0e6d8; }
+[data-theme="dark"] .log-group-manage-btn { color:#888; border-color:#444; }
+[data-theme="dark"] .group-mgr__row { background:#1f1f1f; border-color:#333; }
+[data-theme="dark"] .group-mgr__row input { color:#eee; }
+[data-theme="dark"] .group-mgr__row input:focus { background:#252525; }
+[data-theme="dark"] .group-mgr__add { border-top-color:#333; }
+
+
 /* ── Comments ── */
 .comments {
   margin-top:1.6rem;
@@ -2789,6 +2938,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     </div>
     <button class="btn js-write-action" onclick="openLogModal()">+ 写日志</button>
   </div>
+  <div class="log-groups-bar" id="logGroupsBar"><!-- 由 renderLogGroupsBar() 动态渲染 --></div>
   <div id="logsList" class="logs"></div>
 </main>
 
@@ -3078,16 +3228,58 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <div class="field">
       <label>正文 *</label>
       <textarea id="l-content" rows="8" placeholder="想到哪写到哪..."></textarea>
+      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数，可分段</div>
+    </div>
+    <div class="field">
+      <label>图片（可选）</label>
+      <textarea id="l-images" rows="3" placeholder="每行一个图片 URL，比如 https://example.com/cover.jpg"></textarea>
+      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">支持外链图片（jpg/png/webp/gif）。最多 9 张</div>
     </div>
     <div class="field">
       <label>标签</label>
       <input id="l-tags" type="text" placeholder="用逗号分隔，如：思考, 创作, 灵感">
+    </div>
+    <div class="field">
+      <label>分组</label>
+      <select id="l-group" style="width:100%; padding:0.5rem 0.7rem; border:1px solid var(--gray-300); background:var(--white); color:var(--ink); font-size:0.9rem; font-family:inherit;">
+        <option value="">未分组</option>
+      </select>
     </div>
     <div class="modal__actions">
       <button class="btn btn--ghost btn--sm" onclick="closeModal('logModal')">取消</button>
       <button class="btn btn--sm" onclick="saveLog()">发布</button>
     </div>
   </div>
+</div>
+
+<!-- 日志分组管理 Modal -->
+<div class="modal" id="groupMgrModal">
+  <div class="modal__panel" style="max-width:480px;">
+    <button class="modal__close" onclick="closeModal('groupMgrModal')">×</button>
+    <h3 class="modal__title">🗂 日志分组管理</h3>
+    <p style="color:var(--gray-500); font-size:0.82rem; margin:0 0 0.8rem;">点名字可重命名；删除分组后，该分组下日志会归到「未分组」。</p>
+    <div class="group-mgr__list" id="groupMgrList"></div>
+    <div class="group-mgr__add">
+      <input id="newGroupName" type="text" placeholder="新分组名（≤20字）" maxlength="20" onkeydown="if(event.key==='Enter'){event.preventDefault(); addNewGroup();}">
+      <button class="btn btn--sm" onclick="addNewGroup()">+ 添加</button>
+    </div>
+    <div class="modal__actions" style="margin-top:1rem;">
+      <button class="btn btn--sm" onclick="closeModal('groupMgrModal')">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 日志详情 Modal -->
+<div class="modal" id="logDetailModal">
+  <div class="modal__panel log-detail__panel">
+    <button class="modal__close" onclick="closeModal('logDetailModal')">×</button>
+    <div id="logDetailBody"><!-- 由 openLogDetail() 动态渲染 --></div>
+  </div>
+</div>
+
+<!-- Lightbox（点击图片放大） -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightboxImg" src="" alt="">
 </div>
 
 <!-- 删除确认 Modal -->
@@ -3581,6 +3773,7 @@ function genPlanKey() {
 const Store = {
   works: [],
   logs: [],
+  logGroups: [], // [{id, name}]
   about: { ...DEFAULT_ABOUT },
   comments: {}, // { [logId]: [{id, visitorId, nickname, content, createdAt}] }
   orders: [],   // [{id, seq, type, tier, tierLabel, price, description, clientName, showName, visitorId, contact, step, createdAt, acceptedAt, completedAt, review}]
@@ -3591,6 +3784,7 @@ const Store = {
     if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) {
       this.works = window.__EMBEDDED_DATA__.works || [];
       this.logs = window.__EMBEDDED_DATA__.logs || [];
+      this.logGroups = window.__EMBEDDED_DATA__.logGroups || [];
       this.about = { ...DEFAULT_ABOUT, ...(window.__EMBEDDED_DATA__.about || {}) };
       this.comments = window.__EMBEDDED_DATA__.comments || {};
       this.orders = window.__EMBEDDED_DATA__.orders || [];
@@ -3610,6 +3804,7 @@ const Store = {
           const data = await res.json();
           this.works = Array.isArray(data.works) ? data.works : [];
           this.logs = Array.isArray(data.logs) ? data.logs : [];
+          this.logGroups = Array.isArray(data.logGroups) ? data.logGroups : [];
           this.about = { ...DEFAULT_ABOUT, ...(data.about || {}) };
           this.comments = (data.comments && typeof data.comments === 'object') ? data.comments : {};
           this.orders = Array.isArray(data.orders) ? data.orders : [];
@@ -3619,6 +3814,7 @@ const Store = {
           try {
             localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(this.works));
             localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(this.logs));
+            localStorage.setItem('tn_logGroups', JSON.stringify(this.logGroups));
             localStorage.setItem('tn_about', JSON.stringify(this.about));
             localStorage.setItem('tn_comments', JSON.stringify(this.comments));
             localStorage.setItem('tn_orders', JSON.stringify(this.orders));
@@ -3634,6 +3830,7 @@ const Store = {
     // 兜底：localStorage
     this.works = JSON.parse(localStorage.getItem(STORAGE_KEY_WORKS) || '[]');
     this.logs = JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]');
+    try { this.logGroups = JSON.parse(localStorage.getItem('tn_logGroups') || '[]') || []; } catch (_) { this.logGroups = []; }
     try { this.about = { ...DEFAULT_ABOUT, ...(JSON.parse(localStorage.getItem('tn_about') || 'null') || {}) }; } catch (_) { this.about = { ...DEFAULT_ABOUT }; }
     try { this.comments = JSON.parse(localStorage.getItem('tn_comments') || '{}') || {}; } catch (_) { this.comments = {}; }
     try { this.orders = JSON.parse(localStorage.getItem('tn_orders') || '[]') || []; } catch (_) { this.orders = []; }
@@ -3648,6 +3845,7 @@ const Store = {
     try {
       localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(this.works));
       localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(this.logs));
+      localStorage.setItem('tn_logGroups', JSON.stringify(this.logGroups));
       localStorage.setItem('tn_about', JSON.stringify(this.about));
     } catch (_) {}
     // 仅管理员推送到云端
@@ -3664,7 +3862,7 @@ const Store = {
       const res = await fetch(API_BASE + '/api/data', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ works: this.works, logs: this.logs, about: this.about })
+        body: JSON.stringify({ works: this.works, logs: this.logs, about: this.about, logGroups: this.logGroups })
       });
       if (res.ok) {
         setSyncStatus('saved');
@@ -3730,6 +3928,41 @@ const Store = {
       try { localStorage.setItem('tn_comments', JSON.stringify(this.comments)); } catch (_) {}
     }
     this.saveLogs();
+  },
+  updateLog(id, patch) {
+    const i = this.logs.findIndex(l => l.id === id);
+    if (i < 0) return false;
+    this.logs[i] = { ...this.logs[i], ...patch };
+    this.saveLogs();
+    return true;
+  },
+  getLog(id) { return this.logs.find(l => l.id === id); },
+  // ── 日志分组 ──
+  saveLogGroups() { this._scheduleSync(); },
+  addLogGroup(name) {
+    const trimmed = (name || '').trim();
+    if (!trimmed) return null;
+    if (this.logGroups.some(g => g.name === trimmed)) return null; // 重名
+    const g = { id: 'g_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: trimmed };
+    this.logGroups.push(g);
+    this.saveLogGroups();
+    return g;
+  },
+  renameLogGroup(id, newName) {
+    const trimmed = (newName || '').trim();
+    if (!trimmed) return false;
+    const g = this.logGroups.find(g => g.id === id);
+    if (!g) return false;
+    if (this.logGroups.some(x => x.id !== id && x.name === trimmed)) return false; // 重名
+    g.name = trimmed;
+    this.saveLogGroups();
+    return true;
+  },
+  delLogGroup(id) {
+    this.logGroups = this.logGroups.filter(g => g.id !== id);
+    // 把该分组下的日志归到「未分组」
+    this.logs.forEach(l => { if (l.groupId === id) l.groupId = null; });
+    this.saveLogGroups();
   },
   // ── 评论（实时调用 Worker，不走 debounce）──
   async addComment(logId, nickname, content) {
@@ -4015,9 +4248,47 @@ function renderWorks() {
   bindWorksDnD();
 }
 
+// _currentGroupFilter：null = 全部，'__none__' = 未分组，其他 = 匹配 groupId
+let _currentGroupFilter = null;
+
+function switchLogGroup(filter) {
+  _currentGroupFilter = filter;
+  renderLogs();
+  renderLogGroupsBar();
+}
+
+function renderLogGroupsBar() {
+  const bar = document.getElementById('logGroupsBar');
+  if (!bar) return;
+  const groups = Array.isArray(Store.logGroups) ? Store.logGroups : [];
+  const logs = Store.logs || [];
+  const countAll = logs.length;
+  const countNone = logs.filter(l => !l.groupId).length;
+  const countOf = (gid) => logs.filter(l => l.groupId === gid).length;
+  const chip = (label, active, count, onclick) =>
+    `<button class="log-group-chip${active ? ' active' : ''}" onclick='${onclick}'>${escapeHTML(label)}<span class="log-group-chip__count">${count}</span></button>`;
+  const chips = [];
+  chips.push(chip('全部', _currentGroupFilter == null, countAll, 'switchLogGroup(null)'));
+  groups.forEach(g => {
+    chips.push(chip(g.name, _currentGroupFilter === g.id, countOf(g.id), `switchLogGroup(${JSON.stringify(g.id)})`));
+  });
+  chips.push(chip('未分组', _currentGroupFilter === '__none__', countNone, `switchLogGroup('__none__')`));
+  // 管理按钮：仅 admin 在线模式渲染
+  const showAdmin = !window.__VIEWER_MODE__ && isAdmin();
+  const adminBtn = showAdmin ? `<button class="log-group-manage-btn js-write-action" onclick="openGroupMgr()">⚙ 管理分组</button>` : '';
+  bar.innerHTML = chips.join('') + adminBtn;
+}
+
 function renderLogs() {
   const list = document.getElementById('logsList');
-  if (Store.logs.length === 0) {
+  const all = Store.logs || [];
+  let filtered = all;
+  if (_currentGroupFilter === '__none__') {
+    filtered = all.filter(l => !l.groupId);
+  } else if (_currentGroupFilter != null) {
+    filtered = all.filter(l => l.groupId === _currentGroupFilter);
+  }
+  if (all.length === 0) {
     list.innerHTML = `<div class="empty">
       <div class="empty__icon">✎</div>
       <div class="empty__text">还没有日志</div>
@@ -4025,25 +4296,48 @@ function renderLogs() {
     </div>`;
     return;
   }
-  list.innerHTML = Store.logs.map(l => {
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty">
+      <div class="empty__icon">📂</div>
+      <div class="empty__text">这个分组还没有日志</div>
+      <div class="empty__hint">切到「全部」看看，或写一条新的</div>
+    </div>`;
+    return;
+  }
+  const groupNameOf = (gid) => {
+    const g = (Store.logGroups || []).find(x => x.id === gid);
+    return g ? g.name : '';
+  };
+  list.innerHTML = filtered.map(l => {
     const date = new Date(l.createdAt);
     const dateStr = `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')}`;
     const tags = (l.tags || []).map(t => `<span class="log__tag">${escapeHTML(t)}</span>`).join('');
-    const long = (l.content || '').length > 200;
+    const images = Array.isArray(l.images) ? l.images.filter(Boolean) : [];
+    const firstImg = images[0];
+    const extra = images.length - 1;
+    const preview = (l.content || '').trim().replace(/\s+/g, ' ').slice(0, 160);
+    const idStr = JSON.stringify(l.id);
+    const gName = l.groupId ? groupNameOf(l.groupId) : '';
+    const gBadge = gName ? `<span class="log__group-badge">${escapeHTML(gName)}</span>` : '';
     return `
-    <article class="log" id="log-${l.id}">
+    <article class="log log--clickable" id="log-${l.id}" onclick='openLogDetail(${idStr})'>
       <div class="log__marker"></div>
-      <div class="log__head">
-        <h3 class="log__title">${escapeHTML(l.title)}</h3>
-        <span class="log__date">${dateStr}</span>
+      <div class="log__card-row">
+        <div class="log__card-main">
+          <div class="log__head">
+            <h3 class="log__title">${escapeHTML(l.title)}</h3>
+            <span class="log__date">${dateStr}</span>
+          </div>
+          ${gBadge}
+          <div class="log__preview">${escapeHTML(preview)}${preview.length >= 160 ? '…' : ''}</div>
+          ${tags ? `<div class="log__tags">${tags}</div>` : ''}
+        </div>
+        ${firstImg ? `<div class="log__thumb-wrap ${extra > 0 ? 'log__thumb-more' : ''}" ${extra > 0 ? `data-extra="${extra}"` : ''}><img class="log__thumb" src="${escapeHTML(firstImg)}" alt="" onerror="this.style.display='none'"></div>` : ''}
       </div>
-      <div class="log__content drop-cap ${long ? 'collapsed' : ''}" id="lc-${l.id}">${escapeHTML(l.content)}</div>
-      ${tags ? `<div class="log__tags">${tags}</div>` : ''}
       <div class="log__actions">
-        ${long ? `<button class="log__expand" onclick='toggleLog(${JSON.stringify(l.id)}, this)'>展开全文</button>` : ''}
-        <button class="btn btn--danger btn--sm log__del js-write-action" style="margin-left:auto;" onclick='confirmDelete("log", ${JSON.stringify(l.id)})'>删除</button>
+        <button class="btn btn--sm js-write-action" style="margin-left:auto;" onclick='event.stopPropagation(); openLogModal(${idStr})'>编辑</button>
+        <button class="btn btn--danger btn--sm log__del js-write-action" onclick='event.stopPropagation(); confirmDelete("log", ${idStr})'>删除</button>
       </div>
-      ${renderCommentSection(l.id)}
     </article>`;
   }).join('');
 }
@@ -4110,7 +4404,7 @@ async function submitComment(logId) {
   try {
     await Store.addComment(logId, nickname, content);
     ccEl.value = '';
-    renderLogs();
+    refreshLogDetailComments(logId);
     toast('已发布');
   } catch (e) {
     toast(e.message || '发布失败');
@@ -4121,11 +4415,21 @@ async function deleteComment(logId, commentId) {
   if (!confirm('删除这条评论？')) return;
   try {
     await Store.delComment(logId, commentId);
-    renderLogs();
+    refreshLogDetailComments(logId);
     toast('已删除');
   } catch (e) {
     toast(e.message || '删除失败');
   }
+}
+
+// 仅刷新详情 Modal 内评论区（若已打开且 logId 匹配）
+function refreshLogDetailComments(logId) {
+  const modal = document.getElementById('logDetailModal');
+  const wrap = document.getElementById('logDetailComments');
+  if (!modal || !wrap) return;
+  if (!modal.classList.contains('open')) return;
+  if (modal.dataset.logId !== String(logId)) return;
+  wrap.innerHTML = renderCommentSection(logId);
 }
 
 function updateCommentCount(el, logId) {
@@ -4185,13 +4489,13 @@ function resetAbout() {
   document.getElementById('ab-body2').value = DEFAULT_ABOUT.body2;
 }
 
-function renderAll() { renderWorks(); renderLogs(); renderStats(); renderAbout(); renderChangelog(); renderWorkshop(); }
+function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); renderStats(); renderAbout(); renderChangelog(); renderWorkshop(); }
 
 // ── 更新公告数据（最新在最前；日期升序在最后追加新条目） ──
 const CHANGELOG = [
   {
     date: '2026-06-04',
-    title: '邮箱登录 · 后台私信 · 收件箱',
+    title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
       '👤 顶部加「登录」按钮：邮箱收 6 位验证码即可登录，首次自动建账号；登录后按钮变成你的昵称',
       '💌 登录后开放「私信店主」：消息会发到店主的微信，店主回复后顶部按钮浮出红点提示',
@@ -4200,6 +4504,10 @@ const CHANGELOG = [
       '🌙 登录弹窗、用户中心、收件箱全部适配暗色模式',
       '🔒 邮箱不在站点任何公开位置出现，店主端用户列表只显示昵称',
       '🔄 登录 / 退出后自动刷新页面，确保状态干净一致',
+      '🛡 后端加全局异常兜底：500 也带 CORS 头 + 错误详情，私信失败时弹窗显示具体原因',
+      '📖 日志卡片改成"点开看详情"：列表只露标题/预览/缩略图，整卡可点击进入详情页，正文不限字数、支持分段',
+      '🖼 日志可附图片（外链 URL，每行一个，最多 9 张）：详情页自适应 1/2/3 列网格，点击图片放大查看',
+      '🗂 日志分组：可添加 / 重命名 / 删除分组（最多 50 个，删分组日志归到"未分组"不丢失），列表顶部按分组切换筛选',
     ]
   },
   {
@@ -5911,14 +6219,40 @@ function openWorkModal(workId) {
   document.getElementById('workModal').classList.add('open');
   setTimeout(() => document.getElementById('w-title').focus(), 100);
 }
-function openLogModal() {
-  ['l-title','l-content','l-tags'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('logModal').classList.add('open');
+function openLogModal(editLogId) {
+  ['l-title','l-content','l-tags','l-images'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  // 填充分组下拉
+  const sel = document.getElementById('l-group');
+  if (sel) {
+    sel.innerHTML = '<option value="">未分组</option>' +
+      Store.logGroups.map(g => `<option value="${escapeHTML(g.id)}">${escapeHTML(g.name)}</option>`).join('');
+    sel.value = '';
+  }
+  _editingLogId = null;
+  const modal = document.getElementById('logModal');
+  const titleEl = modal.querySelector('.modal__title');
+  if (editLogId != null) {
+    const log = Store.getLog(editLogId);
+    if (log) {
+      _editingLogId = editLogId;
+      document.getElementById('l-title').value = log.title || '';
+      document.getElementById('l-content').value = log.content || '';
+      document.getElementById('l-tags').value = (log.tags || []).join(', ');
+      document.getElementById('l-images').value = (log.images || []).join('\n');
+      if (sel) sel.value = log.groupId || '';
+      if (titleEl) titleEl.textContent = '✎ 编辑日志';
+    }
+  } else {
+    if (titleEl) titleEl.textContent = '✎ 写日志';
+  }
+  modal.classList.add('open');
   setTimeout(() => document.getElementById('l-title').focus(), 100);
 }
+let _editingLogId = null;
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   if (id === 'workModal') _editingWorkId = null;
+  if (id === 'logModal') _editingLogId = null;
 }
 
 function saveWork() {
@@ -5960,15 +6294,191 @@ function saveLog() {
   if (!title || !content) { toast('标题和正文不能为空'); return; }
   const tagsRaw = document.getElementById('l-tags').value.trim();
   const tags = tagsRaw ? tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
-  Store.addLog({
-    id: Date.now(),
-    title, content, tags,
-    createdAt: Date.now()
-  });
-  closeModal('logModal');
-  renderAll();
-  toast('日志已发布 ✎');
+  const imagesRaw = document.getElementById('l-images').value || '';
+  const images = imagesRaw.split(/\r?\n/).map(s => s.trim()).filter(Boolean).slice(0, 9);
+  const groupSel = document.getElementById('l-group');
+  const groupId = groupSel && groupSel.value ? groupSel.value : null;
+  if (_editingLogId != null) {
+    Store.updateLog(_editingLogId, { title, content, tags, images, groupId });
+    closeModal('logModal');
+    renderAll();
+    // 若详情 Modal 正打开同一条日志，刷新详情
+    const detail = document.getElementById('logDetailModal');
+    if (detail && detail.classList.contains('open') && detail.dataset.logId === String(_editingLogId)) {
+      openLogDetail(_editingLogId);
+    }
+    toast('日志已更新 ✓');
+  } else {
+    Store.addLog({
+      id: Date.now(),
+      title, content, tags, images, groupId,
+      createdAt: Date.now()
+    });
+    closeModal('logModal');
+    renderAll();
+    toast('日志已发布 ✎');
+  }
 }
+
+// ── 日志分组管理 Modal ──
+function openGroupMgr() {
+  if (!isAdmin()) { toast('请先用管理员令牌解锁'); return; }
+  renderGroupMgr();
+  document.getElementById('groupMgrModal').classList.add('open');
+  setTimeout(() => {
+    const inp = document.getElementById('newGroupName');
+    if (inp) inp.focus();
+  }, 100);
+}
+
+function renderGroupMgr() {
+  const list = document.getElementById('groupMgrList');
+  if (!list) return;
+  const groups = Array.isArray(Store.logGroups) ? Store.logGroups : [];
+  const countOf = (gid) => (Store.logs || []).filter(l => l.groupId === gid).length;
+  if (groups.length === 0) {
+    list.innerHTML = `<div class="empty" style="padding:1rem 0;"><div class="empty__text" style="font-size:0.85rem;">还没有分组，下方添加第一个</div></div>`;
+    return;
+  }
+  list.innerHTML = groups.map(g => {
+    const idAttr = JSON.stringify(g.id);
+    return `<div class="group-mgr__row" data-gid="${escapeHTML(g.id)}">
+      <input type="text" value="${escapeHTML(g.name)}" maxlength="20"
+        onblur='renameGroupInline(${idAttr}, this.value, this)'
+        onkeydown="if(event.key==='Enter'){this.blur();}">
+      <span class="group-mgr__count">${countOf(g.id)} 篇</span>
+      <button class="group-mgr__del" onclick='delGroupConfirm(${idAttr}, ${JSON.stringify(g.name)})'>删除</button>
+    </div>`;
+  }).join('');
+}
+
+async function addNewGroup() {
+  const inp = document.getElementById('newGroupName');
+  if (!inp) return;
+  const name = (inp.value || '').trim();
+  if (!name) { toast('请输入分组名'); return; }
+  if (name.length > 20) { toast('分组名不能超过 20 字'); return; }
+  if ((Store.logGroups || []).some(g => g.name === name)) { toast('已有同名分组'); return; }
+  if ((Store.logGroups || []).length >= 50) { toast('分组最多 50 个'); return; }
+  try {
+    const g = Store.addLogGroup(name);
+    if (!g) { toast('添加失败（重名或为空）'); return; }
+    inp.value = '';
+    renderGroupMgr();
+    renderLogGroupsBar();
+    toast('分组已添加 ✓');
+  } catch (e) {
+    toast(e.message || '添加失败');
+  }
+}
+
+async function renameGroupInline(id, newName, inputEl) {
+  const name = (newName || '').trim();
+  const groups = Store.logGroups || [];
+  const old = groups.find(g => g.id === id);
+  if (!old) return;
+  if (!name) {
+    if (inputEl) inputEl.value = old.name;
+    toast('分组名不能为空');
+    return;
+  }
+  if (name === old.name) return;
+  if (name.length > 20) {
+    if (inputEl) inputEl.value = old.name;
+    toast('分组名不能超过 20 字');
+    return;
+  }
+  if (groups.some(x => x.id !== id && x.name === name)) {
+    if (inputEl) inputEl.value = old.name;
+    toast('已有同名分组');
+    return;
+  }
+  try {
+    const ok = Store.renameLogGroup(id, name);
+    if (!ok) {
+      if (inputEl) inputEl.value = old.name;
+      toast('重命名失败');
+      return;
+    }
+    renderGroupMgr();
+    renderLogGroupsBar();
+    renderLogs();
+    toast('已重命名 ✓');
+  } catch (e) {
+    if (inputEl) inputEl.value = old.name;
+    toast(e.message || '重命名失败');
+  }
+}
+
+async function delGroupConfirm(id, name) {
+  if (!confirm(`删除分组「${name}」？\n（该分组下的日志会变成「未分组」，不会被删除）`)) return;
+  try {
+    Store.delLogGroup(id);
+    if (_currentGroupFilter === id) _currentGroupFilter = null;
+    renderGroupMgr();
+    renderLogGroupsBar();
+    renderLogs();
+    toast('已删除');
+  } catch (e) {
+    toast(e.message || '删除失败');
+  }
+}
+
+// ── 日志详情 Modal ──
+function openLogDetail(id) {
+  const log = Store.getLog(id);
+  if (!log) { toast('日志不存在'); return; }
+  const body = document.getElementById('logDetailBody');
+  const modal = document.getElementById('logDetailModal');
+  if (!body || !modal) return;
+  modal.dataset.logId = String(id);
+  const date = new Date(log.createdAt);
+  const dateStr = `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+  const images = Array.isArray(log.images) ? log.images.filter(Boolean) : [];
+  const tags = (log.tags || []).map(t => `<span class="log__tag">${escapeHTML(t)}</span>`).join('');
+  const gName = log.groupId ? (Store.logGroups || []).find(g => g.id === log.groupId)?.name : '';
+  const gBadge = gName ? `<span class="log__group-badge" style="margin-left:0.6rem;">${escapeHTML(gName)}</span>` : '';
+  const cols = images.length >= 3 ? 'cols-3' : (images.length === 2 ? 'cols-2' : 'cols-1');
+  const imgsHTML = images.length ? `<div class="log-detail__images ${cols}">${images.map(u => `<img src="${escapeHTML(u)}" alt="" onclick='openLightbox(${JSON.stringify(u)})' onerror="this.style.display='none'">`).join('')}</div>` : '';
+  const tagsHTML = tags ? `<div class="log-detail__tags">${tags}</div>` : '';
+  const idStr = JSON.stringify(log.id);
+  const showAdmin = !window.__VIEWER_MODE__ && isAdmin();
+  const adminBar = showAdmin ? `<div class="log-detail__admin" style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.6rem;">
+    <button class="btn btn--sm" onclick='closeModal("logDetailModal"); openLogModal(${idStr});'>✎ 编辑</button>
+    <button class="btn btn--danger btn--sm" onclick='closeModal("logDetailModal"); confirmDelete("log", ${idStr});'>删除</button>
+  </div>` : '';
+  const commentsHTML = `<div class="log-detail__comments" id="logDetailComments">${renderCommentSection(log.id)}</div>`;
+  body.innerHTML = `
+    <div class="log-detail__date">${dateStr}${gBadge}</div>
+    <h2 class="log-detail__title">${escapeHTML(log.title)}</h2>
+    ${imgsHTML}
+    <div class="log-detail__content">${escapeHTML(log.content || '')}</div>
+    ${tagsHTML}
+    ${adminBar}
+    ${commentsHTML}
+  `;
+  modal.classList.add('open');
+}
+
+// ── Lightbox ──
+function openLightbox(url) {
+  const box = document.getElementById('lightbox');
+  const img = document.getElementById('lightboxImg');
+  if (!box || !img) return;
+  img.src = url;
+  box.classList.add('open');
+}
+function closeLightbox() {
+  const box = document.getElementById('lightbox');
+  if (box) box.classList.remove('open');
+}
+// ESC 键关闭 lightbox
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const box = document.getElementById('lightbox');
+    if (box && box.classList.contains('open')) closeLightbox();
+  }
+});
 
 // ── 删除确认 ──
 let pendingDelete = null;

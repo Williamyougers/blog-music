@@ -94,12 +94,13 @@ const DEFAULT_ABOUT = {
 };
 
 async function loadAll(env) {
-  const [worksRaw, logsRaw, aboutRaw, commentsRaw, ordersRaw] = await Promise.all([
+  const [worksRaw, logsRaw, aboutRaw, commentsRaw, ordersRaw, logGroupsRaw] = await Promise.all([
     env.BLOG.get('works'),
     env.BLOG.get('logs'),
     env.BLOG.get('about'),
     env.BLOG.get('comments'),
     env.BLOG.get('orders'),
+    env.BLOG.get('logGroups'),
   ]);
   return {
     works: JSON.parse(worksRaw || '[]'),
@@ -107,6 +108,7 @@ async function loadAll(env) {
     about: { ...DEFAULT_ABOUT, ...(JSON.parse(aboutRaw || 'null') || {}) },
     comments: JSON.parse(commentsRaw || '{}'),
     orders: JSON.parse(ordersRaw || '[]'),
+    logGroups: JSON.parse(logGroupsRaw || '[]'),
     fetchedAt: Date.now(),
   };
 }
@@ -574,10 +576,15 @@ async function handleRequest(request, env, ctx, cors) {
       let body;
       try { body = await request.json(); }
       catch { return json({ error: 'Invalid JSON' }, 400, cors); }
-      const { works = [], logs = [], about = null } = body || {};
+      const { works = [], logs = [], about = null, logGroups = null } = body || {};
       if (!Array.isArray(works) || !Array.isArray(logs)) {
         return json({ error: 'works and logs must be arrays' }, 400, cors);
       }
+      // Sanitize log groups: [{id, name}], cap 50 groups, name <= 20 chars
+      const safeGroups = Array.isArray(logGroups) ? logGroups.slice(0, 50).map(g => ({
+        id: String((g && g.id) || '').slice(0, 32),
+        name: sanitizeStr(g && g.name, 20),
+      })).filter(g => g.id && g.name) : null;
       const safeAbout = about && typeof about === 'object' ? (() => {
         const allowed = pickAllowedKeys(about);
         const allowedPlans = pickAllowedPlanKeys(about);
@@ -599,7 +606,7 @@ async function handleRequest(request, env, ctx, cors) {
           planPeriods: sanitizePlanPeriods(about.planPeriods, allowedPlans),
         };
       })() : null;
-      const serialized = JSON.stringify({ works, logs, about: safeAbout });
+      const serialized = JSON.stringify({ works, logs, about: safeAbout, logGroups: safeGroups });
       if (serialized.length > 1024 * 1024) {
         return json({ error: 'Payload too large' }, 413, cors);
       }
@@ -608,8 +615,9 @@ async function handleRequest(request, env, ctx, cors) {
         env.BLOG.put('logs', JSON.stringify(logs)),
       ];
       if (safeAbout) tasks.push(env.BLOG.put('about', JSON.stringify(safeAbout)));
+      if (safeGroups) tasks.push(env.BLOG.put('logGroups', JSON.stringify(safeGroups)));
       await Promise.all(tasks);
-      return json({ ok: true, savedAt: Date.now(), works: works.length, logs: logs.length, about: !!safeAbout }, 200, cors);
+      return json({ ok: true, savedAt: Date.now(), works: works.length, logs: logs.length, about: !!safeAbout, logGroups: safeGroups ? safeGroups.length : null }, 200, cors);
     }
 
     // ── Orders API ──
