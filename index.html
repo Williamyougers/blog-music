@@ -2395,6 +2395,95 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   color: var(--gray-500, #888);
 }
 
+/* ── 工坊：参考音频上传（前端 base64） ── */
+.ws-audios {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.ws-audios__btn {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.4rem 0.85rem;
+  border: 1px dashed var(--gray-300, #d6d6d6);
+  border-radius: 4px;
+  font-size: 0.82rem;
+  color: var(--gray-700, #555);
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--paper, #fafaf7);
+}
+.ws-audios__btn:hover { border-color: var(--gold); color: var(--gold); }
+.ws-audios__btn.is-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.ws-audios__list { display: flex; flex-direction: column; gap: 0.4rem; }
+.ws-audios__list:empty { display: none; }
+.ws-audio-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--gray-200, #eaeaea);
+  border-radius: 4px;
+  background: #fafaf7;
+  font-size: 0.78rem;
+}
+.ws-audio-item__icon { font-size: 1.05rem; flex-shrink: 0; }
+.ws-audio-item__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-audio-item__size { color: var(--gray-500, #888); font-size: 0.72rem; flex-shrink: 0; }
+.ws-audio-item__del {
+  border: 1px solid var(--gray-200);
+  background: #fff;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--gray-500);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.ws-audio-item__del:hover { border-color: var(--accent); color: var(--accent); }
+.ws-audios__tip { font-size: 0.75rem; color: var(--gray-500, #888); }
+[data-theme="dark"] .ws-audio-item { background: #1e1e1e; border-color:#333; color:#ddd; }
+[data-theme="dark"] .ws-audio-item__del { background:#252525; border-color:#333; color:#aaa; }
+
+/* ── 订单卡里的参考音频 ── */
+.ws-order__audios {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0 0 0.7rem;
+}
+.ws-order__audio {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--gray-200, #eaeaea);
+  border-radius: 4px;
+  background: #fafaf7;
+  flex-wrap: wrap;
+}
+.ws-order__audio audio { height: 32px; flex: 1; min-width: 200px; }
+.ws-order__audio-name { font-size: 0.75rem; color: var(--gray-700, #555); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+.ws-order__audio-size { font-size: 0.7rem; color: var(--gray-500, #888); }
+.ws-order__audio-dl {
+  font-size: 0.72rem;
+  text-decoration: none;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--gray-300, #d6d6d6);
+  border-radius: 3px;
+  color: var(--gray-700);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.ws-order__audio-dl:hover { border-color: var(--gold); color: var(--gold); }
+[data-theme="dark"] .ws-order__audio { background:#1e1e1e; border-color:#333; }
+[data-theme="dark"] .ws-order__audio-name { color:#ddd; }
+[data-theme="dark"] .ws-order__audio-dl { color:#bbb; border-color:#444; }
+[data-theme="dark"] .ws-order__audio-dl:hover { border-color: var(--gold); color: var(--gold); }
+
 /* ── 订单卡里的参考图 ── */
 .ws-order__images {
   display: flex;
@@ -3315,6 +3404,12 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
           <input id="ws-img-input" type="file" accept="image/*" multiple onchange="handleOrderImageSelect(event)" style="display:none;">
           <div class="ws-images__thumbs" id="ws-img-thumbs"></div>
           <div class="ws-images__tip" id="ws-img-tip" style="display:none;"></div>
+        </div>
+        <div class="ws-audios">
+          <label class="ws-audios__btn" for="ws-audio-input">🎵 添加参考音频（最多 2 个，每个 ≤ 4MB）</label>
+          <input id="ws-audio-input" type="file" accept="audio/*" multiple onchange="handleOrderAudioSelect(event)" style="display:none;">
+          <div class="ws-audios__list" id="ws-audio-list"></div>
+          <div class="ws-audios__tip" id="ws-audio-tip" style="display:none;"></div>
         </div>
       </div>
       <div class="field__row">
@@ -4308,15 +4403,18 @@ const Store = {
     return true;
   },
   // ── Orders ──
-  async submitOrder(type, tier, description, clientName, showName, contact, price, tierLabel, images, tiers, priceMode) {
+  async submitOrder(type, tier, description, clientName, showName, contact, price, tierLabel, images, tiers, priceMode, audios) {
     if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云，无法下单');
     const res = await fetch(API_BASE + '/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, tier, description, clientName, showName, contact, price, tierLabel, images, tiers, priceMode, visitorId: getVisitorId() }),
+      body: JSON.stringify({ type, tier, description, clientName, showName, contact, price, tierLabel, images, tiers, priceMode, audios, visitorId: getVisitorId() }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!res.ok) {
+      if (res.status === 413) throw new Error('附件过大，请减少音频或图片');
+      throw new Error(data.error || ('HTTP ' + res.status));
+    }
     if (data.order) this.orders.push(data.order);
     try { localStorage.setItem('tn_orders', JSON.stringify(this.orders)); } catch (_) {}
     return data.order;
@@ -5328,6 +5426,8 @@ const CHANGELOG = [
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
+      '🎵 下单表单新增「参考音频」上传：客户可附 1-2 个音频文件（每个 ≤ 4MB，mp3 / wav / m4a 等通用格式都行），管理员订单卡可直接播放预览和一键下载',
+      '😊 评论 / 私信店主 / 收件箱回复 全部支持 emoji 表情包：6 个分类（表情 / 手势 / 心 / 音乐 / 活动·食物 / 动物），点 😊 在按钮上方弹出选择器，插到光标位置',
       '👤 顶部加「登录」按钮：邮箱收 6 位验证码即可登录，首次自动建账号；登录后按钮变成你的昵称',
       '💌 登录后开放「私信店主」：消息会发到店主的微信，店主回复后顶部按钮浮出红点提示',
       '⚙️ 用户中心新增「资料设置」tab：可改昵称（店主收消息时看到的称呼）、一键退出登录',
@@ -5557,6 +5657,7 @@ async function submitOrder() {
   const tierLabel = selectedTiers.map(t => t.label).join(' + ');
   const tiers = selectedTiers.map(t => ({ key: t.key, label: t.label, price: applyMultiplier(t.price), mode: t.priceMode }));
   const images = _pendingOrderImages.slice();
+  const audios = _pendingOrderAudios.slice();
   const finalDescription = (mult > 1 ? '[商用] ' : '') + description;
 
   const btn = document.querySelector('.ws-submit');
@@ -5565,7 +5666,7 @@ async function submitOrder() {
   btn.textContent = '提交中…';
 
   try {
-    await Store.submitOrder('', tierKey, finalDescription, clientName, showName, contact, totalPrice, tierLabel, images, tiers, totalMode);
+    await Store.submitOrder('', tierKey, finalDescription, clientName, showName, contact, totalPrice, tierLabel, images, tiers, totalMode, audios);
     toast('订单已提交 ✓ 我会尽快联系你');
     // reset form
     document.getElementById('ws-desc').value = '';
@@ -5577,6 +5678,8 @@ async function submitOrder() {
     updateTierTotal();
     _pendingOrderImages = [];
     renderPendingOrderImages();
+    _pendingOrderAudios = [];
+    renderPendingOrderAudios();
     renderWorkshop();
   } catch (e) {
     toast(e.message || '提交失败');
@@ -5668,6 +5771,84 @@ function renderPendingOrderImages() {
   ).join('');
   if (btn) {
     if (_pendingOrderImages.length >= MAX_ORDER_IMAGES) btn.classList.add('is-disabled');
+    else btn.classList.remove('is-disabled');
+  }
+}
+
+// ── 工坊：参考音频上传（前端转 base64） ──
+let _pendingOrderAudios = []; // [{name, type, size, data}]
+const MAX_ORDER_AUDIOS = 2;
+const MAX_AUDIO_BYTES = 4 * 1024 * 1024; // 单个 4MB
+
+function formatBytes(n) {
+  if (!n || n < 1024) return (n || 0) + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+function handleOrderAudioSelect(event) {
+  const files = Array.from(event.target.files || []);
+  event.target.value = '';
+  if (!files.length) return;
+  const remaining = MAX_ORDER_AUDIOS - _pendingOrderAudios.length;
+  if (remaining <= 0) { toast(`最多上传 ${MAX_ORDER_AUDIOS} 个音频`); return; }
+  const todo = files.slice(0, remaining);
+  if (files.length > remaining) toast(`只接收前 ${remaining} 个`);
+  const tip = document.getElementById('ws-audio-tip');
+  if (tip) { tip.style.display = 'block'; tip.textContent = '正在读取…'; }
+  Promise.all(todo.map(readAudioToB64))
+    .then(results => {
+      results.forEach(a => { if (a) _pendingOrderAudios.push(a); });
+      renderPendingOrderAudios();
+      if (tip) tip.style.display = 'none';
+    })
+    .catch(err => {
+      toast('音频读取失败：' + (err.message || err));
+      if (tip) tip.style.display = 'none';
+    });
+}
+
+function readAudioToB64(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || !file.type.startsWith('audio/')) {
+      reject(new Error('不是音频：' + (file.name || ''))); return;
+    }
+    if (file.size > MAX_AUDIO_BYTES) {
+      reject(new Error(`单个音频超过 4MB（${formatBytes(file.size)}）`)); return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      resolve({
+        name: (file.name || 'audio').slice(0, 120),
+        type: file.type || 'audio/mpeg',
+        size: file.size,
+        data: e.target.result, // data:audio/...;base64,...
+      });
+    };
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function removePendingOrderAudio(idx) {
+  _pendingOrderAudios.splice(idx, 1);
+  renderPendingOrderAudios();
+}
+
+function renderPendingOrderAudios() {
+  const wrap = document.getElementById('ws-audio-list');
+  const btn = document.querySelector('.ws-audios__btn');
+  if (!wrap) return;
+  wrap.innerHTML = _pendingOrderAudios.map((a, i) =>
+    `<div class="ws-audio-item">
+      <span class="ws-audio-item__icon">🎵</span>
+      <span class="ws-audio-item__name" title="${escapeHTML(a.name)}">${escapeHTML(a.name)}</span>
+      <span class="ws-audio-item__size">${formatBytes(a.size)}</span>
+      <button type="button" class="ws-audio-item__del" onclick="removePendingOrderAudio(${i})" title="删除">×</button>
+    </div>`
+  ).join('');
+  if (btn) {
+    if (_pendingOrderAudios.length >= MAX_ORDER_AUDIOS) btn.classList.add('is-disabled');
     else btn.classList.remove('is-disabled');
   }
 }
@@ -5972,6 +6153,17 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
         </div>
         ${o.description ? `<p class="ws-order__desc">${escapeHTML(o.description)}</p>` : ''}
         ${(o.images && o.images.length) ? `<div class="ws-order__images" data-order="${o.id}">${o.images.map((src, idx) => `<img class="ws-order__img" src="${src}" alt="参考图" data-img-idx="${idx}" loading="lazy">`).join('')}</div>` : ''}
+        ${(o.audios && o.audios.length) ? `<div class="ws-order__audios">${o.audios.map((a, idx) => {
+          const safeName = escapeHTML(a.name || ('音频 ' + (idx + 1)));
+          const sizeStr = a.size ? formatBytes(a.size) : '';
+          const dlName = (a.name || ('audio_' + (idx + 1))).replace(/["'<>]/g, '');
+          return `<div class="ws-order__audio">
+            <span class="ws-order__audio-name" title="${safeName}">🎵 ${safeName}</span>
+            ${sizeStr ? `<span class="ws-order__audio-size">${sizeStr}</span>` : ''}
+            <audio controls preload="none" src="${a.data}"></audio>
+            <a class="ws-order__audio-dl" href="${a.data}" download="${escapeHTML(dlName)}" title="下载">⬇ 下载</a>
+          </div>`;
+        }).join('')}</div>` : ''}
         ${progressHtml}
         <div class="ws-order__foot">
           <span class="ws-order__date">${dateStr}</span>

@@ -369,6 +369,28 @@ function sanitizeOrderImages(imgs) {
   }
   return out;
 }
+// Whitelist order audios: array of <=2 items {name,type,size,data}, each data <=6MB base64
+const MAX_ORDER_AUDIOS = 2;
+const MAX_AUDIO_DATA_LEN = 6 * 1024 * 1024; // ~4.4MB binary
+function sanitizeOrderAudios(audios) {
+  if (!Array.isArray(audios)) return [];
+  const out = [];
+  for (const a of audios) {
+    if (!a || typeof a !== 'object') continue;
+    const data = typeof a.data === 'string' ? a.data : '';
+    if (!data) continue;
+    if (data.length > MAX_AUDIO_DATA_LEN) continue;
+    if (!/^data:audio\/[a-z0-9.+-]+;base64,/i.test(data) && !/^https:\/\//.test(data)) continue;
+    const name = sanitizeStr(a.name, 120) || 'audio';
+    const type = sanitizeStr(a.type, 60) || 'audio/mpeg';
+    let size = Number(a.size);
+    if (!isFinite(size) || size < 0) size = 0;
+    if (size > 50 * 1024 * 1024) size = 50 * 1024 * 1024;
+    out.push({ name, type, size, data });
+    if (out.length >= MAX_ORDER_AUDIOS) break;
+  }
+  return out;
+}
 
 const ORDER_STEPS = ['接单中', '沟通中', '编曲中', '待交付', '完结'];
 const ORDER_TYPES = ['古风', 'Lo-fi', 'Folk', '新古典', '流行', '电子', '摇滚', 'R&B', '说唱', '其他'];
@@ -731,6 +753,8 @@ async function handleRequest(request, env, ctx, cors) {
         || (safeTiers && safeTiers.some(t => t.mode === 'from') ? 'from' : 'fixed');
       // Reference images (data URLs, max 3, each <=500KB)
       const images = sanitizeOrderImages(body && body.images);
+      // Reference audios (data URLs, max 2, each <=~4MB binary)
+      const audios = sanitizeOrderAudios(body && body.audios);
 
       const order = {
         id: 'ord_' + now + '_' + Math.random().toString(36).slice(2, 8),
@@ -743,6 +767,7 @@ async function handleRequest(request, env, ctx, cors) {
         tiers: safeTiers && safeTiers.length ? safeTiers : undefined,
         description,
         images,
+        audios,
         clientName: showName ? clientName : '',
         showName,
         visitorId,
