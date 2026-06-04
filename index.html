@@ -2943,7 +2943,10 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <div class="top-bar__right">
     <button id="themeBtn" class="admin-btn theme-btn" onclick="toggleTheme()" title="切换主题"><span class="tb-ic">🌙</span><span class="tb-lbl">深色</span></button>
     <span id="syncStatus" class="sync-status"><span class="tb-ic">☁️</span><span class="tb-lbl">加载中…</span></span>
-    <button id="userBtn" class="admin-btn badge" data-badge="0" onclick="openUserPanel()" title="登录/我的私信"><span class="tb-ic">👤</span><span class="tb-lbl">登录</span></button>
+    <button id="userBtn" class="admin-btn" onclick="openUserPanel()" title="登录 / 注册"><span class="tb-ic">👤</span><span class="tb-lbl">登录</span></button>
+    <button id="dmBtn" class="admin-btn badge" data-badge="0" onclick="openDmPanel()" style="display:none;" title="私信店主"><span class="tb-ic">💌</span><span class="tb-lbl">私信</span></button>
+    <button id="profileBtn" class="admin-btn" onclick="openProfilePanel()" style="display:none;" title="个人资料"><span class="tb-ic">🪪</span><span class="tb-lbl">资料</span></button>
+    <button id="logoutBtn" class="admin-btn" onclick="userLogoutQuick()" style="display:none;" title="退出登录"><span class="tb-ic">🚪</span><span class="tb-lbl">退出</span></button>
     <button id="inboxBtn" class="admin-btn badge js-write-action" data-badge="0" onclick="openInbox()" style="display:none;" title="管理员收件箱"><span class="tb-ic">📨</span><span class="tb-lbl">收件箱</span></button>
     <button id="subAdminBtn" class="admin-btn js-write-action" onclick="openSubAdminPanel()" style="display:none;" title="管理副管理员"><span class="tb-ic">🛠</span><span class="tb-lbl">副管理员</span></button>
     <!-- adminBtn 已隐藏入口化：访问 #admin 触发登录/退出。保留 DOM 兼容旧脚本。 -->
@@ -3674,7 +3677,6 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         <input type="text" id="profileNickname" placeholder="比如：路人甲" maxlength="20">
       </div>
       <div class="modal__actions">
-        <button class="btn btn--danger btn--sm" onclick="userLogout()">退出登录</button>
         <button class="btn btn--sm" onclick="saveProfile()">保存</button>
       </div>
     </div>
@@ -4818,6 +4820,7 @@ const CHANGELOG = [
       '👈 收件箱打开时右侧重置为"左侧选一个对话"占位（不再残留上次查看的对话）；点击对话后自动滚到最新私信位置（双 RAF 兜底防止渲染未完成时滚动失败），用户视角私信窗同步优化',
       '👑 邮箱即角色 · 副管理员系统：主管理员邮箱 453203081@qq.com 登录自动进 super 模式（可改套餐价 / 管理副管理员）；新增「副管理员」按钮，可添加邮箱授权他人协助打理（可改作品/订单/回私信/自己下单，但不能改套餐价、不能管副管理员）；密码登录入口仍保留作为应急；店主侧只要主或副有人在线，私信都不再推到微信',
       '🙊 顶栏统一极简：所有角色看到的右上角永远只有「登录」/「退出」二字，不再暴露昵称、👑/🛠 角色徽章、「管理员登录/退出」按钮——访客和店主从外观上完全一致；管理员通过隐藏入口访问站点 `#admin`（如 weilingt.top/#admin）触发密码登录/退出，邮箱即角色仍按邮箱自动识别 super/sub',
+      '🎛 顶栏按钮拆分：原本「登录」按钮点开是一个集成模态框（私信 + 资料 tab），现拆为三个独立按钮——「💌 私信」「🪪 资料」「🚪 退出」；普通用户三件齐全，管理员（super/sub）取消私信店主功能（自己私信自己没意义），只保留「🪪 资料」「🚪 退出」；退出按钮加二次确认',
     ]
   },
   {
@@ -6993,18 +6996,23 @@ function renderAdminBtn() {
     else if (isAdmin()) { ib.style.display = ''; }
     else { ib.style.display = 'none'; }
   }
-  // 同步用户登录按钮：
-  // - 访客模式：隐藏
-  // - 已登录（含 admin，因为现在 admin 也是邮箱用户）：显示 → 让用户能看自己昵称/退出登录
-  // - 未登录访客：显示 → 让访客能登录
-  // - 密码应急登录（无 UserStore.user 但 isAdmin）：隐藏（避免误以为要点登录）
+  // 同步用户按钮组：
+  // - 访客模式：全隐
+  // - 未登录访客：仅 userBtn（登录）
+  // - 普通用户登录：dmBtn + profileBtn + logoutBtn
+  // - 管理员（super/sub）登录：profileBtn + logoutBtn（dmBtn 不显示——管理员私信自己没意义）
+  // - 密码应急 admin（无 UserStore.user 但 isAdmin）：全隐 user 系按钮（退出走 #admin）
   const userLoggedIn = (typeof UserStore !== 'undefined') && UserStore && UserStore.user;
+  const isAnyAdmin = (typeof isAdmin === 'function') && isAdmin();
+  const isViewer = window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__;
   const ub = document.getElementById('userBtn');
-  if (ub) {
-    if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { ub.style.display = 'none'; }
-    else if (isAdmin() && !userLoggedIn) { ub.style.display = 'none'; } // 密码应急 admin
-    else { ub.style.display = ''; }
-  }
+  const dmb = document.getElementById('dmBtn');
+  const pfb = document.getElementById('profileBtn');
+  const lgb = document.getElementById('logoutBtn');
+  if (ub) ub.style.display = (!isViewer && !userLoggedIn && !isAnyAdmin) ? '' : 'none';
+  if (dmb) dmb.style.display = (!isViewer && userLoggedIn && !isAnyAdmin) ? '' : 'none';
+  if (pfb) pfb.style.display = (!isViewer && userLoggedIn) ? '' : 'none';
+  if (lgb) lgb.style.display = (!isViewer && userLoggedIn) ? '' : 'none';
   // 副管理员管理按钮：仅 super 可见
   const sab = document.getElementById('subAdminBtn');
   if (sab) {
@@ -7191,21 +7199,7 @@ const UserStore = {
   },
 
   renderBtn() {
-    const btn = document.getElementById('userBtn');
-    if (!btn) return;
-    // 密码应急 admin（没邮箱身份）才隐藏；邮箱登录的 admin 仍然显示
-    const isPasswordOnlyAdmin = (typeof isAdmin === 'function' && isAdmin()) && !this.user;
-    if (isPasswordOnlyAdmin) { btn.style.display = 'none'; return; }
-    btn.style.display = '';
-    // 所有角色统一只显示「登录」/「退出」，不暴露昵称、角色徽章
-    if (this.user) {
-      btn.innerHTML = '<span class="tb-ic">👤</span><span class="tb-lbl">退出</span>';
-      btn.title = '我的账户 / 退出';
-    } else {
-      btn.innerHTML = '<span class="tb-ic">👤</span><span class="tb-lbl">登录</span>';
-      btn.title = '登录 / 注册';
-    }
-    // 用户登录态变化时联动刷新「管理员登录」按钮显隐
+    // userBtn / dmBtn / profileBtn / logoutBtn 的显隐统一交给 renderAdminBtn
     if (typeof renderAdminBtn === 'function') renderAdminBtn();
   }
 };
@@ -7217,20 +7211,40 @@ let _loginCountdownTimer = null;
 let _loginEmail = '';
 
 function openUserPanel() {
-  if (UserStore.user) {
-    document.getElementById('profileEmail').value = UserStore.user.email;
-    document.getElementById('profileNickname').value = UserStore.user.nickname || '';
-    switchUserTab('dm');
-    document.getElementById('userModal').classList.add('open');
-    loadUserDm();
-  } else {
-    document.getElementById('authStep1').classList.add('active');
-    document.getElementById('authStep2').classList.remove('active');
-    document.getElementById('loginEmail').value = '';
-    document.getElementById('loginCode').value = '';
-    document.getElementById('loginModal').classList.add('open');
-    setTimeout(() => document.getElementById('loginEmail').focus(), 100);
-  }
+  // 未登录走登录框；已登录用户不应该再点这个（按钮已隐藏），但兜底跳到资料面板
+  if (UserStore.user) { openProfilePanel(); return; }
+  document.getElementById('authStep1').classList.add('active');
+  document.getElementById('authStep2').classList.remove('active');
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginCode').value = '';
+  document.getElementById('loginModal').classList.add('open');
+  setTimeout(() => document.getElementById('loginEmail').focus(), 100);
+}
+
+function openDmPanel() {
+  if (!UserStore.user) { openUserPanel(); return; }
+  const tabs = document.querySelector('#userModal .user-tabs');
+  if (tabs) tabs.style.display = '';
+  switchUserTab('dm');
+  document.getElementById('userModal').classList.add('open');
+  loadUserDm();
+}
+
+function openProfilePanel() {
+  if (!UserStore.user) { openUserPanel(); return; }
+  document.getElementById('profileEmail').value = UserStore.user.email;
+  document.getElementById('profileNickname').value = UserStore.user.nickname || '';
+  // 管理员不看私信店主，隐藏 tab 栏；普通用户保留切换能力
+  const tabs = document.querySelector('#userModal .user-tabs');
+  const isAnyAdmin = (typeof isAdmin === 'function') && isAdmin();
+  if (tabs) tabs.style.display = isAnyAdmin ? 'none' : '';
+  switchUserTab('profile');
+  document.getElementById('userModal').classList.add('open');
+}
+
+async function userLogoutQuick() {
+  if (!confirm('确定退出登录？')) return;
+  await userLogout();
 }
 
 async function loginSendCode(isResend) {
@@ -7664,7 +7678,7 @@ async function pollUnread() {
   try {
     const r = await fetch(API_BASE + '/api/dm/unread', { headers: { 'X-User-Token': UserStore.token } });
     const d = await r.json();
-    const btn = document.getElementById('userBtn');
+    const btn = document.getElementById('dmBtn');
     if (btn) btn.dataset.badge = String(d.unread || 0);
   } catch (_) {}
   // also poll admin inbox if admin
