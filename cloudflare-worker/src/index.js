@@ -515,14 +515,29 @@ async function updateAdminThreadsIndex(env, user, lastMsg, lastTs, unreadDelta) 
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
     const cors = corsHeaders(request);
-    const method = request.method;
-    const path = url.pathname;
-
-    if (method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: cors });
+    try {
+      return await handleRequest(request, env, ctx, cors);
+    } catch (err) {
+      // Catch-all: any uncaught exception still returns CORS headers
+      // so browser can at least display the error instead of CORS-block.
+      console.log('[fatal]', err && err.stack || err);
+      return json({
+        error: 'Internal Server Error',
+        detail: (err && err.message) || String(err),
+      }, 500, cors);
     }
+  },
+};
+
+async function handleRequest(request, env, ctx, cors) {
+  const url = new URL(request.url);
+  const method = request.method;
+  const path = url.pathname;
+
+  if (method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: cors });
+  }
 
     // GET /api/data - public read (works + logs + about + comments + orders)
     // Order privacy:
@@ -1113,5 +1128,4 @@ export default {
     }
 
     return json({ error: 'Not Found' }, 404, cors);
-  },
-};
+}
