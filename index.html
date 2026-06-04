@@ -4780,6 +4780,7 @@ const CHANGELOG = [
       '💬 私信气泡按视角分左右：用户视角下"自己在右、店主在左"，店主收件箱视角下"自己在右、用户在左"，符合常见 IM 习惯',
       '🔕 收件箱红点优化：店主点开对话查看 / 主动回复后，该对话的未读红点 + 顶部按钮 badge 立即归零（不等下次轮询），直到该用户再次发新消息才会重新亮起',
       '📡 微信推送智能跳过：管理员页面在线（每 30s 心跳，TTL 90s）时，用户发新私信不再推到店主的微信服务号；店主关闭页面 90s 后才恢复推送，避免自己正在用还被打扰',
+      '🙈 管理员模式下隐藏顶部「登录」按钮：店主本来就是自己，不需要再用普通用户身份登录；退出管理员模式后按钮恢复显示',
     ]
   },
   {
@@ -6959,6 +6960,13 @@ function renderAdminBtn() {
     else if (isAdmin()) { ib.style.display = ''; }
     else { ib.style.display = 'none'; }
   }
+  // 同步用户登录按钮（仅访客/普通用户可见，管理员模式下不需要）
+  const ub = document.getElementById('userBtn');
+  if (ub) {
+    if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { ub.style.display = 'none'; }
+    else if (isAdmin()) { ub.style.display = 'none'; }
+    else { ub.style.display = ''; }
+  }
 }
 async function adminLogin() {
   if (isAdmin()) {
@@ -7087,6 +7095,9 @@ const UserStore = {
   renderBtn() {
     const btn = document.getElementById('userBtn');
     if (!btn) return;
+    // 管理员模式下不显示用户登录按钮
+    if (typeof isAdmin === 'function' && isAdmin()) { btn.style.display = 'none'; return; }
+    btn.style.display = '';
     if (this.user) {
       const name = this.user.nickname || this.user.email.split('@')[0];
       btn.innerHTML = '<span class="tb-ic">👤</span><span class="tb-lbl">' + name + '</span>';
