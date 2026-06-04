@@ -5445,6 +5445,7 @@ const CHANGELOG = [
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
+      '✏️ 套餐 / 订阅方案管理：价格类型下拉文案统一改成「固定价 / 多少元起」（原本是「XX 起」，对小白用户太抽象）',
       '🐛 修复：编辑「关于」点保存会把套餐价格 / 标签 / 描述全部清空回默认值的严重 bug（saveAbout 用对象字面量覆盖了 Store.about，丢失 tier/plan 字段）；现已 ...Store.about 保留其他字段',
       '🪣 订单图 / 订单音频改走 Cloudflare R2 存储：不再塞进 KV，单订单不再受体积限制；图片上限放宽到 2MB / 张，音频放宽到 10MB × 3 个；老订单的内联图音频仍正常显示',
       '🎵 下单表单新增「参考音频」上传：客户可附 1-3 个音频文件（每个 ≤ 10MB，mp3 / wav / m4a 等通用格式都行），管理员订单卡可直接播放预览和一键下载',
@@ -6447,7 +6448,7 @@ function renderTierEditList() {
       </div>
       <div class="tier-edit__row tier-edit__row--mode">
         <div class="field"><label>说明</label><input data-tier-field="desc" type="text" placeholder="一句话说明这档包含什么" maxlength="60" value="${escapeHTML(row.desc || '')}"></div>
-        <div class="field"><label>价格类型</label><select data-tier-field="priceMode"><option value="fixed"${modeFixed}>固定价</option><option value="from"${modeFrom}>XX 起</option></select></div>
+        <div class="field"><label>价格类型</label><select data-tier-field="priceMode"><option value="fixed"${modeFixed}>固定价</option><option value="from"${modeFrom}>多少元起</option></select></div>
       </div>
     </div>`;
   }).join('');
@@ -6581,7 +6582,7 @@ function renderPlanEditList() {
         <input type="number" class="tier-edit__price" data-plan-field="price" placeholder="0" min="0" max="99999" value="${row.price}">
         <select data-plan-field="priceMode">
           <option value="fixed"${row.priceMode === 'fixed' ? ' selected' : ''}>固定价</option>
-          <option value="from"${row.priceMode === 'from' ? ' selected' : ''}>XX 起</option>
+          <option value="from"${row.priceMode === 'from' ? ' selected' : ''}>多少元起</option>
         </select>
       </div>
       <textarea class="tier-edit__desc" data-plan-field="desc" rows="2" placeholder="方案说明（可选，≤60字）" maxlength="60">${escapeHTML(row.desc || '')}</textarea>
