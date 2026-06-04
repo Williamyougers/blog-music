@@ -712,8 +712,35 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 [data-theme="dark"] .log__group-badge { background:#8a6534; color:#f0e6d8; }
 
-/* ── Log detail Modal ── */
-.log-detail__panel { max-width:780px; }
+/* ── Log detail (就地展开视图，非 Modal) ── */
+.log-detail-view { max-width: 1200px; margin: 0 auto; padding: 0 1rem 3rem; }
+.log-detail-view__back {
+  margin-bottom: 1.4rem; display:inline-flex; align-items:center; gap:0.3rem;
+}
+.log-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 2.4rem;
+  align-items: start;
+}
+.log-detail-layout__main { min-width: 0; }
+.log-detail-layout__aside {
+  position: sticky; top: 1rem;
+  max-height: calc(100vh - 2rem); overflow-y: auto;
+  padding-left: 1.4rem;
+  border-left: 1px dashed var(--gray-200);
+}
+[data-theme="dark"] .log-detail-layout__aside { border-left-color: var(--gray-700); }
+@media (max-width: 900px) {
+  .log-detail-layout { grid-template-columns: 1fr; gap: 1.6rem; }
+  .log-detail-layout__aside {
+    position: static; max-height: none; overflow: visible;
+    padding-left: 0; border-left: none;
+    border-top: 1px dashed var(--gray-200); padding-top: 1.4rem;
+  }
+  [data-theme="dark"] .log-detail-layout__aside { border-top-color: var(--gray-700); }
+}
+/* 详情视图通用样式（沿用旧 Modal 内的 .log-detail__*，去掉 panel 宽度限制） */
 .log-detail__date {
   font-size:0.72rem; color:var(--gray-400); letter-spacing:0.08em;
   font-variant-numeric:tabular-nums; margin-bottom:0.4rem;
@@ -724,9 +751,21 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 .log-detail__content {
   font-size:1rem; color:var(--gray-700); line-height:1.95;
-  white-space:pre-wrap; word-wrap:break-word;
   border-top:1px dashed var(--gray-200); padding-top:1.2rem;
 }
+/* 正文文本块：保留换行与空白 */
+.log-detail__text { white-space:pre-wrap; word-wrap:break-word; }
+.log-detail__text + .log-detail__text { margin-top:0.6rem; }
+/* 嵌入正文的内联图片（每张独占一行，居中，可放大） */
+.log-detail__inline-img { margin: 1.2rem 0; text-align: center; }
+.log-detail__inline-img img {
+  max-width:100%; height:auto; display:inline-block;
+  border:1px solid var(--gray-200); cursor:zoom-in;
+  transition:opacity 0.2s;
+}
+.log-detail__inline-img img:hover { opacity:0.92; }
+[data-theme="dark"] .log-detail__inline-img img { border-color:var(--gray-700); }
+/* 旧版图片网格（仅作老数据兜底） */
 .log-detail__images { display:grid; gap:0.8rem; margin-top:1.4rem; }
 .log-detail__images.cols-1 { grid-template-columns: 1fr; }
 .log-detail__images.cols-2 { grid-template-columns: 1fr 1fr; }
@@ -738,7 +777,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 .log-detail__images img:hover { opacity:0.92; }
 .log-detail__tags { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:1.2rem; }
-.log-detail__comments { margin-top:1.6rem; }
+.log-detail__comments { margin-top:0; }
 
 /* lightbox for full image */
 .lightbox {
@@ -2940,6 +2979,14 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
   <div class="log-groups-bar" id="logGroupsBar"><!-- 由 renderLogGroupsBar() 动态渲染 --></div>
   <div id="logsList" class="logs"></div>
+  <!-- 日志详情就地展开视图（默认隐藏） -->
+  <div id="logDetailView" class="log-detail-view" style="display:none;">
+    <button class="btn btn--ghost btn--sm log-detail-view__back" onclick="closeLogDetail()">← 返回日志列表</button>
+    <div class="log-detail-layout">
+      <article class="log-detail-layout__main" id="logDetailBody"><!-- 由 openLogDetail() 渲染正文 --></article>
+      <aside class="log-detail-layout__aside" id="logDetailComments"><!-- 由 openLogDetail() 渲染评论区 --></aside>
+    </div>
+  </div>
 </main>
 
 <!-- 关于页 -->
@@ -3226,14 +3273,12 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <input id="l-title" type="text" placeholder="今天想说点什么">
     </div>
     <div class="field">
-      <label>正文 *</label>
-      <textarea id="l-content" rows="8" placeholder="想到哪写到哪..."></textarea>
-      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数，可分段</div>
-    </div>
-    <div class="field">
-      <label>图片（可选）</label>
-      <textarea id="l-images" rows="3" placeholder="每行一个图片 URL，比如 https://example.com/cover.jpg"></textarea>
-      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">支持外链图片（jpg/png/webp/gif）。最多 9 张</div>
+      <label style="display:flex; align-items:center; justify-content:space-between;">
+        <span>正文 *</span>
+        <button type="button" class="btn btn--ghost btn--sm" style="padding:0.2rem 0.6rem; font-size:0.75rem;" onclick="insertImageAtCursor()">📷 插入图片</button>
+      </label>
+      <textarea id="l-content" rows="10" placeholder="想到哪写到哪...&#10;&#10;插入图片：点上方「插入图片」或手动写 ![](图片URL)"></textarea>
+      <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.3rem;">不限字数，可分段；图片用 <code style="background:var(--gray-100); padding:0 0.3rem;">![](图片URL)</code> 直接嵌入正文任意位置</div>
     </div>
     <div class="field">
       <label>标签</label>
@@ -3269,13 +3314,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
 </div>
 
-<!-- 日志详情 Modal -->
-<div class="modal" id="logDetailModal">
-  <div class="modal__panel log-detail__panel">
-    <button class="modal__close" onclick="closeModal('logDetailModal')">×</button>
-    <div id="logDetailBody"><!-- 由 openLogDetail() 动态渲染 --></div>
-  </div>
-</div>
+<!-- 日志详情视图改为就地展开（见 #page-logs > #logDetailView），不再使用 Modal -->
 
 <!-- Lightbox（点击图片放大） -->
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -4131,6 +4170,42 @@ function escapeHTML(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// 把日志正文按 ![alt](url) 切分成 segments：[{type:'text',value} | {type:'image',url,alt}]
+function parseLogContent(text) {
+  const segs = [];
+  const src = String(text || '');
+  if (!src) return segs;
+  const re = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    if (m.index > last) segs.push({ type: 'text', value: src.slice(last, m.index) });
+    segs.push({ type: 'image', alt: m[1] || '', url: m[2] });
+    last = re.lastIndex;
+  }
+  if (last < src.length) segs.push({ type: 'text', value: src.slice(last) });
+  return segs;
+}
+// 从日志正文中抽取所有图片 URL（顺序）
+function extractImagesFromContent(text) {
+  return parseLogContent(text).filter(s => s.type === 'image').map(s => s.url);
+}
+// 在 l-content 光标处插入 ![](url)；URL 通过 prompt 获取
+function insertImageAtCursor() {
+  const ta = document.getElementById('l-content');
+  if (!ta) return;
+  const url = (prompt('请输入图片 URL（jpg/png/webp/gif 外链）') || '').trim();
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) { toast('URL 需以 http:// 或 https:// 开头'); return; }
+  const snippet = `\n![](${url})\n`;
+  const start = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+  const end = ta.selectionEnd != null ? ta.selectionEnd : ta.value.length;
+  ta.value = ta.value.slice(0, start) + snippet + ta.value.slice(end);
+  const pos = start + snippet.length;
+  ta.focus();
+  ta.setSelectionRange(pos, pos);
+}
+
 let currentCategory = '古风'; // 当前选中的分类
 
 function renderWorks() {
@@ -4272,7 +4347,7 @@ function renderLogGroupsBar() {
   groups.forEach(g => {
     chips.push(chip(g.name, _currentGroupFilter === g.id, countOf(g.id), `switchLogGroup(${JSON.stringify(g.id)})`));
   });
-  chips.push(chip('未分组', _currentGroupFilter === '__none__', countNone, `switchLogGroup('__none__')`));
+  chips.push(chip('未分组', _currentGroupFilter === '__none__', countNone, `switchLogGroup("__none__")`));
   // 管理按钮：仅 admin 在线模式渲染
   const showAdmin = !window.__VIEWER_MODE__ && isAdmin();
   const adminBtn = showAdmin ? `<button class="log-group-manage-btn js-write-action" onclick="openGroupMgr()">⚙ 管理分组</button>` : '';
@@ -4312,10 +4387,14 @@ function renderLogs() {
     const date = new Date(l.createdAt);
     const dateStr = `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')}`;
     const tags = (l.tags || []).map(t => `<span class="log__tag">${escapeHTML(t)}</span>`).join('');
-    const images = Array.isArray(l.images) ? l.images.filter(Boolean) : [];
+    // 缩略图：优先从正文 ![](url) 抽取，找不到再回退到旧 log.images
+    const inlineImgs = extractImagesFromContent(l.content);
+    const oldImgs = Array.isArray(l.images) ? l.images.filter(Boolean) : [];
+    const images = inlineImgs.length ? inlineImgs : oldImgs;
     const firstImg = images[0];
     const extra = images.length - 1;
-    const preview = (l.content || '').trim().replace(/\s+/g, ' ').slice(0, 160);
+    // preview：去掉 ![](url) 图片 token，只展示纯文字摘要
+    const previewText = (l.content || '').replace(/!\[[^\]]*\]\([^)\s]+\)/g, '').trim().replace(/\s+/g, ' ').slice(0, 160);
     const idStr = JSON.stringify(l.id);
     const gName = l.groupId ? groupNameOf(l.groupId) : '';
     const gBadge = gName ? `<span class="log__group-badge">${escapeHTML(gName)}</span>` : '';
@@ -4329,7 +4408,7 @@ function renderLogs() {
             <span class="log__date">${dateStr}</span>
           </div>
           ${gBadge}
-          <div class="log__preview">${escapeHTML(preview)}${preview.length >= 160 ? '…' : ''}</div>
+          <div class="log__preview">${escapeHTML(previewText)}${previewText.length >= 160 ? '…' : ''}</div>
           ${tags ? `<div class="log__tags">${tags}</div>` : ''}
         </div>
         ${firstImg ? `<div class="log__thumb-wrap ${extra > 0 ? 'log__thumb-more' : ''}" ${extra > 0 ? `data-extra="${extra}"` : ''}><img class="log__thumb" src="${escapeHTML(firstImg)}" alt="" onerror="this.style.display='none'"></div>` : ''}
@@ -4424,12 +4503,13 @@ async function deleteComment(logId, commentId) {
 
 // 仅刷新详情 Modal 内评论区（若已打开且 logId 匹配）
 function refreshLogDetailComments(logId) {
-  const modal = document.getElementById('logDetailModal');
-  const wrap = document.getElementById('logDetailComments');
-  if (!modal || !wrap) return;
-  if (!modal.classList.contains('open')) return;
-  if (modal.dataset.logId !== String(logId)) return;
-  wrap.innerHTML = renderCommentSection(logId);
+  // 只在 inline 详情视图正展示且 id 匹配时刷新评论侧栏
+  const view = document.getElementById('logDetailView');
+  const aside = document.getElementById('logDetailComments');
+  if (!view || !aside) return;
+  if (view.style.display === 'none') return;
+  if (view.dataset.logId !== String(logId)) return;
+  aside.innerHTML = renderCommentSection(logId);
 }
 
 function updateCommentCount(el, logId) {
@@ -4508,6 +4588,9 @@ const CHANGELOG = [
       '📖 日志卡片改成"点开看详情"：列表只露标题/预览/缩略图，整卡可点击进入详情页，正文不限字数、支持分段',
       '🖼 日志可附图片（外链 URL，每行一个，最多 9 张）：详情页自适应 1/2/3 列网格，点击图片放大查看',
       '🗂 日志分组：可添加 / 重命名 / 删除分组（最多 50 个，删分组日志归到"未分组"不丢失），列表顶部按分组切换筛选',
+      '🐞 修复点「未分组」分组报错（onclick 引号嵌套冲突）',
+      '🖼 图片改为直接嵌入正文：写日志时点「📷 插入图片」即可在光标处插入图片，与文字按位置混排展示',
+      '📰 日志详情改为「就地展开」（不再弹窗）：桌面端正文居左、评论区固定在右侧栏，移动端评论自动折到内容下方；顶部「← 返回日志列表」按钮回到列表',
     ]
   },
   {
@@ -6220,7 +6303,7 @@ function openWorkModal(workId) {
   setTimeout(() => document.getElementById('w-title').focus(), 100);
 }
 function openLogModal(editLogId) {
-  ['l-title','l-content','l-tags','l-images'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['l-title','l-content','l-tags'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   // 填充分组下拉
   const sel = document.getElementById('l-group');
   if (sel) {
@@ -6236,9 +6319,18 @@ function openLogModal(editLogId) {
     if (log) {
       _editingLogId = editLogId;
       document.getElementById('l-title').value = log.title || '';
-      document.getElementById('l-content').value = log.content || '';
+      // 旧数据兼容：若 log.images 有 URL 且正文里还没包含这些图片，自动把它们以 ![](url) 形式追加到正文末尾，方便用户拖到任意位置
+      let contentInit = log.content || '';
+      const oldImgs = Array.isArray(log.images) ? log.images.filter(Boolean) : [];
+      if (oldImgs.length) {
+        const toAppend = oldImgs.filter(u => !contentInit.includes(u));
+        if (toAppend.length) {
+          if (contentInit && !contentInit.endsWith('\n')) contentInit += '\n';
+          contentInit += '\n' + toAppend.map(u => `![](${u})`).join('\n');
+        }
+      }
+      document.getElementById('l-content').value = contentInit;
       document.getElementById('l-tags').value = (log.tags || []).join(', ');
-      document.getElementById('l-images').value = (log.images || []).join('\n');
       if (sel) sel.value = log.groupId || '';
       if (titleEl) titleEl.textContent = '✎ 编辑日志';
     }
@@ -6294,24 +6386,24 @@ function saveLog() {
   if (!title || !content) { toast('标题和正文不能为空'); return; }
   const tagsRaw = document.getElementById('l-tags').value.trim();
   const tags = tagsRaw ? tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
-  const imagesRaw = document.getElementById('l-images').value || '';
-  const images = imagesRaw.split(/\r?\n/).map(s => s.trim()).filter(Boolean).slice(0, 9);
   const groupSel = document.getElementById('l-group');
   const groupId = groupSel && groupSel.value ? groupSel.value : null;
   if (_editingLogId != null) {
-    Store.updateLog(_editingLogId, { title, content, tags, images, groupId });
+    // 图片已嵌入 content，显式清空旧 images 数组，避免详情兜底网格重复
+    Store.updateLog(_editingLogId, { title, content, tags, images: [], groupId });
+    const editedId = _editingLogId;
     closeModal('logModal');
     renderAll();
-    // 若详情 Modal 正打开同一条日志，刷新详情
-    const detail = document.getElementById('logDetailModal');
-    if (detail && detail.classList.contains('open') && detail.dataset.logId === String(_editingLogId)) {
-      openLogDetail(_editingLogId);
+    // 若详情视图正展示同一条日志，重新渲染详情主区与评论区
+    const view = document.getElementById('logDetailView');
+    if (view && view.style.display !== 'none' && view.dataset.logId === String(editedId)) {
+      openLogDetail(editedId);
     }
     toast('日志已更新 ✓');
   } else {
     Store.addLog({
       id: Date.now(),
-      title, content, tags, images, groupId,
+      title, content, tags, images: [], groupId,
       createdAt: Date.now()
     });
     closeModal('logModal');
@@ -6424,40 +6516,82 @@ async function delGroupConfirm(id, name) {
   }
 }
 
-// ── 日志详情 Modal ──
+// ── 日志详情：就地展开视图（非 Modal） ──
+// _currentDetailLogId：当前展开的日志 id；null 表示列表视图
+let _currentDetailLogId = null;
 function openLogDetail(id) {
   const log = Store.getLog(id);
   if (!log) { toast('日志不存在'); return; }
+  const view = document.getElementById('logDetailView');
   const body = document.getElementById('logDetailBody');
-  const modal = document.getElementById('logDetailModal');
-  if (!body || !modal) return;
-  modal.dataset.logId = String(id);
+  const aside = document.getElementById('logDetailComments');
+  const list = document.getElementById('logsList');
+  const bar = document.getElementById('logGroupsBar');
+  if (!view || !body || !aside) return;
+  _currentDetailLogId = id;
+  view.dataset.logId = String(id);
+
   const date = new Date(log.createdAt);
   const dateStr = `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
-  const images = Array.isArray(log.images) ? log.images.filter(Boolean) : [];
   const tags = (log.tags || []).map(t => `<span class="log__tag">${escapeHTML(t)}</span>`).join('');
   const gName = log.groupId ? (Store.logGroups || []).find(g => g.id === log.groupId)?.name : '';
   const gBadge = gName ? `<span class="log__group-badge" style="margin-left:0.6rem;">${escapeHTML(gName)}</span>` : '';
-  const cols = images.length >= 3 ? 'cols-3' : (images.length === 2 ? 'cols-2' : 'cols-1');
-  const imgsHTML = images.length ? `<div class="log-detail__images ${cols}">${images.map(u => `<img src="${escapeHTML(u)}" alt="" onclick='openLightbox(${JSON.stringify(u)})' onerror="this.style.display='none'">`).join('')}</div>` : '';
+  // 正文混排渲染：按 ![alt](url) 切分，文本块用 pre-wrap，图片块单独成行可放大
+  const segs = parseLogContent(log.content || '');
+  let contentHTML = '';
+  if (segs.length > 0) {
+    contentHTML = segs.map(s => {
+      if (s.type === 'image') {
+        return `<div class="log-detail__inline-img"><img src="${escapeHTML(s.url)}" alt="${escapeHTML(s.alt)}" onclick='openLightbox(${JSON.stringify(s.url)})' onerror="this.style.display='none'"></div>`;
+      }
+      const text = s.value;
+      if (!text || !text.trim()) return '';
+      return `<div class="log-detail__text">${escapeHTML(text)}</div>`;
+    }).join('');
+  }
+  // 兜底：正文里没有的旧 log.images 仍按老网格渲染到末尾
+  const inlineImgUrls = segs.filter(s => s.type === 'image').map(s => s.url);
+  const legacyImgs = (Array.isArray(log.images) ? log.images.filter(Boolean) : []).filter(u => !inlineImgUrls.includes(u));
+  const cols = legacyImgs.length >= 3 ? 'cols-3' : (legacyImgs.length === 2 ? 'cols-2' : 'cols-1');
+  const legacyImgsHTML = legacyImgs.length ? `<div class="log-detail__images ${cols}">${legacyImgs.map(u => `<img src="${escapeHTML(u)}" alt="" onclick='openLightbox(${JSON.stringify(u)})' onerror="this.style.display='none'">`).join('')}</div>` : '';
   const tagsHTML = tags ? `<div class="log-detail__tags">${tags}</div>` : '';
   const idStr = JSON.stringify(log.id);
   const showAdmin = !window.__VIEWER_MODE__ && isAdmin();
-  const adminBar = showAdmin ? `<div class="log-detail__admin" style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.6rem;">
-    <button class="btn btn--sm" onclick='closeModal("logDetailModal"); openLogModal(${idStr});'>✎ 编辑</button>
-    <button class="btn btn--danger btn--sm" onclick='closeModal("logDetailModal"); confirmDelete("log", ${idStr});'>删除</button>
+  const adminBar = showAdmin ? `<div class="log-detail__admin" style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.8rem;">
+    <button class="btn btn--sm" onclick='openLogModal(${idStr})'>✎ 编辑</button>
+    <button class="btn btn--danger btn--sm" onclick='confirmDelete("log", ${idStr})'>删除</button>
   </div>` : '';
-  const commentsHTML = `<div class="log-detail__comments" id="logDetailComments">${renderCommentSection(log.id)}</div>`;
+
   body.innerHTML = `
     <div class="log-detail__date">${dateStr}${gBadge}</div>
     <h2 class="log-detail__title">${escapeHTML(log.title)}</h2>
-    ${imgsHTML}
-    <div class="log-detail__content">${escapeHTML(log.content || '')}</div>
+    <div class="log-detail__content">${contentHTML}</div>
+    ${legacyImgsHTML}
     ${tagsHTML}
     ${adminBar}
-    ${commentsHTML}
   `;
-  modal.classList.add('open');
+  aside.innerHTML = renderCommentSection(log.id);
+
+  // 切换视图：隐藏列表 + 分组栏，显示详情；滚动到日志页顶
+  if (list) list.style.display = 'none';
+  if (bar) bar.style.display = 'none';
+  view.style.display = 'block';
+  const pageEl = document.getElementById('page-logs');
+  if (pageEl && typeof pageEl.scrollIntoView === 'function') {
+    pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+function closeLogDetail() {
+  _currentDetailLogId = null;
+  const view = document.getElementById('logDetailView');
+  const list = document.getElementById('logsList');
+  const bar = document.getElementById('logGroupsBar');
+  if (view) { view.style.display = 'none'; delete view.dataset.logId; }
+  if (list) list.style.display = '';
+  if (bar) bar.style.display = '';
 }
 
 // ── Lightbox ──
@@ -6488,6 +6622,10 @@ function confirmDelete(type, id) {
 }
 document.getElementById('confirmBtn').addEventListener('click', () => {
   if (!pendingDelete) return;
+  // 若删除的是当前正在详情视图展开的日志，先关闭详情回到列表
+  if (pendingDelete.type === 'log' && _currentDetailLogId != null && String(_currentDetailLogId) === String(pendingDelete.id)) {
+    closeLogDetail();
+  }
   if (pendingDelete.type === 'work') Store.delWork(pendingDelete.id);
   else if (pendingDelete.type === 'log') Store.delLog(pendingDelete.id);
   pendingDelete = null;
