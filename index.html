@@ -2877,10 +2877,13 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .auth-step.active { display:block; }
 
 .dm-bubble { max-width:80%; padding:0.6rem 0.9rem; margin-bottom:0.5rem; border-radius:6px; font-size:0.85rem; line-height:1.55; word-break:break-word; }
-.dm-bubble--user { background:var(--black); color:var(--white); margin-left:auto; border-bottom-right-radius:2px; }
-.dm-bubble--admin { background:var(--gray-100); color:var(--black); margin-right:auto; border-bottom-left-radius:2px; }
+/* --me = 当前查看者自己发的（右边、深色）; --peer = 对方发的（左边、浅色）。
+   用户视角：me=user, peer=admin； 店主视角：me=admin, peer=user 。
+   由 renderDmBubble(msg, viewerIsAdmin) 在渲染时决定 class，CSS 只管"自己/对方"语义。 */
+.dm-bubble--me { background:var(--black); color:var(--white); margin-left:auto; border-bottom-right-radius:2px; }
+.dm-bubble--peer { background:var(--gray-100); color:var(--black); margin-right:auto; border-bottom-left-radius:2px; }
 .dm-bubble__time { font-size:0.6rem; opacity:0.5; margin-top:0.2rem; }
-.dm-bubble--user .dm-bubble__time { text-align:right; }
+.dm-bubble--me .dm-bubble__time { text-align:right; }
 
 .inbox-list { border-right:1.5px solid var(--gray-200); overflow-y:auto; }
 .inbox-item { padding:0.7rem 0.9rem; cursor:pointer; border-bottom:1px solid var(--gray-100); transition:background 0.15s; }
@@ -2912,8 +2915,8 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .empty-dm { text-align:center; padding:3rem 1rem; color:var(--gray-400); font-size:0.82rem; }
 .empty-dm__icon { font-size:2rem; margin-bottom:0.5rem; }
 
-[data-theme="dark"] .dm-bubble--admin { background:#2a2a2a; color:#ddd; }
-[data-theme="dark"] .dm-bubble--user { background:var(--gold); color:#1a1a1a; }
+[data-theme="dark"] .dm-bubble--peer { background:#2a2a2a; color:#ddd; }
+[data-theme="dark"] .dm-bubble--me { background:var(--gold); color:#1a1a1a; }
 [data-theme="dark"] .inbox-list { border-right-color:#333; }
 [data-theme="dark"] .inbox-item { border-bottom-color:#222; }
 [data-theme="dark"] .inbox-item:hover, [data-theme="dark"] .inbox-item.active { background:#1e1e1e; }
@@ -4774,6 +4777,8 @@ const CHANGELOG = [
       '📰 日志详情改为「就地展开」（不再弹窗）：桌面端正文居左、评论区固定在右侧栏，移动端评论自动折到内容下方；顶部「← 返回日志列表」按钮回到列表',
       '🐞 修复发私信报「Internal Server Error: KV PUT failed」：Cloudflare KV 限速键 TTL 从 10s 调到 60s（业务限速仍是 3s 一条）',
       '✏️ 写日志编辑器升级为「所见即所得」：正文区改为富文本编辑器，「📁 本地图片」选图后直接在正文里显示图片本身（不再显示路径/base64），本地图自动压缩到最长边 1600px / jpeg 0.85，无需上传图床；「🔗 图片链接」粘外链同步插入',
+      '💬 私信气泡按视角分左右：用户视角下"自己在右、店主在左"，店主收件箱视角下"自己在右、用户在左"，符合常见 IM 习惯',
+      '🔕 收件箱红点优化：店主点开对话查看 / 主动回复后，该对话的未读红点 + 顶部按钮 badge 立即归零（不等下次轮询），直到该用户再次发新消息才会重新亮起',
     ]
   },
   {
@@ -7227,7 +7232,7 @@ async function loadUserDm() {
     const r = await fetch(API_BASE + '/api/dm/thread', { headers: { 'X-User-Token': UserStore.token } });
     const d = await r.json();
     if (d.messages && d.messages.length) {
-      area.innerHTML = d.messages.map(renderDmBubble).join('');
+      area.innerHTML = d.messages.map(m => renderDmBubble(m, false)).join('');
       area.scrollTop = area.scrollHeight;
     } else {
       area.innerHTML = '<div class="empty-dm"><div class="empty-dm__icon">💌</div><div>还没有消息，留个言吧</div></div>';
@@ -7308,7 +7313,7 @@ async function loadInboxThreads() {
 
 async function selectInboxThread(userId) {
   _inboxCurrentUserId = userId;
-  // mark read
+  // mark read（后端会把该 thread 的 unread 置 0）
   try {
     const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
     fetch(API_BASE + '/api/admin/dm/mark-read', {
@@ -7317,6 +7322,9 @@ async function selectInboxThread(userId) {
       body: JSON.stringify({ userId })
     });
   } catch (_) {}
+  // 立即在前端清掉该对话的未读红点 + 同步顶部 inboxBtn badge，
+  // 不依赖下次 loadInboxThreads / pollUnread，避免"看了还有红点"。
+  clearInboxUnreadLocal(userId);
   // highlight item
   document.querySelectorAll('.inbox-item').forEach(el => el.classList.toggle('active', el.dataset.uid === userId));
   // load messages
@@ -7327,7 +7335,7 @@ async function selectInboxThread(userId) {
     const r = await fetch(API_BASE + '/api/admin/dm/thread/' + userId, { headers: { 'Authorization': 'Bearer ' + token } });
     const d = await r.json();
     if (d.messages && d.messages.length) {
-      area.innerHTML = d.messages.map(renderDmBubble).join('');
+      area.innerHTML = d.messages.map(m => renderDmBubble(m, true)).join('');
       area.scrollTop = area.scrollHeight;
     } else {
       area.innerHTML = '<div class="empty-dm"><div class="empty-dm__icon">💬</div><div>暂无消息</div></div>';
@@ -7352,6 +7360,9 @@ async function inboxReply() {
     const d = await r.json();
     if (d.ok) {
       input.value = '';
+      // 店主主动回复 → 后端已把该 thread 的 unread 置 0；
+      // 立即在前端清红点+同步 inboxBtn badge，避免回复完一闪还看到红点。
+      clearInboxUnreadLocal(_inboxCurrentUserId);
       selectInboxThread(_inboxCurrentUserId);
       loadInboxThreads();
     } else { toast(d.error || '回复失败'); }
@@ -7359,11 +7370,27 @@ async function inboxReply() {
   btn.disabled = false;
 }
 
-// ── 通用：渲染消息气泡 ──
+// 立即清掉 inbox-list 中指定用户对话的未读红点 + 同步顶部 inboxBtn badge
+// 用于：店主点开某对话查看、或店主回复某对话后，让红点立即消失，不等下次 loadInboxThreads
+function clearInboxUnreadLocal(userId) {
+  const item = document.querySelector('.inbox-item[data-uid="' + userId + '"]');
+  if (item) {
+    const dot = item.querySelector('.inbox-unread-dot');
+    if (dot) dot.remove();
+  }
+  const ib = document.getElementById('inboxBtn');
+  if (ib) {
+    const remaining = document.querySelectorAll('.inbox-item .inbox-unread-dot').length;
+    ib.dataset.badge = String(remaining);
+  }
+}
 
-function renderDmBubble(msg) {
-  const isUser = msg.from === 'user';
-  const cls = isUser ? 'dm-bubble dm-bubble--user' : 'dm-bubble dm-bubble--admin';
+// ── 通用：渲染消息气泡 ──
+// viewerIsAdmin=true → 店主视角：admin 消息在右边（自己），user 消息在左边（对方）
+// viewerIsAdmin=false → 用户视角：user 消息在右边（自己），admin 消息在左边（对方）
+function renderDmBubble(msg, viewerIsAdmin) {
+  const isMe = viewerIsAdmin ? (msg.from === 'admin') : (msg.from === 'user');
+  const cls = isMe ? 'dm-bubble dm-bubble--me' : 'dm-bubble dm-bubble--peer';
   const time = new Date(msg.ts).toLocaleString('zh-CN', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
   return '<div class="' + cls + '"><div>' + escHtml(msg.content) + '</div><div class="dm-bubble__time">' + time + '</div></div>';
 }
