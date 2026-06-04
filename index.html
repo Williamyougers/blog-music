@@ -2904,6 +2904,40 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .dm-thread__input textarea { flex:1; padding:0.5rem 0.7rem; border:1.5px solid var(--gray-200); background:var(--gray-50); font-size:0.82rem; resize:none; font-family:var(--sans); min-height:38px; max-height:80px; }
 .dm-thread__input textarea:focus { outline:none; border-color:var(--black); background:var(--white); }
 
+/* ── 用户管理页 ── */
+.usermgmt-toolbar { display:flex; align-items:center; gap:0.6rem; margin-bottom:1.2rem; flex-wrap:wrap; }
+.usermgmt-stats { font-size:0.8rem; color:var(--gray-500); margin-right:auto; }
+.usermgmt-add { display:flex; align-items:center; gap:0.5rem; padding:0.8rem; background:var(--gray-50); border:1.5px solid var(--gray-200); margin-bottom:1rem; flex-wrap:wrap; }
+.usermgmt-add input { flex:1; min-width:180px; padding:0.5rem 0.7rem; border:1.5px solid var(--gray-200); background:var(--white); font-size:0.85rem; font-family:var(--sans); }
+.usermgmt-add input:focus { outline:none; border-color:var(--black); }
+.usermgmt-table-wrap { border:1.5px solid var(--gray-200); overflow-x:auto; }
+.usermgmt-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+.usermgmt-table th, .usermgmt-table td { padding:0.65rem 0.8rem; border-bottom:1px solid var(--gray-100); text-align:left; vertical-align:middle; }
+.usermgmt-table th { background:var(--gray-50); font-weight:700; font-size:0.72rem; color:var(--gray-600); text-transform:uppercase; letter-spacing:1px; }
+.usermgmt-table tbody tr:hover { background:var(--gray-50); }
+.usermgmt-table .role-pill { display:inline-block; padding:0.15rem 0.55rem; border-radius:10px; font-size:0.68rem; font-weight:700; letter-spacing:0.5px; }
+.usermgmt-table .role-super { background:var(--accent); color:var(--white); }
+.usermgmt-table .role-sub { background:var(--gold, #b8884a); color:var(--white); }
+.usermgmt-table .role-user { background:var(--gray-200); color:var(--gray-700); }
+.usermgmt-table .nick-input { width:100%; padding:0.3rem 0.5rem; border:1.5px solid transparent; background:transparent; font-size:0.8rem; font-family:var(--sans); }
+.usermgmt-table .nick-input:hover { border-color:var(--gray-200); background:var(--white); }
+.usermgmt-table .nick-input:focus { outline:none; border-color:var(--black); background:var(--white); }
+.usermgmt-table .row-actions { display:flex; gap:0.3rem; }
+.usermgmt-table .btn-del { padding:0.25rem 0.55rem; font-size:0.7rem; background:transparent; border:1.5px solid var(--gray-200); color:var(--gray-600); cursor:pointer; transition:all 0.15s; }
+.usermgmt-table .btn-del:hover { border-color:var(--accent); color:var(--accent); }
+[data-theme="dark"] .usermgmt-add { background:#1e1e1e; border-color:#333; }
+[data-theme="dark"] .usermgmt-add input { background:#252525; border-color:#333; color:#ddd; }
+[data-theme="dark"] .usermgmt-add input:focus { border-color:var(--gold); }
+[data-theme="dark"] .usermgmt-table-wrap { border-color:#333; }
+[data-theme="dark"] .usermgmt-table th { background:#1e1e1e; color:#aaa; }
+[data-theme="dark"] .usermgmt-table th, [data-theme="dark"] .usermgmt-table td { border-bottom-color:#222; }
+[data-theme="dark"] .usermgmt-table tbody tr:hover { background:#1e1e1e; }
+[data-theme="dark"] .usermgmt-table .nick-input:hover { border-color:#333; background:#252525; color:#ddd; }
+[data-theme="dark"] .usermgmt-table .nick-input:focus { border-color:var(--gold); background:#252525; color:#ddd; }
+[data-theme="dark"] .usermgmt-table .role-user { background:#333; color:#ccc; }
+[data-theme="dark"] .usermgmt-table .btn-del { border-color:#333; color:#aaa; }
+[data-theme="dark"] .usermgmt-table .btn-del:hover { border-color:var(--accent); color:var(--accent); }
+
 .user-tabs { display:flex; border-bottom:2px solid var(--gray-200); margin-bottom:1rem; }
 .user-tab { flex:1; padding:0.6rem; text-align:center; font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; color:var(--gray-400); border-bottom:2px solid transparent; margin-bottom:-2px; transition:color 0.2s, border-color 0.2s; }
 .user-tab.active { color:var(--black); border-bottom-color:var(--accent); font-weight:700; }
@@ -2974,6 +3008,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <button data-page="workshop">工坊</button>
   <button data-page="about">关于</button>
   <button data-page="changelog">更新</button>
+  <button data-page="usermgmt" id="navUserMgmt" style="display:none;">用户管理</button>
 </nav>
 
 <!-- 作品页 -->
@@ -3075,6 +3110,49 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     </div>
   </div>
   <ol class="changelog" id="changelogList"></ol>
+</main>
+
+<!-- 用户管理页（仅管理员可见） -->
+<main class="page" id="page-usermgmt">
+  <div class="page-header">
+    <div class="page-header__left">
+      <div class="page-header__label">User Management</div>
+      <h2 class="page-header__title">用户管理</h2>
+      <p class="page-header__desc">注册用户增删改查 · 主/副管理员可用</p>
+    </div>
+  </div>
+
+  <div class="usermgmt-toolbar">
+    <div class="usermgmt-stats" id="userMgmtStats">加载中…</div>
+    <button class="btn btn--sm" onclick="loadUsers()">🔄 刷新</button>
+    <button class="btn btn--sm" onclick="openAddUserForm()">+ 新增用户</button>
+  </div>
+
+  <!-- 新增用户表单（折叠） -->
+  <div class="usermgmt-add" id="addUserForm" style="display:none;">
+    <input type="email" id="addUserEmail" placeholder="邮箱（必填）" maxlength="100">
+    <input type="text" id="addUserNick" placeholder="昵称（可选，最多 20 字）" maxlength="20">
+    <button class="btn btn--sm" onclick="submitAddUser()">提交</button>
+    <button class="btn btn--ghost btn--sm" onclick="closeAddUserForm()">取消</button>
+  </div>
+
+  <div class="usermgmt-table-wrap">
+    <table class="usermgmt-table" id="userMgmtTable">
+      <thead>
+        <tr>
+          <th style="width:32%;">邮箱</th>
+          <th style="width:18%;">昵称</th>
+          <th style="width:12%;">角色</th>
+          <th style="width:16%;">注册时间</th>
+          <th style="width:14%;">最后登录</th>
+          <th style="width:8%;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="userMgmtTbody">
+        <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--gray-500);">加载中…</td></tr>
+      </tbody>
+    </table>
+  </div>
 </main>
 
 <!-- 工坊页 -->
@@ -4821,6 +4899,7 @@ const CHANGELOG = [
       '👑 邮箱即角色 · 副管理员系统：主管理员邮箱 453203081@qq.com 登录自动进 super 模式（可改套餐价 / 管理副管理员）；新增「副管理员」按钮，可添加邮箱授权他人协助打理（可改作品/订单/回私信/自己下单，但不能改套餐价、不能管副管理员）；密码登录入口仍保留作为应急；店主侧只要主或副有人在线，私信都不再推到微信',
       '🙊 顶栏统一极简：所有角色看到的右上角永远只有「登录」/「退出」二字，不再暴露昵称、👑/🛠 角色徽章、「管理员登录/退出」按钮——访客和店主从外观上完全一致；管理员通过隐藏入口访问站点 `#admin`（如 weilingt.top/#admin）触发密码登录/退出，邮箱即角色仍按邮箱自动识别 super/sub',
       '🎛 顶栏按钮拆分：原本「登录」按钮点开是一个集成模态框（私信 + 资料 tab），现拆为三个独立按钮——「💌 私信」「🪪 资料」「🚪 退出」；普通用户三件齐全，管理员（super/sub）取消私信店主功能（自己私信自己没意义），只保留「🪪 资料」「🚪 退出」；退出按钮加二次确认',
+      '👥 新增「用户管理」tab（仅管理员可见，紧跟「更新」之后）：注册用户增删改查一站式——表格列出邮箱 / 昵称 / 角色 / 注册时间 / 最后登录；昵称行内编辑（失焦保存）；可手动新增用户、删除普通用户（自动清掉私信记录）；主管理员行 + 副管理员行的删除按钮禁用（防误删，副管要先去副管理员管理移除）',
     ]
   },
   {
@@ -6875,6 +6954,7 @@ document.querySelectorAll('.nav button').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('page-' + btn.dataset.page).classList.add('active');
     window.scrollTo({ top:0, behavior:'smooth' });
+    if (btn.dataset.page === 'usermgmt') { try { loadUsers(); } catch (_) {} }
   });
 });
 
@@ -7019,6 +7099,20 @@ function renderAdminBtn() {
     if (window.__VIEWER_MODE__ && window.__EMBEDDED_DATA__) { sab.style.display = 'none'; }
     else if (isSuperAdmin()) { sab.style.display = ''; }
     else { sab.style.display = 'none'; }
+  }
+  // 导航：用户管理（super + sub 可见）；非 admin 时若当前停留在该页要切回作品
+  const navUm = document.getElementById('navUserMgmt');
+  if (navUm) {
+    if (!isViewer && isAnyAdmin) { navUm.style.display = ''; }
+    else {
+      navUm.style.display = 'none';
+      const cur = document.getElementById('page-usermgmt');
+      if (cur && cur.classList.contains('active')) {
+        cur.classList.remove('active');
+        document.getElementById('page-works')?.classList.add('active');
+        document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'works'));
+      }
+    }
   }
 }
 async function adminLogin() {
@@ -7488,6 +7582,132 @@ async function delSubAdmin(email) {
   }
 }
 
+// ── 用户管理（super + sub） ──
+let _userMgmtCache = [];
+
+async function loadUsers() {
+  const tbody = document.getElementById('userMgmtTbody');
+  const stats = document.getElementById('userMgmtStats');
+  if (!tbody) return;
+  if (!isAdmin()) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--gray-500);">仅管理员可访问</td></tr>'; return; }
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--gray-500);">加载中…</td></tr>';
+  try {
+    const r = await fetch(API_BASE + '/api/admin/users', { headers: adminAuthHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '加载失败');
+    _userMgmtCache = d.users || [];
+    if (stats) {
+      const superN = _userMgmtCache.filter(u => u.role === 'super').length;
+      const subN = _userMgmtCache.filter(u => u.role === 'sub').length;
+      const userN = _userMgmtCache.length - superN - subN;
+      stats.textContent = `共 ${_userMgmtCache.length} 人（主 ${superN} · 副 ${subN} · 普通 ${userN}）`;
+    }
+    renderUserMgmtTable();
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--accent);">' + escHtml(e.message || '加载失败') + '</td></tr>';
+    if (stats) stats.textContent = '加载失败';
+  }
+}
+
+function renderUserMgmtTable() {
+  const tbody = document.getElementById('userMgmtTbody');
+  if (!tbody) return;
+  if (!_userMgmtCache.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--gray-500);">还没有注册用户</td></tr>';
+    return;
+  }
+  const fmt = (ts) => {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  };
+  const roleLabel = { super: '主管理员', sub: '副管理员', user: '普通用户' };
+  const roleClass = { super: 'role-super', sub: 'role-sub', user: 'role-user' };
+  tbody.innerHTML = _userMgmtCache.map(u => {
+    const protectedRow = (u.role === 'super' || u.role === 'sub');
+    const delBtn = protectedRow
+      ? '<button class="btn-del" disabled style="opacity:0.35; cursor:not-allowed;" title="' + (u.role === 'super' ? '不能删除主管理员' : '请先在副管理员管理中移除') + '">删除</button>'
+      : '<button class="btn-del" onclick="deleteUser(\'' + escAttr(u.email) + '\')">删除</button>';
+    return '<tr data-email="' + escAttr(u.email) + '">' +
+      '<td style="font-family:var(--mono,monospace); font-size:0.78rem;">' + escHtml(u.email) + '</td>' +
+      '<td><input class="nick-input" type="text" maxlength="20" value="' + escAttr(u.nickname || '') + '" placeholder="未设置" onblur="saveUserNick(\'' + escAttr(u.email) + '\', this.value, this)"></td>' +
+      '<td><span class="role-pill ' + roleClass[u.role] + '">' + roleLabel[u.role] + '</span></td>' +
+      '<td>' + fmt(u.createdAt) + '</td>' +
+      '<td>' + (u.lastLogin ? fmt(u.lastLogin) : '<span style="color:var(--gray-400);">未登录</span>') + '</td>' +
+      '<td><div class="row-actions">' + delBtn + '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function openAddUserForm() {
+  const f = document.getElementById('addUserForm');
+  if (!f) return;
+  f.style.display = 'flex';
+  document.getElementById('addUserEmail').value = '';
+  document.getElementById('addUserNick').value = '';
+  document.getElementById('addUserEmail').focus();
+}
+function closeAddUserForm() {
+  const f = document.getElementById('addUserForm');
+  if (f) f.style.display = 'none';
+}
+async function submitAddUser() {
+  const email = (document.getElementById('addUserEmail').value || '').trim().toLowerCase();
+  const nickname = (document.getElementById('addUserNick').value || '').trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('邮箱格式不对'); return; }
+  try {
+    const r = await fetch(API_BASE + '/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify({ email, nickname })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '创建失败');
+    toast('✅ 已新增用户');
+    closeAddUserForm();
+    loadUsers();
+  } catch (e) {
+    toast('❌ ' + (e.message || '创建失败'));
+  }
+}
+
+async function saveUserNick(email, nickname, inputEl) {
+  const cur = _userMgmtCache.find(u => u.email === email);
+  const orig = cur ? (cur.nickname || '') : '';
+  const next = (nickname || '').trim().slice(0, 20);
+  if (next === orig) return;
+  try {
+    const r = await fetch(API_BASE + '/api/admin/users/' + encodeURIComponent(email), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify({ nickname: next })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '保存失败');
+    if (cur) cur.nickname = d.user.nickname;
+    toast('✓ 昵称已更新');
+  } catch (e) {
+    toast('❌ ' + (e.message || '保存失败'));
+    if (inputEl) inputEl.value = orig;
+  }
+}
+
+async function deleteUser(email) {
+  if (!confirm('确认删除用户 ' + email + ' ？\n\n会一并清理：\n· 该用户的登录会话\n· 与店主的私信记录\n\n此操作不可撤销。')) return;
+  try {
+    const r = await fetch(API_BASE + '/api/admin/users/' + encodeURIComponent(email), {
+      method: 'DELETE',
+      headers: adminAuthHeaders()
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '删除失败');
+    toast('🗑 已删除 ' + email);
+    loadUsers();
+  } catch (e) {
+    toast('❌ ' + (e.message || '删除失败'));
+  }
+}
+
 // ── 管理员收件箱 ──
 
 let _inboxCurrentUserId = null;
@@ -7623,6 +7843,9 @@ function escHtml(s) {
   const d = document.createElement('div');
   d.textContent = s || '';
   return d.innerHTML;
+}
+function escAttr(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
 }
 
 // ── 未读轮询 ──

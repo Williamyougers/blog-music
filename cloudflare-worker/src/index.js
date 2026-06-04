@@ -1238,6 +1238,87 @@ async function handleRequest(request, env, ctx, cors) {
       return json({ ok: true, subadmins: next }, 200, cors);
     }
 
+    // =============================================================
+    //  User management (super + sub)
+    // =============================================================
+
+    // GET /api/admin/users — list all registered users
+    if (path === '/api/admin/users' && method === 'GET') {
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      const users = [];
+      let cursor;
+      do {
+        const r = await env.BLOG.list({ prefix: 'user/', cursor, limit: 1000 });
+        for (const k of r.keys) {
+          const u = await env.BLOG.get(k.name, 'json');
+          if (u && u.email) users.push(u);
+        }
+        cursor = r.list_complete ? undefined : r.cursor;
+      } while (cursor);
+      users.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      // 标记角色
+      const subList = await getSubAdmins(env);
+      const subEmails = new Set(subList.map(s => s.email));
+      for (const u of users) {
+        u.role = u.email === SUPER_ADMIN_EMAIL ? 'super' : (subEmails.has(u.email) ? 'sub' : 'user');
+      }
+      return json({ users }, 200, cors);
+    }
+
+    // POST /api/admin/users — admin manually creates a user
+    if (path === '/api/admin/users' && method === 'POST') {
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const email = normalizeEmail(body.email);
+      const nickname = sanitizeNickname(body.nickname || '');
+      if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      const existing = await env.BLOG.get('user/' + email, 'json');
+      if (existing) return json({ error: '该邮箱已注册' }, 400, cors);
+      const userId = await emailToUserId(email);
+      const user = { email, userId, nickname, createdAt: Date.now(), lastLogin: 0 };
+      await env.BLOG.put('user/' + email, JSON.stringify(user));
+      return json({ ok: true, user }, 200, cors);
+    }
+
+    // PATCH /api/admin/users/:email — update user nickname
+    const userMgmtMatch = path.match(/^\/api\/admin\/users\/(.+)$/);
+    if (userMgmtMatch && method === 'PATCH') {
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      const email = normalizeEmail(decodeURIComponent(userMgmtMatch[1]));
+      if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const user = await env.BLOG.get('user/' + email, 'json');
+      if (!user) return json({ error: 'Not found' }, 404, cors);
+      if (typeof body.nickname === 'string') user.nickname = sanitizeNickname(body.nickname);
+      await env.BLOG.put('user/' + email, JSON.stringify(user));
+      return json({ ok: true, user }, 200, cors);
+    }
+
+    // DELETE /api/admin/users/:email — delete user and associated data
+    if (userMgmtMatch && method === 'DELETE') {
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      const email = normalizeEmail(decodeURIComponent(userMgmtMatch[1]));
+      if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      if (email === SUPER_ADMIN_EMAIL) return json({ error: '不能删除主管理员账号' }, 400, cors);
+      const me = await getCurrentUser(request, env);
+      if (me && me.email === email) return json({ error: '不能删除自己的账号' }, 400, cors);
+      if (await isSubAdminEmail(env, email)) return json({ error: '该邮箱是副管理员，请先在副管理员管理里移除' }, 400, cors);
+      const user = await env.BLOG.get('user/' + email, 'json');
+      if (!user) return json({ error: 'Not found' }, 404, cors);
+      await env.BLOG.delete('user/' + email);
+      if (user.userId) {
+        await env.BLOG.delete('dm/thread/' + user.userId);
+        const tlist = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
+        const filtered = tlist.filter(t => t.userId !== user.userId);
+        if (filtered.length !== tlist.length) {
+          await env.BLOG.put('dm/admin/threads', JSON.stringify(filtered));
+        }
+      }
+      return json({ ok: true }, 200, cors);
+    }
+
     if (path === '/' || path === '/health') {
       return json({ status: 'ok', service: 'blog-music-api' }, 200, cors);
     }
