@@ -3184,9 +3184,25 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 .dm-thread { display:flex; flex-direction:column; height:100%; min-height:0; }
 .dm-thread__messages { flex:1; overflow-y:auto; padding:0.8rem; display:flex; flex-direction:column; min-height:0; }
-.dm-thread__input { padding:0.7rem; border-top:1.5px solid var(--gray-200); display:flex; gap:0.5rem; flex-shrink:0; }
-.dm-thread__input textarea { flex:1; padding:0.5rem 0.7rem; border:1.5px solid var(--gray-200); background:var(--gray-50); font-size:0.82rem; resize:none; font-family:var(--sans); min-height:38px; max-height:80px; }
+.dm-thread__input { padding:0.7rem; border-top:1.5px solid var(--gray-200); display:flex; gap:0.4rem; align-items:flex-end; flex-shrink:0; }
+.dm-thread__input textarea { flex:1; padding:0.5rem 0.7rem; border:1.5px solid var(--gray-200); background:var(--gray-50); font-size:0.82rem; resize:none; font-family:var(--sans); min-height:36px; max-height:80px; line-height:1.5; }
 .dm-thread__input textarea:focus { outline:none; border-color:var(--black); background:var(--white); }
+/* 输入区按钮统一规格：📷 / 😊 / 发送都做成 36px 高度，底部对齐 */
+.dm-thread__input .dm-attach-btn,
+.dm-thread__input .emoji-trigger,
+.dm-thread__input .btn {
+  box-sizing:border-box; height:36px; border-radius:4px; flex-shrink:0; margin:0;
+}
+.dm-thread__input .dm-attach-btn,
+.dm-thread__input .emoji-trigger {
+  width:36px; padding:0; font-size:0.95rem;
+  border:1.5px solid var(--gray-200); background:var(--gray-50);
+}
+.dm-thread__input .btn { padding:0 1rem; font-size:0.72rem; letter-spacing:0.08em; }
+[data-theme="dark"] .dm-thread__input .dm-attach-btn,
+[data-theme="dark"] .dm-thread__input .emoji-trigger {
+  background:#1e1e1e; border-color:#333; color:#bbb;
+}
 
 /* ── 用户管理页 ── */
 .usermgmt-toolbar { display:flex; align-items:center; gap:0.6rem; margin-bottom:1.2rem; flex-wrap:wrap; }
@@ -5632,6 +5648,7 @@ const CHANGELOG = [
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
+      '🎨 私信输入区按钮对齐微调：📷 / 😊 / 发送按钮统一 36px 高度 + 底部对齐 + 圆角一致，原本三个按钮各自尺寸看着歪歪扭扭',
       '🖼 私信支持发图：用户私信店主 / 店主在收件箱回复都加了 📷 图片按钮，可附 1 张图（同样走 R2 压缩上传），消息气泡里可点击放大查看；文本和图片可独立发送也可一起发；撤回时图片一起隐藏',
       '⬇ 订单音频「下载」按钮改为强制下载到本地：原本 <a download> 在跨子域（api.weilingt.top → blog）和移动端会被浏览器忽略，点击只是打开 / 播放；现改成 fetch 拉成 blob 后用 blob URL 触发真下载，移动端 Chrome / Safari 都能正常存到下载目录',
       '📱 移动端顶栏：emoji 图标统一字号 + 居中渲染（不再一大一小），按钮文字「登录/资料/退出/收件箱/私信/副管理员」继续显示；按钮多时自动换行不挤出去',
