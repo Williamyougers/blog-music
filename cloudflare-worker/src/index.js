@@ -757,7 +757,7 @@ async function handleRequest(request, env, ctx, cors) {
     // GET /api/data - public read (works + logs + about + comments + orders)
     // Order privacy:
     //   - Admin (Authorization Bearer): raw orders (contact + clientName intact, visitorId stripped)
-    //   - Same visitor (X-Visitor-Id matches order.visitorId): see own order in full, marked _isMine
+    //   - Owner (userId matches via X-User-Token, OR legacy visitorId matches): see own order in full, marked _isMine
     //   - Other visitors: contact masked, clientName masked to first-char + ***
     // visitorId is NEVER returned to clients.
     if (path === '/api/data' && method === 'GET') {
@@ -765,9 +765,14 @@ async function handleRequest(request, env, ctx, cors) {
       if (Array.isArray(data.orders)) {
         const admin = await isAdminOrSub(request, env);
         const viewerId = request.headers.get('X-Visitor-Id') || '';
+        // 优先 userId 维度认领订单（跨设备 / 跨浏览器都能识别）
+        const viewerUser = await getCurrentUser(request, env);
+        const viewerUserId = (viewerUser && viewerUser.userId) || '';
         data.orders = data.orders.map(o => {
           if (!o) return o;
-          const mine = !!viewerId && o.visitorId === viewerId;
+          const mineByUser = !!viewerUserId && o.userId === viewerUserId;
+          const mineByVisitor = !!viewerId && o.visitorId === viewerId;
+          const mine = mineByUser || mineByVisitor;
           const out = { ...o };
           delete out.visitorId; // never leak visitorId
           if (admin || mine) {
@@ -843,8 +848,14 @@ async function handleRequest(request, env, ctx, cors) {
 
     // ── Orders API ──
 
-    // POST /api/orders - public submit order
+    // POST /api/orders - submit order (LOGIN REQUIRED for visitors; admin may bypass with explicit fields)
     if (path === '/api/orders' && method === 'POST') {
+      // admin 持 Bearer 时允许走 body 传入 contact / clientName（补录场景）
+      const adminBypass = await isAdminOrSub(request, env);
+      // 普通访客必须登录（contact = user.email；clientName = user.nickname || email 前缀）
+      const orderUser = adminBypass ? null : await getCurrentUser(request, env);
+      if (!adminBypass && !orderUser) return json({ error: 'Login required' }, 401, cors);
+
       let body;
       try { body = await request.json(); }
       catch { return json({ error: 'Invalid JSON' }, 400, cors); }
@@ -853,10 +864,22 @@ async function handleRequest(request, env, ctx, cors) {
       // tier: single key 'basic' or combined 'basic+full' (multi-select)
       const tier = sanitizeStr(body && body.tier, 200);
       const description = sanitizeStr(body && body.description, 1000);
-      const clientName = sanitizeStr(body && body.clientName, 30);
       const showName = !!body.showName;
       const visitorId = sanitizeStr(body && body.visitorId, 64);
-      const contact = sanitizeStr(body && body.contact, 200);
+      // contact / clientName：访客模式从用户资料注入；admin 模式从 body 拿（兼容补录）
+      let contact, clientName, orderUserId;
+      if (orderUser) {
+        contact = orderUser.email;
+        const nickRaw = sanitizeStr(orderUser.nickname || '', 30);
+        const fallbackNick = (orderUser.email || '').split('@')[0].slice(0, 30);
+        clientName = nickRaw || fallbackNick;
+        orderUserId = orderUser.userId;
+      } else {
+        // admin 补录
+        contact = sanitizeStr(body && body.contact, 200);
+        clientName = sanitizeStr(body && body.clientName, 30);
+        orderUserId = sanitizeStr(body && body.userId, 64) || '';
+      }
       // Multi-select tiers (authoritative) + price mode
       const safeTiers = sanitizeOrderTiers(body && body.tiers);
       const clientPriceMode = (body && body.priceMode === 'from') ? 'from'
@@ -873,13 +896,17 @@ async function handleRequest(request, env, ctx, cors) {
       }
       // Backup fallback: legacy hard-coded tiers (used only if client doesn't supply price/label)
       const tierInfo = ORDER_TIERS.find(t => t.key === tier) || { key: tier, label: tier, price: 0 };
-      if (!visitorId) return json({ error: 'visitorId required' }, 400, cors);
+      // 访客必须带 visitorId（限速维度）；admin 补录可跳过
+      if (!adminBypass && !visitorId) return json({ error: 'visitorId required' }, 400, cors);
 
-      // Rate limit: same visitor max 5 pending orders
+      // Rate limit: same visitor max 5 pending orders（admin 补录不限速）
       const ordersRaw = await env.BLOG.get('orders');
       const orders = JSON.parse(ordersRaw || '[]');
-      const pendingCount = orders.filter(o => o.visitorId === visitorId && o.step < 4).length;
-      if (pendingCount >= 5) return json({ error: 'Too many pending orders' }, 429, cors);
+      if (!adminBypass) {
+        const pendingByVisitor = visitorId ? orders.filter(o => o.visitorId === visitorId && o.step < 4).length : 0;
+        const pendingByUser = orderUserId ? orders.filter(o => o.userId === orderUserId && o.step < 4).length : 0;
+        if (Math.max(pendingByVisitor, pendingByUser) >= 5) return json({ error: 'Too many pending orders' }, 429, cors);
+      }
 
       const now = Date.now();
       const seqNum = orders.length > 0 ? Math.max(...orders.map(o => o.seq || 0)) + 1 : 1;
@@ -919,6 +946,7 @@ async function handleRequest(request, env, ctx, cors) {
         clientName: showName ? clientName : '',
         showName,
         visitorId,
+        userId: orderUserId,  // 关联登录用户，PUT/owner 判定优先用 userId
         contact,
         step: 0,          // 0=接单中, 1=沟通中, 2=编曲中, 3=待交付, 4=完结
         createdAt: now,
@@ -971,7 +999,11 @@ async function handleRequest(request, env, ctx, cors) {
       const order = orders[idx];
       const admin = await isAdminOrSub(request, env);
       const viewerId = request.headers.get('X-Visitor-Id') || '';
-      const isOwner = !admin && !!viewerId && order.visitorId === viewerId;
+      // Owner 判定：优先 userId 维度（新订单都有 userId），其次回退老 visitorId 维度（老订单兼容）
+      const ownerUser = await getCurrentUser(request, env);
+      const matchUser = !!ownerUser && !!order.userId && order.userId === ownerUser.userId;
+      const matchVisitor = !!viewerId && order.visitorId === viewerId;
+      const isOwner = !admin && (matchUser || matchVisitor);
 
       if (!admin && !isOwner) return json({ error: 'Unauthorized' }, 401, cors);
 
@@ -1039,15 +1071,11 @@ async function handleRequest(request, env, ctx, cors) {
         }
       }
 
-      // Owner — in-progress order: description / contact / clientName / showName
+      // Owner — in-progress order: description / showName 仅可改这两项
+      // contact / clientName 由用户资料自动关联，不允许在订单上手动改
       if (isOwner && order.step !== 4) {
         if (body.description !== undefined) order.description = sanitizeStr(body.description, 1000);
-        if (body.contact !== undefined) order.contact = sanitizeStr(body.contact, 200);
         if (body.showName !== undefined) order.showName = !!body.showName;
-        if (body.clientName !== undefined) {
-          const name = sanitizeStr(body.clientName, 30);
-          order.clientName = order.showName ? name : '';
-        }
       }
 
       await env.BLOG.put('orders', JSON.stringify(orders));

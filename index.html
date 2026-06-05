@@ -2133,6 +2133,29 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   margin: 0.8rem 0 1.2rem;
 }
 .ws-checkbox input { accent-color: var(--accent); }
+/* 下单 / 编辑订单 — 已登录账户信息条 */
+.ws-account {
+  margin: 0.8rem 0 0.4rem; padding: 0.7rem 1rem;
+  background: var(--gray-50); border-left: 3px solid var(--gold);
+  font-size: 0.82rem; color: var(--gray-700);
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+}
+.ws-account--guest { border-left-color: var(--accent); }
+.ws-account__msg { flex: 1; min-width: 0; }
+.ws-account b { color: var(--black); font-weight: 600; }
+.ws-account__btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.42rem 0.9rem; background: var(--black); color: var(--white);
+  font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+  border: 0; cursor: pointer; border-radius: 3px;
+  transition: background 0.15s;
+}
+.ws-account__btn:hover { background: var(--accent); }
+.ws-account__link {
+  color: var(--gold); text-decoration: underline; cursor: pointer; font-size: 0.76rem;
+}
+[data-theme="dark"] .ws-account { background: #1a1a1a; color: #bbb; }
+[data-theme="dark"] .ws-account b { color: #fff; }
 .ws-submit {
   width: 100%;
   padding: 0.9rem;
@@ -3524,19 +3547,10 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
           <div class="ws-audios__tip" id="ws-audio-tip" style="display:none;"></div>
         </div>
       </div>
-      <div class="field__row">
-        <div class="field">
-          <label>挂名（可选）</label>
-          <input id="ws-name" type="text" placeholder="如 L 先生 / 留空则匿名" maxlength="30">
-        </div>
-        <div class="field">
-          <label>联系方式 *</label>
-          <input id="ws-contact" type="text" placeholder="QQ / 微信 / 邮箱" maxlength="200">
-        </div>
-      </div>
+      <div class="ws-account" id="wsAccountTip"><!-- 由 renderAccountTip('wsAccountTip') 填充 --></div>
       <label class="ws-checkbox">
         <input type="checkbox" id="ws-show-name" checked>
-        <span>完结后公开挂名展示（不勾则永久匿名）</span>
+        <span>完结后公开展示挂名（用资料里的昵称；不勾则匿名）</span>
       </label>
       <button class="btn ws-submit" onclick="submitOrder()">提交订单 →</button>
       <p class="ws-tip">提交后我会在 24h 内联系你确认细节并发付款码。</p>
@@ -3798,17 +3812,10 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         <label>需求 / 备注</label>
         <textarea id="po-desc" rows="3" placeholder="想要的风格、用途、预计时长、希望开始时间等"></textarea>
       </div>
-      <div class="field">
-        <label>称呼（选填）</label>
-        <input id="po-name" type="text" maxlength="30" placeholder="想被怎么称呼">
-      </div>
-      <div class="field">
-        <label>联系方式 *</label>
-        <input id="po-contact" type="text" maxlength="200" placeholder="微信 / QQ / 邮箱 等，方便我联系你">
-      </div>
+      <div class="ws-account" id="planOrderAccount" style="margin-top:0.6rem;"><!-- 由 openPlanOrder() 填充 --></div>
       <label class="ws-checkbox">
         <input type="checkbox" id="po-show-name" checked>
-        <span>完结后公开挂名展示（不勾则永久匿名）</span>
+        <span>完结后公开展示挂名（用资料里的昵称；不勾则匿名）</span>
       </label>
     </div>
     <div class="modal__actions" style="margin-top:1rem;">
@@ -3936,17 +3943,10 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <label>需求描述</label>
       <textarea id="eo-desc" rows="4" maxlength="1000" placeholder="想要的曲风 / 用途 / 参考歌曲……"></textarea>
     </div>
-    <div class="field">
-      <label>联系方式</label>
-      <input id="eo-contact" type="text" maxlength="200" placeholder="QQ / 微信 / 邮箱">
-    </div>
-    <div class="field">
-      <label>挂名（用于完结后公开展示）</label>
-      <input id="eo-name" type="text" maxlength="30" placeholder="如 L 先生 / 留空则匿名">
-    </div>
+    <div class="ws-account" id="eoAccountTip" style="margin-bottom:0.8rem;"><!-- 由 openEditOrderModal() 填充 --></div>
     <label class="ws-checkbox" style="margin-top:-0.4rem;">
       <input type="checkbox" id="eo-showname">
-      <span>完结后公开挂名展示（不勾则永久匿名）</span>
+      <span>完结后公开展示挂名（用资料里的昵称；不勾则匿名）</span>
     </label>
     <div class="modal__actions">
       <button class="btn btn--ghost btn--sm" onclick="closeModal('editOrderModal')">取消</button>
@@ -4592,13 +4592,15 @@ const Store = {
   },
   async submitOrder(type, tier, description, clientName, showName, contact, price, tierLabel, images, tiers, priceMode, audios) {
     if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云，无法下单');
+    // 必须带 X-User-Token（worker 强制登录）；adminAuthHeaders 会同时携带 admin Bearer 与 user token
     const res = await fetch(API_BASE + '/api/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
       body: JSON.stringify({ type, tier, description, clientName, showName, contact, price, tierLabel, images, tiers, priceMode, audios, visitorId: getVisitorId() }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (res.status === 401) throw new Error('请先登录后下单');
       if (res.status === 413) throw new Error('附件过大，请减少音频或图片');
       throw new Error(data.error || ('HTTP ' + res.status));
     }
@@ -5648,6 +5650,7 @@ const CHANGELOG = [
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
+      '🔒 下单改为「必须登录」+ 自动关联个人资料：原本要手填挂名 / 联系方式，现在去掉这两个输入框 — 工坊单 / 长期合作 modal / 编辑订单弹窗都自动用账号里的邮箱作为联系方式、昵称作为挂名（昵称为空则用邮箱前缀兜底），未登录点下单会弹登录框；订单创建后再改资料里的昵称不影响已下订单的挂名，避免追溯混乱',
       '🎨 私信输入区按钮对齐微调：📷 / 😊 / 发送按钮统一 36px 高度 + 底部对齐 + 圆角一致，原本三个按钮各自尺寸看着歪歪扭扭',
       '🖼 私信支持发图：用户私信店主 / 店主在收件箱回复都加了 📷 图片按钮，可附 1 张图（同样走 R2 压缩上传），消息气泡里可点击放大查看；文本和图片可独立发送也可一起发；撤回时图片一起隐藏',
       '⬇ 订单音频「下载」按钮改为强制下载到本地：原本 <a download> 在跨子域（api.weilingt.top → blog）和移动端会被浏览器忽略，点击只是打开 / 播放；现改成 fetch 拉成 blob 后用 blob URL 触发真下载，移动端 Chrome / Safari 都能正常存到下载目录',
@@ -5869,14 +5872,17 @@ document.addEventListener('change', (e) => {
 
 // ── 工坊：提交订单 ──
 async function submitOrder() {
+  // 登录拦截：未登录不能下单，资料从登录账户自动关联（contact = 邮箱，clientName = 昵称）
+  if (typeof UserStore === 'undefined' || !UserStore || !UserStore.user) {
+    toast('请先登录后下单');
+    try { openUserPanel(); } catch (_) {}
+    return;
+  }
   const selectedTiers = getSelectedTiers();
   const description = document.getElementById('ws-desc').value.trim();
-  const clientName = document.getElementById('ws-name').value.trim();
   const showName = document.getElementById('ws-show-name').checked;
-  const contact = document.getElementById('ws-contact').value.trim();
 
   if (!selectedTiers.length) { toast('请至少勾选一个套餐'); return; }
-  if (!contact) { toast('请填写联系方式'); return; }
 
   // 多选合计（按当前模式换算价格写入订单）
   const mult = getWsMultiplier();
@@ -5897,12 +5903,11 @@ async function submitOrder() {
   btn.textContent = '提交中…';
 
   try {
-    await Store.submitOrder('', tierKey, finalDescription, clientName, showName, contact, totalPrice, tierLabel, images, tiers, totalMode, audios);
+    // clientName / contact 传空：worker 端从已登录用户的资料里自动注入
+    await Store.submitOrder('', tierKey, finalDescription, '', showName, '', totalPrice, tierLabel, images, tiers, totalMode, audios);
     toast('订单已提交 ✓ 我会尽快联系你');
     // reset form
     document.getElementById('ws-desc').value = '';
-    document.getElementById('ws-name').value = '';
-    document.getElementById('ws-contact').value = '';
     document.getElementById('ws-show-name').checked = true;
     // 取消所有套餐勾选
     document.querySelectorAll('input[name="ws-tier"]:checked').forEach(i => { i.checked = false; });
@@ -6178,6 +6183,8 @@ function sortOrders(orders, sort) {
 }
 
 function renderWorkshop() {
+  // 同步下单区"账户信息条"（未登录提示登录 / 已登录展示要绑定的邮箱+昵称）
+  try { renderAccountTip('wsAccountTip'); } catch (_) {}
   // 动态渲染套餐卡（数量 / 名字 / 价格 / 说明 都可被 admin 改）
   const wsTiers = document.getElementById('wsTiers');
   if (wsTiers) {
@@ -6632,14 +6639,26 @@ function openEditOrderModal(orderId) {
   const rawDesc = order.description || '';
   const stripped = rawDesc.replace(/^\s*\[商用\]\s*/, '').replace(/^\[长期合作[^\]]*\]\s*/, '');
   document.getElementById('eo-desc').value = stripped;
-  document.getElementById('eo-contact').value = order.contact || '';
-  document.getElementById('eo-name').value = order.clientName || '';
   document.getElementById('eo-showname').checked = !!order.showName;
+  // 联系方式 / 挂名 只读展示（已从用户资料同步，要改去「资料」）
+  const tip = document.getElementById('eoAccountTip');
+  if (tip) {
+    const contact = order.contact || '（无）';
+    const fallbackNick = (UserStore && UserStore.user)
+      ? (UserStore.user.nickname || (UserStore.user.email || '').split('@')[0])
+      : '（匿名）';
+    const cn = order.clientName || fallbackNick;
+    tip.className = 'ws-account';
+    tip.innerHTML = `<span class="ws-account__msg">联系方式 <b>${escapeHTML(contact)}</b> · 挂名 <b>${escapeHTML(cn)}</b></span>` +
+      (isAdmin()
+        ? `<span style="color:var(--gray-500); font-size:0.74rem;">由客户资料自动关联</span>`
+        : `<a class="ws-account__link" onclick="closeModal('editOrderModal'); openProfilePanel();">改资料 →</a>`);
+  }
   const hint = document.getElementById('editOrderModalHint');
   if (hint) {
     hint.textContent = isAdmin()
-      ? '店主视角：可改任意订单的描述 / 联系方式 / 挂名（更改 step 与价格请用下方按钮）'
-      : '只能改你提交过的这一单：描述 / 联系方式 / 挂名；编曲完结后不再可改';
+      ? '店主视角：可改描述 / 公开挂名开关；联系方式与挂名由客户资料自动关联'
+      : '只能改描述 / 公开挂名开关；联系方式与挂名跟随你的个人资料';
   }
   document.getElementById('editOrderModal').classList.add('open');
   setTimeout(() => { document.getElementById('eo-desc').focus(); }, 100);
@@ -6649,10 +6668,7 @@ async function saveEditOrderModal() {
   if (!orderId) { closeModal('editOrderModal'); return; }
   const order = (Store.orders || []).find(o => o.id === orderId);
   let description = document.getElementById('eo-desc').value.trim();
-  const contact = document.getElementById('eo-contact').value.trim();
-  const clientName = document.getElementById('eo-name').value.trim();
   const showName = document.getElementById('eo-showname').checked;
-  if (!contact) { toast('联系方式不能为空'); return; }
   // 还原原单 description 的固定前缀：[商用] 与 [长期合作 · xxx] 可能并存
   if (order) {
     const raw = order.description || '';
@@ -6664,7 +6680,8 @@ async function saveEditOrderModal() {
     description = commercialPrefix + planPrefix + description;
   }
   try {
-    await Store.updateOrder(orderId, { description, contact, clientName, showName });
+    // 只提交 description / showName；contact / clientName 由用户资料同步，不允许在订单编辑里改
+    await Store.updateOrder(orderId, { description, showName });
     toast('订单已更新 ✓');
     closeModal('editOrderModal');
     _editingOrderId = null;
@@ -6938,6 +6955,12 @@ function savePlans() {
 function openPlanOrder(key) {
   const keys = getPlanKeys();
   if (!keys.includes(key)) { toast('方案不存在'); return; }
+  // 登录拦截：未登录直接弹登录框，不开下单弹窗
+  if (typeof UserStore === 'undefined' || !UserStore || !UserStore.user) {
+    toast('请先登录后下单');
+    try { openUserPanel(); } catch (_) {}
+    return;
+  }
   _currentPlanKey = key;
   const info = getPlanInfo(key);
   const summary = document.getElementById('planOrderSummary');
@@ -6954,20 +6977,23 @@ function openPlanOrder(key) {
   }
   // 重置表单
   document.getElementById('po-desc').value = '';
-  document.getElementById('po-name').value = '';
-  document.getElementById('po-contact').value = '';
   document.getElementById('po-show-name').checked = true;
+  // 渲染账户信息条
+  try { renderAccountTip('planOrderAccount'); } catch (_) {}
   document.getElementById('planOrderModal').classList.add('open');
 }
 
 async function submitPlanOrder() {
   if (!_currentPlanKey) { toast('请重新选择方案'); return; }
+  // 登录拦截
+  if (typeof UserStore === 'undefined' || !UserStore || !UserStore.user) {
+    toast('请先登录后下单');
+    try { openUserPanel(); } catch (_) {}
+    return;
+  }
   const info = getPlanInfo(_currentPlanKey);
   const description = document.getElementById('po-desc').value.trim();
-  const clientName = document.getElementById('po-name').value.trim();
   const showName = document.getElementById('po-show-name').checked;
-  const contact = document.getElementById('po-contact').value.trim();
-  if (!contact) { toast('请填写联系方式'); return; }
 
   const btn = document.getElementById('planOrderSubmit');
   const orig = btn.textContent;
@@ -6985,9 +7011,9 @@ async function submitPlanOrder() {
       '',                               // type 已删
       info.key,                         // tier = plan key
       commPrefix + planPrefix + description, // 前缀注入到 description
-      clientName,
+      '',                               // clientName：由 worker 从登录用户注入
       showName,
-      contact,
+      '',                               // contact：由 worker 从登录用户注入
       finalPrice,
       info.label,
       [],                               // 长期合作暂不带图
@@ -8186,6 +8212,8 @@ const UserStore = {
   renderBtn() {
     // userBtn / dmBtn / profileBtn / logoutBtn 的显隐统一交给 renderAdminBtn
     if (typeof renderAdminBtn === 'function') renderAdminBtn();
+    // 同步刷新工坊下单区的账户信息条（未登录提示登录 / 已登录展示邮箱昵称）
+    try { if (typeof renderAccountTip === 'function') renderAccountTip('wsAccountTip'); } catch (_) {}
   }
 };
 
@@ -8194,6 +8222,25 @@ const UserStore = {
 let _loginCountdown = 0;
 let _loginCountdownTimer = null;
 let _loginEmail = '';
+
+// ── 下单 / 编辑订单：账户信息条（工坊、长期合作 Modal、编辑订单 Modal 三处共用） ──
+// 未登录：橙色边 + "🔒 需要先登录" + 登录按钮
+// 已登录：金色边 + "已登录 · 联系方式 / 挂名 · 改资料"
+function renderAccountTip(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const u = (typeof UserStore !== 'undefined' && UserStore && UserStore.user) ? UserStore.user : null;
+  if (!u) {
+    el.className = 'ws-account ws-account--guest';
+    el.innerHTML = '<span class="ws-account__msg">🔒 下单需要先登录 — 登录后会自动用你资料里的邮箱作为联系方式</span>' +
+      '<button type="button" class="ws-account__btn" onclick="openUserPanel()">登录 / 注册</button>';
+  } else {
+    const nick = u.nickname || ((u.email || '').split('@')[0]);
+    el.className = 'ws-account';
+    el.innerHTML = '<span class="ws-account__msg">已登录 · 联系方式 <b>' + escapeHTML(u.email) + '</b> · 挂名 <b>' + escapeHTML(nick) + '</b></span>' +
+      '<a class="ws-account__link" onclick="openProfilePanel()">改资料 →</a>';
+  }
+}
 
 function openUserPanel() {
   // 未登录走登录框；已登录用户不应该再点这个（按钮已隐藏），但兜底跳到资料面板
