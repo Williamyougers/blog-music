@@ -2237,6 +2237,32 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 [data-theme="dark"] .ws-order__paid { color: #4caf50; }
 [data-theme="dark"] .ws-order__paid-time { color: #888; }
 
+/* 起步价订单：客户自填金额支付 */
+.ws-order__pay-custom {
+  display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+}
+.ws-order__pay-custom-label {
+  font-size: 0.82rem; color: var(--gray-600);
+}
+.ws-order__pay-custom-input {
+  width: 90px; padding: 0.38rem 0.5rem; font-size: 0.88rem;
+  border: 1px solid var(--gray-300); border-radius: 3px;
+  font-family: inherit; background: #fff; color: inherit;
+  -moz-appearance: textfield;
+}
+.ws-order__pay-custom-input::-webkit-outer-spin-button,
+.ws-order__pay-custom-input::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+.ws-order__pay-custom-input:focus {
+  outline: 0; border-color: var(--accent);
+}
+[data-theme="dark"] .ws-order__pay-custom-input {
+  background: #222; color: #ddd; border-color: #444;
+}
+[data-theme="dark"] .ws-order__pay-custom-input:focus { border-color: var(--accent); }
+[data-theme="dark"] .ws-order__pay-custom-label { color: #aaa; }
+
 .ws-submit {
   width: 100%;
   padding: 0.9rem;
@@ -4858,7 +4884,7 @@ window.downloadOrderFile = downloadOrderFile;
 let _payPollTimer = null;
 let _payOrderId = null;
 
-async function openPayModal(orderId) {
+async function openPayModal(orderId, customAmount) {
   if (!UserStore.user) {
     toast('请先登录后再支付');
     if (typeof openUserPanel === 'function') openUserPanel();
@@ -4881,10 +4907,14 @@ async function openPayModal(orderId) {
   document.body.style.overflow = 'hidden';
   // 调 worker 创建支付订单
   try {
+    const payload = { orderId };
+    if (customAmount !== undefined && customAmount !== null && customAmount !== '') {
+      payload.customAmount = Number(customAmount);
+    }
     const r = await fetch(API_BASE + '/api/pay/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
-      body: JSON.stringify({ orderId }),
+      body: JSON.stringify(payload),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
@@ -4940,6 +4970,20 @@ function closePayModal() {
   _payOrderId = null;
 }
 window.closePayModal = closePayModal;
+
+// 起步价订单：从 inline 输入框读取金额并发起支付（金额必须 >= 起步价）
+function payCustomAmount(orderId, minPrice) {
+  const input = document.getElementById('payAmount_' + orderId);
+  if (!input) return;
+  const raw = (input.value || '').trim();
+  if (!raw) { toast('请输入支付金额'); input.focus(); return; }
+  const amt = Math.floor(Number(raw));
+  if (!Number.isFinite(amt) || amt <= 0) { toast('请输入有效金额'); input.focus(); return; }
+  if (amt < minPrice) { toast('支付金额不能低于起步价 ¥' + minPrice); input.focus(); return; }
+  if (amt > 50000) { toast('单笔支付不能超过 ¥50000'); input.focus(); return; }
+  openPayModal(orderId, amt);
+}
+window.payCustomAmount = payCustomAmount;
 
 // Admin：手动标记订单为已付款 / 撤销
 async function adminTogglePaid(orderId, toPaid) {
@@ -5848,10 +5892,17 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 // ── 更新公告数据（最新在最前；日期升序在最后追加新条目） ──
 const CHANGELOG = [
   {
+    date: '2026-06-05',
+    title: '起步价订单支持客户自定义金额支付',
+    items: [
+      '💰 起步价订单（比如「¥60 起」）现在客户可以自己填实际金额（≥起步价）后直接扫码支付，不用再等店主报价；订单卡片内嵌一个金额输入框 + 「💰 生成支付」按钮，校验通过后弹出支付宝二维码；付款成功后订单自动从「起步价 from」升级为「已定价 fixed」，price 字段写为实际付款金额，避免订单详情页一边显示「¥60 起」一边显示「已付款 ¥150」的混乱',
+    ],
+  },
+  {
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
-      '💰 接入支付宝当面付：固定价订单的「我的订单」卡片新增「💰 立即支付」按钮，点击弹出二维码（用手机支付宝扫一扫付款），付款后自动同步「✅ 已付款」徽章并推送微信通知；起步价订单需店主先报价（改成固定价）才能支付；店主视角额外提供「✓ 标记已付（线下）」按钮用于线下收款补录、以及「撤销付款」用于退款场景；订单 schema 加 paid / paidAt / paidAmount / outTradeNo / tradeNo / payMethod 字段',
+      '💰 接入支付宝当面付：固定价订单的「我的订单」卡片新增「💰 立即支付」按钮，点击弹出二维码（用手机支付宝扫一扫付款），付款后自动同步「✅ 已付款」徽章并推送微信通知；店主视角额外提供「✓ 标记已付（线下）」按钮用于线下收款补录、以及「撤销付款」用于退款场景；订单 schema 加 paid / paidAt / paidAmount / outTradeNo / tradeNo / payMethod 字段',
       '🔒 下单改为「必须登录」+ 自动关联个人资料：原本要手填挂名 / 联系方式，现在去掉这两个输入框 — 工坊单 / 长期合作 modal / 编辑订单弹窗都自动用账号里的邮箱作为联系方式、昵称作为挂名（昵称为空则用邮箱前缀兜底），未登录点下单会弹登录框；订单创建后再改资料里的昵称不影响已下订单的挂名，避免追溯混乱',
       '🎨 私信输入区按钮对齐微调：📷 / 😊 / 发送按钮统一 36px 高度 + 底部对齐 + 圆角一致，原本三个按钮各自尺寸看着歪歪扭扭',
       '🖼 私信支持发图：用户私信店主 / 店主在收件箱回复都加了 📷 图片按钮，可附 1 张图（同样走 R2 压缩上传），消息气泡里可点击放大查看；文本和图片可独立发送也可一起发；撤回时图片一起隐藏',
@@ -6600,6 +6651,7 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
     let payHtml = '';
     const showPaid = !!o.paid;
     const canPayBtn = !showPaid && o._isMine && !admin && o.priceMode === 'fixed' && (o.price > 0) && o.step !== 4;
+    const canPayCustom = !showPaid && o._isMine && !admin && o.priceMode === 'from' && (o.price > 0) && o.step !== 4;
     const adminMarkBtn = !showPaid && admin && (o.price > 0);
     if (showPaid) {
       const paidTime = o.paidAt ? formatDate(o.paidAt) : '';
@@ -6607,10 +6659,10 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
       payHtml = `<div class="ws-order__pay"><span class="ws-order__paid">✅ 已付款 ¥${o.paidAmount || o.price}${methodStr ? ' · ' + methodStr : ''}<span class="ws-order__paid-time">${paidTime ? ' · ' + paidTime : ''}</span></span>${admin ? `<button class="btn btn--ghost btn--sm" onclick="adminTogglePaid('${o.id}', false)" style="margin-left:auto;">撤销付款</button>` : ''}</div>`;
     } else if (canPayBtn) {
       payHtml = `<div class="ws-order__pay"><button class="ws-order__pay-btn" onclick="openPayModal('${o.id}')">💰 立即支付 ¥${o.price}</button><span class="ws-order__pay-hint">支付宝扫码 · 安全到账</span></div>`;
+    } else if (canPayCustom) {
+      payHtml = `<div class="ws-order__pay"><span class="ws-order__pay-custom-label">起步价 ¥${o.price}，自定金额：</span><span class="ws-order__pay-custom"><input type="number" class="ws-order__pay-custom-input" id="payAmount_${o.id}" min="${o.price}" max="50000" step="1" placeholder="≥${o.price}" value="${o.price}"><button class="ws-order__pay-btn" onclick="payCustomAmount('${o.id}', ${o.price})">💰 生成支付</button></span><span class="ws-order__pay-hint">支付宝扫码 · 付款金额可大于起步价</span></div>`;
     } else if (adminMarkBtn) {
       payHtml = `<div class="ws-order__pay"><span style="color:var(--gray-500); font-size:0.83rem;">💳 未付款</span><button class="btn btn--ghost btn--sm" onclick="adminTogglePaid('${o.id}', true)" style="margin-left:auto;">✓ 标记已付（线下）</button></div>`;
-    } else if (!showPaid && o._isMine && o.priceMode === 'from' && o.step !== 4) {
-      payHtml = `<div class="ws-order__pay"><span style="color:var(--gray-500); font-size:0.83rem;">⏳ 等待店主确认最终价格后可支付</span></div>`;
     }
 
     // Admin controls

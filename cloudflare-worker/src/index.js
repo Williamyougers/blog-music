@@ -1100,6 +1100,7 @@ async function handleRequest(request, env, ctx, cors) {
         outTradeNo: '',      // 商户订单号（发起支付时生成，传给支付宝）
         tradeNo: '',         // 支付宝交易号（异步通知回填）
         payMethod: '',       // alipay / wechat / offline / ''
+        pendingAmount: 0,    // 起步价订单：客户自填的待付款金额（付款成功后会写入 price 并改 priceMode='fixed'）
       };
 
       orders.push(order);
@@ -1263,6 +1264,10 @@ async function handleRequest(request, env, ctx, cors) {
       catch { return json({ error: 'Invalid JSON' }, 400, cors); }
       const orderId = sanitizeStr(body && body.orderId, 80);
       if (!orderId) return json({ error: 'orderId required' }, 400, cors);
+      // 客户自定义金额（仅起步价订单可用；必须 >= order.price 起步价）
+      const customAmountRaw = body && body.customAmount;
+      const customAmount = (customAmountRaw === undefined || customAmountRaw === null || customAmountRaw === '')
+        ? null : Math.floor(Number(customAmountRaw));
       const ordersRaw = await env.BLOG.get('orders');
       const orders = JSON.parse(ordersRaw || '[]');
       const idx = orders.findIndex(o => o.id === orderId);
@@ -1279,7 +1284,24 @@ async function handleRequest(request, env, ctx, cors) {
 
       if (order.paid) return json({ error: '该订单已支付' }, 400, cors);
       if (!order.price || order.price <= 0) return json({ error: '订单金额未确定，请联系店主报价' }, 400, cors);
-      if (order.priceMode === 'from') return json({ error: '起步价订单需要店主确认最终价格后才能支付' }, 400, cors);
+
+      // 计算实际支付金额 + 是否需要在付款成功后把订单从起步价升级为已定价
+      let payAmount = order.price;
+      let pendingUpgrade = 0; // 大于 0 表示付款成功后要把 price 升级到此值
+      if (order.priceMode === 'from') {
+        // 起步价订单：必须传 customAmount，且 >= 起步价
+        if (customAmount === null || !Number.isFinite(customAmount)) {
+          return json({ error: '起步价订单请输入实际支付金额（≥ ¥' + order.price + '）' }, 400, cors);
+        }
+        if (customAmount < order.price) {
+          return json({ error: '支付金额不能低于起步价 ¥' + order.price }, 400, cors);
+        }
+        if (customAmount > 50000) {
+          return json({ error: '单笔支付不能超过 ¥50000' }, 400, cors);
+        }
+        payAmount = customAmount;
+        pendingUpgrade = customAmount;
+      }
 
       // 商户订单号：每次发起支付都新生成（用户多次扫码不冲突；老的会自动失效）
       const outTradeNo = 'BMP' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -1288,17 +1310,19 @@ async function handleRequest(request, env, ctx, cors) {
       try {
         const resp = await alipayCall('alipay.trade.precreate', {
           out_trade_no: outTradeNo,
-          total_amount: Number(order.price).toFixed(2),
+          total_amount: Number(payAmount).toFixed(2),
           subject,
           timeout_express: '15m',
         }, env, { notifyUrl });
         if (resp.code !== '10000') {
           return json({ error: '支付宝下单失败', detail: resp.sub_msg || resp.msg || JSON.stringify(resp).slice(0, 200) }, 502, cors);
         }
-        // 回写订单：记录本次商户订单号（多次发起会覆盖）
+        // 回写订单：记录本次商户订单号（多次发起会覆盖）+ pendingAmount（付款成功后升级 price）
         order.outTradeNo = outTradeNo;
+        if (pendingUpgrade > 0) order.pendingAmount = pendingUpgrade;
+        else if ('pendingAmount' in order) order.pendingAmount = 0;
         await env.BLOG.put('orders', JSON.stringify(orders));
-        return json({ ok: true, qrCode: resp.qr_code, outTradeNo, amount: order.price, subject }, 200, cors);
+        return json({ ok: true, qrCode: resp.qr_code, outTradeNo, amount: payAmount, subject }, 200, cors);
       } catch (e) {
         return json({ error: '支付宝调用异常', detail: String(e).slice(0, 200) }, 502, cors);
       }
@@ -1329,6 +1353,12 @@ async function handleRequest(request, env, ctx, cors) {
             order.paidAmount = Math.floor(Number(resp.total_amount) || order.price || 0);
             order.tradeNo = resp.trade_no || '';
             order.payMethod = 'alipay';
+            // 起步价订单付款成功后升级为已定价：price 改为实际付款金额，priceMode 改为 fixed
+            if (order.pendingAmount && order.pendingAmount > 0) {
+              order.price = order.pendingAmount;
+              order.priceMode = 'fixed';
+              order.pendingAmount = 0;
+            }
             await env.BLOG.put('orders', JSON.stringify(orders));
             synced = true;
           }
@@ -1392,6 +1422,12 @@ async function handleRequest(request, env, ctx, cors) {
         order.paidAmount = Math.floor(Number(params.total_amount) || order.price || 0);
         order.tradeNo = params.trade_no || '';
         order.payMethod = 'alipay';
+        // 起步价订单付款成功后升级为已定价
+        if (order.pendingAmount && order.pendingAmount > 0) {
+          order.price = order.pendingAmount;
+          order.priceMode = 'fixed';
+          order.pendingAmount = 0;
+        }
         await env.BLOG.put('orders', JSON.stringify(orders));
         // 异步推送通知（不阻塞回调响应；支付宝 3 秒不返回 success 会重推）
         if (ctx && typeof ctx.waitUntil === 'function') {
