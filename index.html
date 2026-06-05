@@ -4899,7 +4899,10 @@ async function openPayModal(orderId, customAmount) {
   if (!overlay) return;
   // 重置 UI
   qrBox.innerHTML = '<div class="pay-modal__qr--loading">二维码生成中...</div>';
-  amountEl.textContent = '0';
+  // 已传 customAmount 时先预填，避免请求失败时弹窗显示 ¥0 让人困惑
+  const preAmount = (customAmount !== undefined && customAmount !== null && Number(customAmount) > 0)
+    ? Math.floor(Number(customAmount)) : 0;
+  amountEl.textContent = preAmount || '0';
   orderEl.textContent = '订单号加载中...';
   statusEl.className = 'pay-modal__status';
   statusEl.textContent = '⌛ 等待支付中...';
