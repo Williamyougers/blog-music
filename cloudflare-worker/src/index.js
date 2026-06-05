@@ -121,6 +121,42 @@ async function notifyNewOrder(env, order) {
   }
 }
 
+// 支付成功后给店主推送
+async function notifyOrderPaid(env, order) {
+  if (!env.SERVERCHAN_KEY) return;
+  try {
+    const seqStr = String(order.seq || 0).padStart(3, '0');
+    const tierLabel = order.tierLabel || order.tier || '';
+    const amount = order.paidAmount || order.price || 0;
+    const method = order.payMethod === 'alipay' ? '支付宝' : (order.payMethod || '');
+    const showName = order.showName ? (order.clientName || '匿名') : '匿名';
+    const timeStr = new Date(order.paidAt || Date.now())
+      .toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    const title = `💰 收款 ¥${amount} · 订单 #${seqStr}`;
+    const desp = [
+      `### 到账啦！`,
+      '',
+      `- **挂名**：${showName}`,
+      `- **套餐**：${tierLabel}`,
+      `- **实付**：¥${amount}（${method}）`,
+      `- **交易号**：\`${order.tradeNo || '-'}\``,
+      '',
+      `---`,
+      `🕐 ${timeStr}`,
+      `🔗 https://weilingt.top`,
+    ].join('\n');
+    const apiUrl = `https://sctapi.ftqq.com/${env.SERVERCHAN_KEY}.send`;
+    const body = new URLSearchParams({ title, desp });
+    await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+  } catch (e) {
+    console.error('notifyOrderPaid failed:', e && e.message);
+  }
+}
+
 const DEFAULT_ABOUT = {
   intro: '',
   body1: '',
@@ -151,6 +187,103 @@ async function loadAll(env) {
 function sanitizeStr(s, max) {
   if (typeof s !== 'string') return '';
   return s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim().slice(0, max);
+}
+
+// ── 支付宝当面付（扫码支付）辅助函数 ────────────────────────────────
+// 依赖 env: ALIPAY_APP_ID / ALIPAY_PRIVATE_KEY (PKCS8 PEM) / ALIPAY_PUBLIC_KEY (SPKI PEM)
+//          ALIPAY_GATEWAY (默认 https://openapi.alipay.com/gateway.do)
+//          ALIPAY_NOTIFY_URL (默认 https://api.weilingt.top/api/pay/notify)
+function _pemToBuffer(pem) {
+  const body = String(pem || '')
+    .replace(/-----BEGIN [^-]+-----/g, '')
+    .replace(/-----END [^-]+-----/g, '')
+    .replace(/\s+/g, '');
+  const bin = atob(body);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+function _bufToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+async function alipaySign(content, privateKeyPem) {
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    _pemToBuffer(privateKeyPem),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(content));
+  return _bufToBase64(sig);
+}
+async function alipayVerify(content, signBase64, publicKeyPem) {
+  try {
+    const key = await crypto.subtle.importKey(
+      'spki',
+      _pemToBuffer(publicKeyPem),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+    const sigBin = atob(signBase64);
+    const sig = new Uint8Array(sigBin.length);
+    for (let i = 0; i < sigBin.length; i++) sig[i] = sigBin.charCodeAt(i);
+    return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig, new TextEncoder().encode(content));
+  } catch (_) { return false; }
+}
+// 拼接签名串：按 key 字典序排序，过滤 sign / sign_type / 空值
+function _buildSignContent(params) {
+  return Object.keys(params)
+    .filter(k => k !== 'sign' && params[k] !== undefined && params[k] !== null && params[k] !== '')
+    .sort()
+    .map(k => `${k}=${params[k]}`)
+    .join('&');
+}
+function _alipayTimestamp() {
+  // 北京时间 YYYY-MM-DD HH:mm:ss
+  const d = new Date(Date.now() + 8 * 3600 * 1000);
+  const iso = d.toISOString();
+  return iso.slice(0, 10) + ' ' + iso.slice(11, 19);
+}
+// 调用支付宝 OpenAPI，自动处理签名 + 解析响应
+async function alipayCall(method, bizContent, env, opts) {
+  opts = opts || {};
+  const gateway = env.ALIPAY_GATEWAY || 'https://openapi.alipay.com/gateway.do';
+  const publicParams = {
+    app_id: env.ALIPAY_APP_ID,
+    method,
+    format: 'JSON',
+    charset: 'utf-8',
+    sign_type: 'RSA2',
+    timestamp: _alipayTimestamp(),
+    version: '1.0',
+    biz_content: JSON.stringify(bizContent),
+  };
+  if (opts.notifyUrl) publicParams.notify_url = opts.notifyUrl;
+  const signContent = _buildSignContent(publicParams);
+  const sign = await alipaySign(signContent, env.ALIPAY_PRIVATE_KEY);
+  publicParams.sign = sign;
+  // 发请求
+  const formBody = Object.keys(publicParams)
+    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(publicParams[k])}`)
+    .join('&');
+  const resp = await fetch(gateway, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+    body: formBody,
+  });
+  const text = await resp.text();
+  let data;
+  try { data = JSON.parse(text); } catch (_) { throw new Error('Alipay non-JSON: ' + text.slice(0, 200)); }
+  // 响应字段：alipay_trade_precreate_response / alipay_trade_query_response 等
+  const respKey = method.replace(/\./g, '_') + '_response';
+  const body = data[respKey];
+  if (!body) throw new Error('Alipay missing ' + respKey);
+  return body;
 }
 
 // Mask contact info for non-admin viewers.
@@ -960,6 +1093,13 @@ async function handleRequest(request, env, ctx, cors) {
         followupAt: null,    // 追评提交时间
         reviewReply: '',  // 店主对客户评价的回复
         reviewReplyAt: null,
+        // ── 支付相关 ──
+        paid: false,         // 是否已支付
+        paidAt: null,        // 支付成功时间
+        paidAmount: 0,       // 实付金额（元，整数）
+        outTradeNo: '',      // 商户订单号（发起支付时生成，传给支付宝）
+        tradeNo: '',         // 支付宝交易号（异步通知回填）
+        payMethod: '',       // alipay / wechat / offline / ''
       };
 
       orders.push(order);
@@ -1035,6 +1175,21 @@ async function handleRequest(request, env, ctx, cors) {
           const name = sanitizeStr(body.clientName, 30);
           order.clientName = order.showName ? name : '';
         }
+        // Admin 可手动标记/取消支付状态（线下收款 / 退款场景）
+        if (body.paid !== undefined) {
+          if (body.paid) {
+            order.paid = true;
+            order.paidAt = order.paidAt || Date.now();
+            order.paidAmount = order.paidAmount || (order.price || 0);
+            order.payMethod = order.payMethod || 'offline';
+          } else {
+            order.paid = false;
+            order.paidAt = null;
+            order.paidAmount = 0;
+            order.tradeNo = '';
+            order.payMethod = '';
+          }
+        }
       }
 
       // Owner (customer) — completed order: rating + review + followup (self-review)
@@ -1095,6 +1250,155 @@ async function handleRequest(request, env, ctx, cors) {
       orders.splice(idx, 1);
       await env.BLOG.put('orders', JSON.stringify(orders));
       return json({ ok: true }, 200, cors);
+    }
+
+    // ── 支付 API ──────────────────────────────────────────
+    // POST /api/pay/create —— 客户为某订单发起支付，返回二维码 URL
+    if (path === '/api/pay/create' && method === 'POST') {
+      if (!env.ALIPAY_APP_ID || !env.ALIPAY_PRIVATE_KEY) {
+        return json({ error: '支付未配置（缺少 ALIPAY_APP_ID / ALIPAY_PRIVATE_KEY）' }, 503, cors);
+      }
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const orderId = sanitizeStr(body && body.orderId, 80);
+      if (!orderId) return json({ error: 'orderId required' }, 400, cors);
+      const ordersRaw = await env.BLOG.get('orders');
+      const orders = JSON.parse(ordersRaw || '[]');
+      const idx = orders.findIndex(o => o.id === orderId);
+      if (idx < 0) return json({ error: 'Order not found' }, 404, cors);
+      const order = orders[idx];
+
+      // owner 鉴权：必须是订单本人或 admin
+      const admin = await isAdminOrSub(request, env);
+      const viewerId = request.headers.get('X-Visitor-Id') || '';
+      const ownerUser = await getCurrentUser(request, env);
+      const matchUser = !!ownerUser && !!order.userId && order.userId === ownerUser.userId;
+      const matchVisitor = !!viewerId && order.visitorId === viewerId;
+      if (!admin && !matchUser && !matchVisitor) return json({ error: '请先登录后再支付' }, 401, cors);
+
+      if (order.paid) return json({ error: '该订单已支付' }, 400, cors);
+      if (!order.price || order.price <= 0) return json({ error: '订单金额未确定，请联系店主报价' }, 400, cors);
+      if (order.priceMode === 'from') return json({ error: '起步价订单需要店主确认最终价格后才能支付' }, 400, cors);
+
+      // 商户订单号：每次发起支付都新生成（用户多次扫码不冲突；老的会自动失效）
+      const outTradeNo = 'BMP' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      const subject = `编曲订单 #${String(order.seq || 0).padStart(3, '0')} - ${order.tierLabel || order.tier || ''}`.slice(0, 60);
+      const notifyUrl = env.ALIPAY_NOTIFY_URL || 'https://api.weilingt.top/api/pay/notify';
+      try {
+        const resp = await alipayCall('alipay.trade.precreate', {
+          out_trade_no: outTradeNo,
+          total_amount: Number(order.price).toFixed(2),
+          subject,
+          timeout_express: '15m',
+        }, env, { notifyUrl });
+        if (resp.code !== '10000') {
+          return json({ error: '支付宝下单失败', detail: resp.sub_msg || resp.msg || JSON.stringify(resp).slice(0, 200) }, 502, cors);
+        }
+        // 回写订单：记录本次商户订单号（多次发起会覆盖）
+        order.outTradeNo = outTradeNo;
+        await env.BLOG.put('orders', JSON.stringify(orders));
+        return json({ ok: true, qrCode: resp.qr_code, outTradeNo, amount: order.price, subject }, 200, cors);
+      } catch (e) {
+        return json({ error: '支付宝调用异常', detail: String(e).slice(0, 200) }, 502, cors);
+      }
+    }
+
+    // GET /api/pay/query?orderId=xxx —— 前端轮询订单支付状态（仅本人/admin）
+    if (path === '/api/pay/query' && method === 'GET') {
+      const orderId = url.searchParams.get('orderId') || '';
+      if (!orderId) return json({ error: 'orderId required' }, 400, cors);
+      const ordersRaw = await env.BLOG.get('orders');
+      const orders = JSON.parse(ordersRaw || '[]');
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return json({ error: 'Order not found' }, 404, cors);
+      const admin = await isAdminOrSub(request, env);
+      const viewerId = request.headers.get('X-Visitor-Id') || '';
+      const ownerUser = await getCurrentUser(request, env);
+      const matchUser = !!ownerUser && !!order.userId && order.userId === ownerUser.userId;
+      const matchVisitor = !!viewerId && order.visitorId === viewerId;
+      if (!admin && !matchUser && !matchVisitor) return json({ error: 'Unauthorized' }, 401, cors);
+      // 主动查支付宝（应对异步通知未送达 / 延迟的兜底）
+      let synced = false;
+      if (!order.paid && order.outTradeNo && env.ALIPAY_APP_ID && env.ALIPAY_PRIVATE_KEY) {
+        try {
+          const resp = await alipayCall('alipay.trade.query', { out_trade_no: order.outTradeNo }, env);
+          if (resp.code === '10000' && (resp.trade_status === 'TRADE_SUCCESS' || resp.trade_status === 'TRADE_FINISHED')) {
+            order.paid = true;
+            order.paidAt = Date.now();
+            order.paidAmount = Math.floor(Number(resp.total_amount) || order.price || 0);
+            order.tradeNo = resp.trade_no || '';
+            order.payMethod = 'alipay';
+            await env.BLOG.put('orders', JSON.stringify(orders));
+            synced = true;
+          }
+        } catch (_) { /* 查询失败不阻塞 */ }
+      }
+      return json({
+        ok: true,
+        paid: !!order.paid,
+        paidAt: order.paidAt || null,
+        paidAmount: order.paidAmount || 0,
+        payMethod: order.payMethod || '',
+        synced,
+      }, 200, cors);
+    }
+
+    // POST /api/pay/notify —— 支付宝异步通知回调（form-urlencoded）
+    if (path === '/api/pay/notify' && method === 'POST') {
+      if (!env.ALIPAY_PUBLIC_KEY) return new Response('failure', { status: 200, headers: cors });
+      let formText;
+      try { formText = await request.text(); }
+      catch { return new Response('failure', { status: 200, headers: cors }); }
+      const params = {};
+      formText.split('&').forEach(kv => {
+        const i = kv.indexOf('=');
+        if (i < 0) return;
+        const k = decodeURIComponent(kv.slice(0, i));
+        const v = decodeURIComponent(kv.slice(i + 1));
+        params[k] = v;
+      });
+      const sign = params.sign || '';
+      const signType = params.sign_type || 'RSA2';
+      // 验签内容：排除 sign / sign_type，剩余按 key 字典序拼接（注意保留原始值，不再 urlencode）
+      const verifyParams = { ...params };
+      delete verifyParams.sign;
+      delete verifyParams.sign_type;
+      const verifyContent = Object.keys(verifyParams)
+        .filter(k => verifyParams[k] !== undefined && verifyParams[k] !== null && verifyParams[k] !== '')
+        .sort()
+        .map(k => `${k}=${verifyParams[k]}`)
+        .join('&');
+      const ok = await alipayVerify(verifyContent, sign, env.ALIPAY_PUBLIC_KEY);
+      if (!ok) return new Response('failure', { status: 200, headers: cors });
+      // 校验 app_id
+      if (env.ALIPAY_APP_ID && params.app_id !== env.ALIPAY_APP_ID) {
+        return new Response('failure', { status: 200, headers: cors });
+      }
+      // 状态校验
+      const tradeStatus = params.trade_status || '';
+      if (tradeStatus !== 'TRADE_SUCCESS' && tradeStatus !== 'TRADE_FINISHED') {
+        return new Response('success', { status: 200, headers: cors }); // 非成功也回 success 防重推
+      }
+      const outTradeNo = params.out_trade_no || '';
+      if (!outTradeNo) return new Response('failure', { status: 200, headers: cors });
+      const ordersRaw = await env.BLOG.get('orders');
+      const orders = JSON.parse(ordersRaw || '[]');
+      const order = orders.find(o => o.outTradeNo === outTradeNo);
+      if (!order) return new Response('success', { status: 200, headers: cors }); // 找不到也回 success（已被 admin 删）
+      if (!order.paid) {
+        order.paid = true;
+        order.paidAt = Date.now();
+        order.paidAmount = Math.floor(Number(params.total_amount) || order.price || 0);
+        order.tradeNo = params.trade_no || '';
+        order.payMethod = 'alipay';
+        await env.BLOG.put('orders', JSON.stringify(orders));
+        // 异步推送通知（不阻塞回调响应；支付宝 3 秒不返回 success 会重推）
+        if (ctx && typeof ctx.waitUntil === 'function') {
+          ctx.waitUntil(notifyOrderPaid(env, order).catch(() => {}));
+        }
+      }
+      return new Response('success', { status: 200, headers: cors });
     }
 
     // ── Comments API ──

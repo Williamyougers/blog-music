@@ -2156,6 +2156,87 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 [data-theme="dark"] .ws-account { background: #1a1a1a; color: #bbb; }
 [data-theme="dark"] .ws-account b { color: #fff; }
+
+/* ── 支付弹窗 + 支付按钮 ── */
+.pay-modal__overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  z-index: 9999; display: none; align-items: center; justify-content: center; padding: 1rem;
+}
+.pay-modal__overlay.is-open { display: flex; }
+.pay-modal__content {
+  background: var(--white); border-radius: 6px; max-width: 360px; width: 100%;
+  padding: 1.6rem 1.4rem; box-shadow: 0 12px 36px rgba(0,0,0,0.3); text-align: center;
+  position: relative; max-height: 90vh; overflow: auto;
+}
+.pay-modal__close {
+  position: absolute; top: 0.5rem; right: 0.7rem; background: none; border: 0;
+  font-size: 1.4rem; cursor: pointer; color: var(--gray-500); line-height: 1;
+}
+.pay-modal__close:hover { color: var(--accent); }
+.pay-modal__title {
+  font-family: var(--font-serif); font-size: 1.15rem; margin: 0 0 0.4rem;
+  color: var(--ink); font-weight: 600;
+}
+.pay-modal__amount {
+  font-size: 2rem; color: var(--accent); font-weight: 700;
+  margin: 0.3rem 0 0.8rem; font-family: var(--font-serif);
+}
+.pay-modal__amount::before { content: '¥ '; font-size: 1.2rem; color: var(--gold); font-weight: 400; }
+.pay-modal__order {
+  font-size: 0.78rem; color: var(--gray-500); margin: 0 0 1rem;
+}
+.pay-modal__qr {
+  display: inline-block; padding: 0.7rem; background: #fff;
+  border: 1px solid var(--gray-300); border-radius: 4px; min-width: 240px; min-height: 240px;
+}
+.pay-modal__qr img { display: block; width: 220px; height: 220px; }
+.pay-modal__qr--loading {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 240px; height: 240px; color: var(--gray-500); font-size: 0.85rem;
+}
+.pay-modal__hint {
+  margin: 0.9rem 0 0; font-size: 0.85rem; color: var(--gray-700); line-height: 1.5;
+}
+.pay-modal__hint b { color: var(--accent); }
+.pay-modal__status {
+  margin: 0.8rem 0 0; padding: 0.5rem 0.8rem; border-radius: 3px;
+  font-size: 0.83rem; background: rgba(184,132,74,0.1); color: var(--gold-dark, #8c6235);
+}
+.pay-modal__status--success {
+  background: rgba(34,139,34,0.12); color: #1e7a1e; font-weight: 600;
+}
+.pay-modal__status--error {
+  background: rgba(170,40,40,0.12); color: var(--accent);
+}
+[data-theme="dark"] .pay-modal__content { background: #1a1a1a; color: #ddd; }
+[data-theme="dark"] .pay-modal__title { color: #fff; }
+[data-theme="dark"] .pay-modal__close { color: #888; }
+[data-theme="dark"] .pay-modal__order { color: #888; }
+[data-theme="dark"] .pay-modal__qr { background: #fff; border-color: #333; }
+[data-theme="dark"] .pay-modal__hint { color: #bbb; }
+
+/* 订单卡上的支付按钮 */
+.ws-order__pay {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  margin-top: 0.7rem; padding-top: 0.7rem; border-top: 1px dashed var(--gray-300);
+}
+.ws-order__pay-btn {
+  background: var(--accent); color: #fff; border: 0;
+  padding: 0.42rem 1rem; font-size: 0.85rem; border-radius: 3px;
+  cursor: pointer; font-family: inherit; transition: background 0.15s;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+}
+.ws-order__pay-btn:hover { background: var(--accent-hover, #8a2020); }
+.ws-order__pay-hint { font-size: 0.78rem; color: var(--gray-500); }
+.ws-order__paid {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  color: #1e7a1e; font-size: 0.85rem; font-weight: 600;
+}
+.ws-order__paid-time { color: var(--gray-500); font-weight: 400; font-size: 0.75rem; }
+[data-theme="dark"] .ws-order__pay { border-top-color: #333; }
+[data-theme="dark"] .ws-order__paid { color: #4caf50; }
+[data-theme="dark"] .ws-order__paid-time { color: #888; }
+
 .ws-submit {
   width: 100%;
   padding: 0.9rem;
@@ -3985,6 +4066,24 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 
 <div class="toast" id="toast"></div>
 
+<!-- 支付二维码弹窗 -->
+<div class="pay-modal__overlay" id="payModalOverlay">
+  <div class="pay-modal__content">
+    <button class="pay-modal__close" onclick="closePayModal()" aria-label="关闭">×</button>
+    <h3 class="pay-modal__title" id="payModalTitle">订单支付</h3>
+    <div class="pay-modal__amount" id="payModalAmount">0</div>
+    <p class="pay-modal__order" id="payModalOrder">订单号加载中...</p>
+    <div class="pay-modal__qr" id="payModalQr">
+      <div class="pay-modal__qr--loading">二维码生成中...</div>
+    </div>
+    <p class="pay-modal__hint">
+      请使用 <b>支付宝</b> 扫描上方二维码完成支付<br>
+      <span style="font-size:0.75rem; color:var(--gray-500);">二维码 15 分钟内有效</span>
+    </p>
+    <div class="pay-modal__status" id="payModalStatus">⌛ 等待支付中...</div>
+  </div>
+</div>
+
 <!-- 登录 Modal -->
 <div class="modal" id="loginModal">
   <div class="modal__panel auth-modal-panel">
@@ -4754,6 +4853,108 @@ async function downloadOrderFile(btn) {
   }
 }
 window.downloadOrderFile = downloadOrderFile;
+
+// ────────── 支付：二维码弹窗 + 轮询 ──────────
+let _payPollTimer = null;
+let _payOrderId = null;
+
+async function openPayModal(orderId) {
+  if (!UserStore.user) {
+    toast('请先登录后再支付');
+    if (typeof openUserPanel === 'function') openUserPanel();
+    return;
+  }
+  _payOrderId = orderId;
+  const overlay = document.getElementById('payModalOverlay');
+  const qrBox = document.getElementById('payModalQr');
+  const amountEl = document.getElementById('payModalAmount');
+  const orderEl = document.getElementById('payModalOrder');
+  const statusEl = document.getElementById('payModalStatus');
+  if (!overlay) return;
+  // 重置 UI
+  qrBox.innerHTML = '<div class="pay-modal__qr--loading">二维码生成中...</div>';
+  amountEl.textContent = '0';
+  orderEl.textContent = '订单号加载中...';
+  statusEl.className = 'pay-modal__status';
+  statusEl.textContent = '⌛ 等待支付中...';
+  overlay.classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+  // 调 worker 创建支付订单
+  try {
+    const r = await fetch(API_BASE + '/api/pay/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify({ orderId }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      qrBox.innerHTML = '<div class="pay-modal__qr--loading" style="color:var(--accent);">' + escapeHTML(data.error || ('HTTP ' + r.status)) + '</div>';
+      statusEl.className = 'pay-modal__status pay-modal__status--error';
+      statusEl.textContent = '❌ ' + (data.error || '下单失败');
+      return;
+    }
+    amountEl.textContent = data.amount || 0;
+    orderEl.textContent = '商户订单号 ' + (data.outTradeNo || '');
+    // 渲染二维码（用 goqr.me 免费稳定服务，4 年没挂过）
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=' + encodeURIComponent(data.qrCode);
+    qrBox.innerHTML = '<img src="' + qrUrl + '" alt="支付宝二维码" onerror="this.parentNode.innerHTML=\'<div class=&quot;pay-modal__qr--loading&quot; style=&quot;color:var(--accent);&quot;>二维码加载失败，请点击 <a href=&quot;' + data.qrCode + '&quot; target=&quot;_blank&quot; style=&quot;color:var(--accent); text-decoration:underline;&quot;>这里</a> 手动打开</div>\'">';
+    // 开始轮询（每 2 秒查一次，最长 15 分钟）
+    let polls = 0;
+    if (_payPollTimer) clearInterval(_payPollTimer);
+    _payPollTimer = setInterval(async () => {
+      polls++;
+      if (polls > 450) { clearInterval(_payPollTimer); _payPollTimer = null; return; } // 15 min
+      if (_payOrderId !== orderId) { clearInterval(_payPollTimer); _payPollTimer = null; return; }
+      try {
+        const qr = await fetch(API_BASE + '/api/pay/query?orderId=' + encodeURIComponent(orderId), {
+          headers: { ...adminAuthHeaders() },
+        });
+        const qd = await qr.json().catch(() => ({}));
+        if (qd.paid) {
+          clearInterval(_payPollTimer); _payPollTimer = null;
+          statusEl.className = 'pay-modal__status pay-modal__status--success';
+          statusEl.textContent = '✅ 支付成功！¥' + (qd.paidAmount || data.amount);
+          // 刷新订单列表
+          try {
+            await Store.load();
+            renderWorkshop();
+          } catch (_) {}
+          // 2 秒后自动关
+          setTimeout(() => closePayModal(), 2500);
+        }
+      } catch (_) { /* 静默 */ }
+    }, 2000);
+  } catch (e) {
+    qrBox.innerHTML = '<div class="pay-modal__qr--loading" style="color:var(--accent);">网络异常：' + escapeHTML(String(e).slice(0, 80)) + '</div>';
+    statusEl.className = 'pay-modal__status pay-modal__status--error';
+    statusEl.textContent = '❌ 请检查网络后重试';
+  }
+}
+window.openPayModal = openPayModal;
+
+function closePayModal() {
+  const overlay = document.getElementById('payModalOverlay');
+  if (overlay) overlay.classList.remove('is-open');
+  document.body.style.overflow = '';
+  if (_payPollTimer) { clearInterval(_payPollTimer); _payPollTimer = null; }
+  _payOrderId = null;
+}
+window.closePayModal = closePayModal;
+
+// Admin：手动标记订单为已付款 / 撤销
+async function adminTogglePaid(orderId, toPaid) {
+  const msg = toPaid ? '标记此订单为「已付款」？（线下收款补录）' : '撤销已付款标记？';
+  if (!confirm(msg)) return;
+  try {
+    await Store.updateOrder(orderId, { paid: !!toPaid });
+    toast(toPaid ? '已标记为已付款' : '已撤销付款标记');
+    await Store.load();
+    renderWorkshop();
+  } catch (e) {
+    toast('操作失败：' + (e.message || e));
+  }
+}
+window.adminTogglePaid = adminTogglePaid;
 
 // 把日志正文按 ![alt](url) 切分成 segments：[{type:'text',value} | {type:'image',url,alt}]
 function parseLogContent(text) {
@@ -5650,6 +5851,7 @@ const CHANGELOG = [
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
+      '💰 接入支付宝当面付：固定价订单的「我的订单」卡片新增「💰 立即支付」按钮，点击弹出二维码（用手机支付宝扫一扫付款），付款后自动同步「✅ 已付款」徽章并推送微信通知；起步价订单需店主先报价（改成固定价）才能支付；店主视角额外提供「✓ 标记已付（线下）」按钮用于线下收款补录、以及「撤销付款」用于退款场景；订单 schema 加 paid / paidAt / paidAmount / outTradeNo / tradeNo / payMethod 字段',
       '🔒 下单改为「必须登录」+ 自动关联个人资料：原本要手填挂名 / 联系方式，现在去掉这两个输入框 — 工坊单 / 长期合作 modal / 编辑订单弹窗都自动用账号里的邮箱作为联系方式、昵称作为挂名（昵称为空则用邮箱前缀兜底），未登录点下单会弹登录框；订单创建后再改资料里的昵称不影响已下订单的挂名，避免追溯混乱',
       '🎨 私信输入区按钮对齐微调：📷 / 😊 / 发送按钮统一 36px 高度 + 底部对齐 + 圆角一致，原本三个按钮各自尺寸看着歪歪扭扭',
       '🖼 私信支持发图：用户私信店主 / 店主在收件箱回复都加了 📷 图片按钮，可附 1 张图（同样走 R2 压缩上传），消息气泡里可点击放大查看；文本和图片可独立发送也可一起发；撤回时图片一起隐藏',
@@ -6394,6 +6596,23 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
     // Queue simple label
     let queueLabel = isQueue ? '<span class="ws-order__type" style="background:rgba(184,132,74,0.15);">等待处理</span>' : '';
 
+    // 支付状态展示
+    let payHtml = '';
+    const showPaid = !!o.paid;
+    const canPayBtn = !showPaid && o._isMine && !admin && o.priceMode === 'fixed' && (o.price > 0) && o.step !== 4;
+    const adminMarkBtn = !showPaid && admin && (o.price > 0);
+    if (showPaid) {
+      const paidTime = o.paidAt ? formatDate(o.paidAt) : '';
+      const methodStr = o.payMethod === 'alipay' ? '支付宝' : (o.payMethod === 'offline' ? '线下' : '');
+      payHtml = `<div class="ws-order__pay"><span class="ws-order__paid">✅ 已付款 ¥${o.paidAmount || o.price}${methodStr ? ' · ' + methodStr : ''}<span class="ws-order__paid-time">${paidTime ? ' · ' + paidTime : ''}</span></span>${admin ? `<button class="btn btn--ghost btn--sm" onclick="adminTogglePaid('${o.id}', false)" style="margin-left:auto;">撤销付款</button>` : ''}</div>`;
+    } else if (canPayBtn) {
+      payHtml = `<div class="ws-order__pay"><button class="ws-order__pay-btn" onclick="openPayModal('${o.id}')">💰 立即支付 ¥${o.price}</button><span class="ws-order__pay-hint">支付宝扫码 · 安全到账</span></div>`;
+    } else if (adminMarkBtn) {
+      payHtml = `<div class="ws-order__pay"><span style="color:var(--gray-500); font-size:0.83rem;">💳 未付款</span><button class="btn btn--ghost btn--sm" onclick="adminTogglePaid('${o.id}', true)" style="margin-left:auto;">✓ 标记已付（线下）</button></div>`;
+    } else if (!showPaid && o._isMine && o.priceMode === 'from' && o.step !== 4) {
+      payHtml = `<div class="ws-order__pay"><span style="color:var(--gray-500); font-size:0.83rem;">⏳ 等待店主确认最终价格后可支付</span></div>`;
+    }
+
     // Admin controls
     let adminHtml = '';
     if (admin) {
@@ -6455,6 +6674,7 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
           <span class="ws-order__date">${dateStr}</span>
           <span class="ws-order__price">${priceStr}</span>
         </div>
+        ${payHtml}
         ${completedHtml}
         ${mineEditHtml}
         ${adminHtml}
