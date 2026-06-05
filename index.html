@@ -3110,6 +3110,45 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 [data-theme="dark"] .dm-bubble__recall { background:#1a1a1a; border-color:#333; color:#888; }
 [data-theme="dark"] .dm-bubble__recall:hover { border-color:var(--accent); color:var(--accent); }
 
+/* 私信图片消息 */
+.dm-bubble__img {
+  display:block; max-width:220px; max-height:280px;
+  border-radius:4px; cursor:zoom-in;
+  margin-top:0.1rem; margin-bottom:0.2rem;
+  background:rgba(0,0,0,0.06);
+}
+.dm-bubble--me .dm-bubble__img { background:rgba(255,255,255,0.08); }
+.dm-bubble__img:hover { opacity:0.92; }
+
+/* 输入区附件按钮 + 预览 */
+.dm-attach-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:36px; height:36px; padding:0;
+  border:1.5px solid var(--gray-200); background:var(--gray-50);
+  color:var(--gray-700); cursor:pointer; border-radius:3px;
+  font-size:1.05rem; line-height:1; flex-shrink:0;
+  transition:all 0.15s;
+}
+.dm-attach-btn:hover { border-color:var(--gold); color:var(--gold); }
+.dm-attach-btn:disabled { opacity:0.5; cursor:not-allowed; }
+[data-theme="dark"] .dm-attach-btn { background:#1e1e1e; border-color:#333; color:#bbb; }
+[data-theme="dark"] .dm-attach-btn:hover { border-color:var(--gold); color:var(--gold); }
+
+.dm-img-preview {
+  display:flex; align-items:center; gap:0.5rem;
+  padding:0.45rem 0.7rem; border-top:1px dashed var(--gray-200);
+  background:var(--gray-50); font-size:0.72rem; color:var(--gray-700);
+}
+.dm-img-preview img { width:46px; height:46px; object-fit:cover; border-radius:3px; border:1px solid var(--gray-200); }
+.dm-img-preview__info { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dm-img-preview__del {
+  border:none; background:transparent; color:var(--accent); cursor:pointer;
+  font-size:0.7rem; padding:0.2rem 0.5rem; border-radius:3px;
+}
+.dm-img-preview__del:hover { background:rgba(180,30,30,0.08); }
+[data-theme="dark"] .dm-img-preview { background:#1a1a1a; border-top-color:#333; color:#bbb; }
+[data-theme="dark"] .dm-img-preview img { border-color:#333; }
+
 .auth-modal-panel { max-width:380px !important; }
 .user-modal-panel { max-width:560px !important; }
 .admin-inbox-panel { max-width:860px !important; height:85vh; overflow:hidden; display:flex; flex-direction:column; }
@@ -3987,8 +4026,15 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
             <div>还没有消息，留个言吧</div>
           </div>
         </div>
+        <div class="dm-img-preview" id="userDmImgPreview" style="display:none;">
+          <img id="userDmImgPreviewThumb" alt="预览">
+          <div class="dm-img-preview__info" id="userDmImgPreviewInfo">准备发送…</div>
+          <button type="button" class="dm-img-preview__del" onclick="dmClearAttach('user')">✕ 移除</button>
+        </div>
         <div class="dm-thread__input">
           <textarea id="userDmInput" placeholder="想说点什么……（Enter 发送，Shift+Enter 换行）" maxlength="2000" rows="2"></textarea>
+          <input type="file" id="userDmFile" accept="image/*" style="display:none;" onchange="dmAttachImage('user', this.files)">
+          <button type="button" class="dm-attach-btn" id="userDmAttachBtn" onclick="document.getElementById('userDmFile').click()" title="发送图片">📷</button>
           <button type="button" class="emoji-trigger" onclick="openEmojiPicker('userDmInput', this)" title="表情">😊</button>
           <button class="btn btn--sm" id="userDmSendBtn" onclick="userDmSend()">发送</button>
         </div>
@@ -4034,8 +4080,15 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
             <div>左侧选一个对话</div>
           </div>
         </div>
+        <div class="dm-img-preview" id="inboxImgPreview" style="display:none;">
+          <img id="inboxImgPreviewThumb" alt="预览">
+          <div class="dm-img-preview__info" id="inboxImgPreviewInfo">准备发送…</div>
+          <button type="button" class="dm-img-preview__del" onclick="dmClearAttach('admin')">✕ 移除</button>
+        </div>
         <div class="dm-thread__input" id="inboxReplyArea" style="display:none;">
           <textarea id="inboxReplyInput" placeholder="回复…（Enter 发送，Shift+Enter 换行）" maxlength="2000" rows="2"></textarea>
+          <input type="file" id="inboxReplyFile" accept="image/*" style="display:none;" onchange="dmAttachImage('admin', this.files)">
+          <button type="button" class="dm-attach-btn" id="inboxAttachBtn" onclick="document.getElementById('inboxReplyFile').click()" title="发送图片">📷</button>
           <button type="button" class="emoji-trigger" onclick="openEmojiPicker('inboxReplyInput', this)" title="表情">😊</button>
           <button class="btn btn--sm" id="inboxReplyBtn" onclick="inboxReply()">回复</button>
         </div>
@@ -5579,6 +5632,7 @@ const CHANGELOG = [
     date: '2026-06-04',
     title: '邮箱登录 · 收件箱 · 日志详情页 + 图片 + 分组',
     items: [
+      '🖼 私信支持发图：用户私信店主 / 店主在收件箱回复都加了 📷 图片按钮，可附 1 张图（同样走 R2 压缩上传），消息气泡里可点击放大查看；文本和图片可独立发送也可一起发；撤回时图片一起隐藏',
       '⬇ 订单音频「下载」按钮改为强制下载到本地：原本 <a download> 在跨子域（api.weilingt.top → blog）和移动端会被浏览器忽略，点击只是打开 / 播放；现改成 fetch 拉成 blob 后用 blob URL 触发真下载，移动端 Chrome / Safari 都能正常存到下载目录',
       '📱 移动端顶栏：emoji 图标统一字号 + 居中渲染（不再一大一小），按钮文字「登录/资料/退出/收件箱/私信/副管理员」继续显示；按钮多时自动换行不挤出去',
       '⚡ 订单图 / 订单音频上传提速 + 进度条：改为 multipart 二进制直传（不再走 base64，省掉 33% 体积 + 前后端各一次编解码），移动网络上速度提升约 30~50%；上传时显示「文件名 · 当前进度 (1/N)」+ 横向进度条，串行多文件可看到当前在传第几个',
@@ -8269,6 +8323,69 @@ async function saveProfile() {
 
 // ── 用户私信 ──
 
+// 私信「待发送图片」缓存（两侧独立）：上传完拿到 URL 后挂这里，发送成功后清掉
+const _dmPending = { user: null, admin: null };
+
+// 选图片附件后：压缩 → 上传到 R2 → 缓存 URL → 显示预览
+//   side: 'user' | 'admin'
+async function dmAttachImage(side, files) {
+  if (!files || !files.length) return;
+  const file = files[0];
+  if (!file.type || !file.type.startsWith('image/')) { toast('请选图片'); return; }
+  const isUser = side === 'user';
+  const previewEl = document.getElementById(isUser ? 'userDmImgPreview' : 'inboxImgPreview');
+  const thumbEl = document.getElementById(isUser ? 'userDmImgPreviewThumb' : 'inboxImgPreviewThumb');
+  const infoEl = document.getElementById(isUser ? 'userDmImgPreviewInfo' : 'inboxImgPreviewInfo');
+  const attachBtn = document.getElementById(isUser ? 'userDmAttachBtn' : 'inboxAttachBtn');
+  const fileInput = document.getElementById(isUser ? 'userDmFile' : 'inboxReplyFile');
+  if (!previewEl || !thumbEl || !infoEl) return;
+
+  // 立即展示本地预览（dataURL）+ 上传中状态
+  try {
+    const localUrl = URL.createObjectURL(file);
+    thumbEl.src = localUrl;
+  } catch (_) {}
+  previewEl.style.display = '';
+  infoEl.textContent = '压缩中…';
+  if (attachBtn) attachBtn.disabled = true;
+
+  try {
+    // 1) 压缩成 blob
+    const blob = await compressImageToBlob(file);
+    infoEl.textContent = '上传中 0%';
+    // 2) multipart 上传到 R2
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const name = 'dm_' + Date.now() + '.' + (ext || 'jpg');
+    const res = await Store.uploadFile('image', blob, {
+      name,
+      onProgress: (pct) => { infoEl.textContent = '上传中 ' + pct + '%'; },
+    });
+    if (!res || !res.url) throw new Error('上传无 URL 返回');
+    _dmPending[side] = res.url;
+    infoEl.textContent = '图片已就绪，点「' + (isUser ? '发送' : '回复') + '」发出';
+  } catch (e) {
+    console.error('[dm/attach] failed', e);
+    toast('图片上传失败：' + (e.message || e));
+    dmClearAttach(side);
+  } finally {
+    if (attachBtn) attachBtn.disabled = false;
+    // 重置 file input，允许选同一张图再次触发 change
+    if (fileInput) fileInput.value = '';
+  }
+}
+
+// 移除「待发送图片」
+function dmClearAttach(side) {
+  _dmPending[side] = null;
+  const isUser = side === 'user';
+  const previewEl = document.getElementById(isUser ? 'userDmImgPreview' : 'inboxImgPreview');
+  const thumbEl = document.getElementById(isUser ? 'userDmImgPreviewThumb' : 'inboxImgPreviewThumb');
+  if (previewEl) previewEl.style.display = 'none';
+  if (thumbEl) thumbEl.src = '';
+}
+window.dmAttachImage = dmAttachImage;
+window.dmClearAttach = dmClearAttach;
+
 async function loadUserDm() {
   if (!UserStore.token) return;
   const area = document.getElementById('userDmMessages');
@@ -8292,19 +8409,23 @@ async function loadUserDm() {
 async function userDmSend() {
   const input = document.getElementById('userDmInput');
   const content = input.value.trim();
-  if (!content) return;
+  const imageUrl = _dmPending.user || '';
+  if (!content && !imageUrl) return;
   if (!UserStore.token) { toast('请先登录'); return; }
   const btn = document.getElementById('userDmSendBtn');
   btn.disabled = true;
   try {
+    const payload = { content };
+    if (imageUrl) payload.imageUrl = imageUrl;
     const r = await fetch(API_BASE + '/api/dm/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-User-Token': UserStore.token },
-      body: JSON.stringify({ content })
+      body: JSON.stringify(payload)
     });
     const d = await r.json();
     if (d.ok) {
       input.value = '';
+      dmClearAttach('user');
       loadUserDm();
     } else {
       const msg = d.detail ? (d.error + ': ' + d.detail) : (d.error || ('发送失败 HTTP ' + r.status));
@@ -8630,18 +8751,22 @@ async function selectInboxThread(userId) {
 async function inboxReply() {
   const input = document.getElementById('inboxReplyInput');
   const content = input.value.trim();
-  if (!content || !_inboxCurrentUserId) return;
+  const imageUrl = _dmPending.admin || '';
+  if ((!content && !imageUrl) || !_inboxCurrentUserId) return;
   const btn = document.getElementById('inboxReplyBtn');
   btn.disabled = true;
   try {
+    const payload = { userId: _inboxCurrentUserId, content };
+    if (imageUrl) payload.imageUrl = imageUrl;
     const r = await fetch(API_BASE + '/api/admin/dm/reply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
-      body: JSON.stringify({ userId: _inboxCurrentUserId, content })
+      body: JSON.stringify(payload)
     });
     const d = await r.json();
     if (d.ok) {
       input.value = '';
+      dmClearAttach('admin');
       // 店主主动回复 → 后端已把该 thread 的 unread 置 0；
       // 立即在前端清红点+同步 inboxBtn badge，避免回复完一闪还看到红点。
       clearInboxUnreadLocal(_inboxCurrentUserId);
@@ -8718,7 +8843,17 @@ function renderDmBubble(msg, viewerIsAdmin) {
   let cls = isMe ? 'dm-bubble dm-bubble--me' : 'dm-bubble dm-bubble--peer';
   if (recalled) cls += ' dm-bubble--recalled';
   const time = new Date(msg.ts).toLocaleString('zh-CN', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
-  const body = recalled ? '此消息已撤回' : escHtml(msg.content);
+  let body;
+  if (recalled) {
+    body = '此消息已撤回';
+  } else {
+    const parts = [];
+    if (msg.imageUrl) {
+      parts.push('<img class="dm-bubble__img" src="' + escAttr(msg.imageUrl) + '" alt="图片" loading="lazy" onclick="openLightbox(\'' + escAttr(msg.imageUrl) + '\')">');
+    }
+    if (msg.content) parts.push(escHtml(msg.content));
+    body = parts.join('');
+  }
   // 撤回按钮：仅展示给"自己发的、未撤回、2分钟内"的消息
   let recallBtn = '';
   if (canRecallMsg(msg, viewerIsAdmin)) {

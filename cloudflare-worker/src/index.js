@@ -1262,10 +1262,17 @@ async function handleRequest(request, env, ctx, cors) {
       let body;
       try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
       const content = sanitizeStr(body.content, 2000);
-      if (!content) return json({ error: 'Message cannot be empty' }, 400, cors);
+      const imageUrl = sanitizeStr(body.imageUrl, 500);
+      // 至少要有文本或图片之一
+      if (!content && !imageUrl) return json({ error: 'Message cannot be empty' }, 400, cors);
+      // 安全：imageUrl 必须是同源 /files/ 或允许的反代域
+      if (imageUrl && !/^https?:\/\/[^/]+\/files\//.test(imageUrl)) {
+        return json({ error: 'Invalid imageUrl' }, 400, cors);
+      }
       const threadKey = 'dm/thread/' + user.userId;
       const thread = (await env.BLOG.get(threadKey, 'json')) || [];
       const msg = { id: genMsgId(), from: 'user', content, ts: Date.now() };
+      if (imageUrl) msg.imageUrl = imageUrl;
       thread.push(msg);
       // Cap thread at 1000 messages (drop oldest)
       if (thread.length > 1000) thread.splice(0, thread.length - 1000);
@@ -1273,9 +1280,10 @@ async function handleRequest(request, env, ctx, cors) {
       // KV expirationTtl minimum is 60s; rate limit logic still uses 3s window via ts
       await env.BLOG.put('ratelimit/dm/' + user.userId, JSON.stringify({ ts: Date.now() }), { expirationTtl: 60 });
       // Update admin index (+1 unread)
-      await updateAdminThreadsIndex(env, user, content, Date.now(), 1);
+      const preview = content || '[图片]';
+      await updateAdminThreadsIndex(env, user, preview, Date.now(), 1);
       // Notify admin via Server Chan
-      ctx.waitUntil(notifyNewDM(env, user, content));
+      ctx.waitUntil(notifyNewDM(env, user, preview));
       return json({ ok: true, msg }, 200, cors);
     }
 
@@ -1356,14 +1364,19 @@ async function handleRequest(request, env, ctx, cors) {
       try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
       const targetUserId = String(body.userId || '').trim();
       const content = sanitizeStr(body.content, 2000);
+      const imageUrl = sanitizeStr(body.imageUrl, 500);
       if (!targetUserId || targetUserId.length > 32) return json({ error: 'Invalid userId' }, 400, cors);
-      if (!content) return json({ error: 'Message cannot be empty' }, 400, cors);
+      if (!content && !imageUrl) return json({ error: 'Message cannot be empty' }, 400, cors);
+      if (imageUrl && !/^https?:\/\/[^/]+\/files\//.test(imageUrl)) {
+        return json({ error: 'Invalid imageUrl' }, 400, cors);
+      }
       const threadKey = 'dm/thread/' + targetUserId;
       const thread = (await env.BLOG.get(threadKey, 'json')) || [];
       // 当前管理员身份（用于撤回时校验"只能撤回自己的"）
       const me = await getCurrentUser(request, env);
       const byEmail = (me && me.email) ? me.email : 'admin';
       const msg = { id: genMsgId(), from: 'admin', byEmail, content, ts: Date.now() };
+      if (imageUrl) msg.imageUrl = imageUrl;
       thread.push(msg);
       if (thread.length > 1000) thread.splice(0, thread.length - 1000);
       await env.BLOG.put(threadKey, JSON.stringify(thread));
@@ -1373,7 +1386,8 @@ async function handleRequest(request, env, ctx, cors) {
       const list = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
       const existing = list.find(t => t.userId === targetUserId);
       if (existing) { userStub.email = existing.email; userStub.nickname = existing.nickname; }
-      await updateAdminThreadsIndex(env, userStub, content, Date.now(), 0);
+      const preview = content || '[图片]';
+      await updateAdminThreadsIndex(env, userStub, preview, Date.now(), 0);
       // Reset unread to 0 since admin just replied
       const list2 = (await env.BLOG.get('dm/admin/threads', 'json')) || [];
       const item = list2.find(t => t.userId === targetUserId);
