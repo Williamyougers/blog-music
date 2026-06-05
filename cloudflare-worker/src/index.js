@@ -157,11 +157,51 @@ async function notifyOrderPaid(env, order) {
   }
 }
 
+// 客户声明已付款（线下扫码转账模式），推送 Server 酱通知店主到 admin 端核对到账后确认
+async function notifyOrderClaimed(env, order) {
+  if (!env.SERVERCHAN_KEY) return;
+  try {
+    const seqStr = String(order.seq || 0).padStart(3, '0');
+    const tierLabel = order.tierLabel || order.tier || '';
+    const amount = order.claimedAmount || order.price || 0;
+    const showName = order.showName ? (order.clientName || '匿名') : '匿名';
+    const note = order.claimNote ? `\n- **客户备注**：${order.claimNote}` : '';
+    const timeStr = new Date(order.claimedAt || Date.now())
+      .toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    const title = `⏳ 待确认收款 ¥${amount} · 订单 #${seqStr}`;
+    const desp = [
+      `### 客户声明已付款，请去 admin 端核对支付宝/微信到账后点「确认收款」`,
+      '',
+      `- **挂名**：${showName}`,
+      `- **套餐**：${tierLabel}`,
+      `- **声明金额**：¥${amount}`,
+      `- **联系方式**：${order.contact || '-'}` + note,
+      '',
+      `---`,
+      `🕐 ${timeStr}`,
+      `🔗 https://weilingt.top （登录 admin 后到工坊确认收款）`,
+    ].join('\n');
+    const apiUrl = `https://sctapi.ftqq.com/${env.SERVERCHAN_KEY}.send`;
+    const body = new URLSearchParams({ title, desp });
+    await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+  } catch (e) {
+    console.error('notifyOrderClaimed failed:', e && e.message);
+  }
+}
+
 const DEFAULT_ABOUT = {
   intro: '',
   body1: '',
   quote: '',
   body2: '',
+  // ── 个人收款码（线下扫码转账模式，bb7d19d 之外的兜底支付方案，2026-06-05 加） ──
+  qrAlipay: '',     // 支付宝个人收款码图片 URL / dataURL
+  qrWechat: '',     // 微信个人收款码图片 URL / dataURL
+  qrPayNote: '',    // 收款提示文案（如「请备注订单号」）
 };
 
 async function loadAll(env) {
@@ -949,6 +989,10 @@ async function handleRequest(request, env, ctx, cors) {
           body1: sanitizeStr(aboutInput.body1, 2000),
           quote: sanitizeStr(aboutInput.quote, 500),
           body2: sanitizeStr(aboutInput.body2, 2000),
+          // 个人收款码（dataURL 或外链）— 50 万字符上限够容纳 1 张 300KB 以内的 base64 图（前端会再压缩）
+          qrAlipay: sanitizeStr(aboutInput.qrAlipay, 500000),
+          qrWechat: sanitizeStr(aboutInput.qrWechat, 500000),
+          qrPayNote: sanitizeStr(aboutInput.qrPayNote, 200),
           tierKeys: allowed,
           tierPrices: sanitizeTierPrices(aboutInput.tierPrices, allowed),
           tierPriceModes: sanitizeTierPriceModes(aboutInput.tierPriceModes, allowed),
@@ -1099,8 +1143,12 @@ async function handleRequest(request, env, ctx, cors) {
         paidAmount: 0,       // 实付金额（元，整数）
         outTradeNo: '',      // 商户订单号（发起支付时生成，传给支付宝）
         tradeNo: '',         // 支付宝交易号（异步通知回填）
-        payMethod: '',       // alipay / wechat / offline / ''
+        payMethod: '',       // alipay / wechat / offline / qrpay / ''
         pendingAmount: 0,    // 起步价订单：客户自填的待付款金额（付款成功后会写入 price 并改 priceMode='fixed'）
+        // ── 线下扫码转账模式（2026-06-05 加） ──
+        claimedAt: null,     // 客户声明"我已付款"的时间戳
+        claimedAmount: 0,    // 客户声明的付款金额（元）
+        claimNote: '',       // 客户备注（可选，如"已用花呗付，备注 #007"）
       };
 
       orders.push(order);
@@ -1177,12 +1225,27 @@ async function handleRequest(request, env, ctx, cors) {
           order.clientName = order.showName ? name : '';
         }
         // Admin 可手动标记/取消支付状态（线下收款 / 退款场景）
+        // 2026-06-05：加上 claim 状态升级 + 起步价订单 price 升级（与 /api/pay/notify 对齐）
         if (body.paid !== undefined) {
           if (body.paid) {
             order.paid = true;
             order.paidAt = order.paidAt || Date.now();
-            order.paidAmount = order.paidAmount || (order.price || 0);
-            order.payMethod = order.payMethod || 'offline';
+            // 优先用客户声明金额 → 已记录的实付 → 订单价
+            const finalAmt = order.claimedAmount > 0
+              ? order.claimedAmount
+              : (order.paidAmount || order.price || 0);
+            order.paidAmount = finalAmt;
+            order.payMethod = order.payMethod || (order.claimedAt ? 'qrpay' : 'offline');
+            // 起步价订单付款成功后升级为已定价
+            if (order.priceMode === 'from' && finalAmt > 0) {
+              order.price = finalAmt;
+              order.priceMode = 'fixed';
+            }
+            // 清除 pending / claim 中间状态
+            order.pendingAmount = 0;
+            order.claimedAt = null;
+            order.claimedAmount = 0;
+            order.claimNote = '';
           } else {
             order.paid = false;
             order.paidAt = null;
@@ -1190,6 +1253,12 @@ async function handleRequest(request, env, ctx, cors) {
             order.tradeNo = '';
             order.payMethod = '';
           }
+        }
+        // Admin 可单独驳回客户的"已付款声明"（清除 claim 字段，不动 paid 状态）
+        if (body.rejectClaim === true && order.claimedAt) {
+          order.claimedAt = null;
+          order.claimedAmount = 0;
+          order.claimNote = '';
         }
       }
 
@@ -1251,6 +1320,59 @@ async function handleRequest(request, env, ctx, cors) {
       orders.splice(idx, 1);
       await env.BLOG.put('orders', JSON.stringify(orders));
       return json({ ok: true }, 200, cors);
+    }
+
+    // POST /api/orders/:orderId/claim-pay —— 客户声明"我已付款"（线下扫码转账模式，2026-06-05 加）
+    //   必须登录 + 必须是订单 owner；写入 claimedAt/claimedAmount/claimNote，推送 Server 酱通知店主到 admin 端确认
+    const claimPayMatch = path.match(/^\/api\/orders\/([^/]+)\/claim-pay$/);
+    if (claimPayMatch && method === 'POST') {
+      const orderId = claimPayMatch[1];
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+
+      const ordersRaw = await env.BLOG.get('orders');
+      const orders = JSON.parse(ordersRaw || '[]');
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return json({ error: '订单不存在' }, 404, cors);
+
+      // owner 鉴权：必须是订单本人（admin 走 PUT 直接改 paid，不需走这条）
+      const viewerId = request.headers.get('X-Visitor-Id') || '';
+      const ownerUser = await getCurrentUser(request, env);
+      const matchUser = !!ownerUser && !!order.userId && order.userId === ownerUser.userId;
+      const matchVisitor = !!viewerId && order.visitorId === viewerId;
+      if (!matchUser && !matchVisitor) return json({ error: '请先登录后再操作' }, 401, cors);
+
+      if (order.paid) return json({ error: '订单已付款' }, 400, cors);
+      if (order.claimedAt) return json({ error: '已声明付款，请等店主确认' }, 400, cors);
+
+      // 金额校验：起步价订单 ≥price；定价订单必须等于 price
+      const amount = Math.floor(Number(body && body.amount) || 0);
+      if (!Number.isFinite(amount) || amount <= 0) return json({ error: '金额无效' }, 400, cors);
+      if (amount > 50000) return json({ error: '单笔金额不能超过 ¥50000' }, 400, cors);
+      const basePrice = Number(order.price) || 0;
+      if (order.priceMode === 'from') {
+        if (basePrice > 0 && amount < basePrice) {
+          return json({ error: `金额不能低于起步价 ¥${basePrice}` }, 400, cors);
+        }
+      } else {
+        if (basePrice > 0 && amount !== basePrice) {
+          return json({ error: `请按订单金额 ¥${basePrice} 付款` }, 400, cors);
+        }
+      }
+
+      order.claimedAt = Date.now();
+      order.claimedAmount = amount;
+      order.claimNote = sanitizeStr(body && body.note, 100);
+
+      await env.BLOG.put('orders', JSON.stringify(orders));
+      if (typeof ctx !== 'undefined' && ctx.waitUntil) {
+        ctx.waitUntil(notifyOrderClaimed(env, order).catch(() => {}));
+      } else {
+        notifyOrderClaimed(env, order).catch(() => {});
+      }
+
+      return json({ ok: true, claimedAt: order.claimedAt, claimedAmount: order.claimedAmount }, 200, cors);
     }
 
     // ── 支付 API ──────────────────────────────────────────

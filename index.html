@@ -2263,6 +2263,87 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 [data-theme="dark"] .ws-order__pay-custom-input:focus { border-color: var(--accent); }
 [data-theme="dark"] .ws-order__pay-custom-label { color: #aaa; }
 
+/* 已声明付款 · 待店主确认状态 */
+.ws-order__pay--claim {
+  background: rgba(184,132,74,0.07); border-radius: 4px;
+  padding: 0.6rem 0.8rem; border-top: 1px dashed rgba(184,132,74,0.35);
+  flex-direction: column; align-items: stretch; gap: 0.5rem;
+}
+.ws-order__claim-info { display: flex; flex-direction: column; gap: 0.25rem; }
+.ws-order__claim-label {
+  font-size: 0.88rem; color: #b8843a; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap;
+}
+.ws-order__claim-time { font-size: 0.75rem; color: var(--gray-500); font-weight: 400; }
+.ws-order__claim-note {
+  font-size: 0.82rem; color: var(--gray-700); padding: 0.3rem 0.5rem;
+  background: rgba(0,0,0,0.04); border-left: 2px solid #b8843a; border-radius: 2px;
+  word-break: break-word; white-space: pre-wrap;
+}
+.ws-order__claim-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+[data-theme="dark"] .ws-order__pay--claim { background: rgba(184,132,74,0.12); border-top-color: rgba(184,132,74,0.45); }
+[data-theme="dark"] .ws-order__claim-label { color: #d4a55c; }
+[data-theme="dark"] .ws-order__claim-note { background: rgba(255,255,255,0.04); color: #bbb; }
+
+/* ── 「关于」编辑：个人收款码上传 ── */
+.ab-qr-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;
+}
+.ab-qr-cell {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 0.8rem; border: 1px dashed var(--gray-300); border-radius: 4px;
+  background: var(--gray-50, #fafafa);
+}
+.ab-qr-label {
+  font-size: 0.8rem; color: var(--gray-700); margin-bottom: 0.5rem; font-weight: 500;
+}
+.ab-qr-preview {
+  width: 140px; height: 140px; object-fit: contain;
+  border: 1px solid var(--gray-200); border-radius: 3px;
+  margin-bottom: 0.5rem; background: #fff;
+}
+.ab-qr-actions {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;
+}
+[data-theme="dark"] .ab-qr-cell {
+  background: #1a1a1a; border-color: #444;
+}
+[data-theme="dark"] .ab-qr-label { color: #aaa; }
+[data-theme="dark"] .ab-qr-preview { background: #fff; border-color: #555; }
+@media (max-width: 480px) {
+  .ab-qr-row { grid-template-columns: 1fr; }
+}
+
+/* ── 支付弹窗：扫码转账模式（个人收款码 + 我已付款） ── */
+.pay-modal__qr-tabs {
+  display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1rem;
+}
+.pay-modal__qr-tab {
+  padding: 0.45rem 1rem; font-size: 0.85rem; cursor: pointer;
+  border: 1px solid var(--gray-300); border-radius: 3px;
+  background: transparent; color: var(--gray-700);
+  font-family: inherit;
+}
+.pay-modal__qr-tab.is-active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+[data-theme="dark"] .pay-modal__qr-tab { color: #ccc; border-color: #444; }
+.pay-modal__qr-note {
+  font-size: 0.78rem; color: var(--gray-600);
+  text-align: center; line-height: 1.6; margin: 0.6rem 0 0.8rem;
+  padding: 0.6rem 0.8rem; background: rgba(212,179,77,0.08);
+  border-left: 2px solid #d4b34d; border-radius: 2px;
+}
+[data-theme="dark"] .pay-modal__qr-note { color: #bbb; background: rgba(212,179,77,0.12); }
+.pay-modal__claim-btn {
+  width: 100%; margin-top: 0.8rem; padding: 0.8rem;
+  font-size: 0.95rem; font-weight: 500;
+}
+.pay-modal__claim-tip {
+  font-size: 0.72rem; color: var(--gray-500); text-align: center;
+  margin: 0.5rem 0 0; line-height: 1.5;
+}
+
 .ws-submit {
   width: 100%;
   padding: 0.9rem;
@@ -4082,6 +4163,41 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <label>结尾段</label>
       <textarea id="ab-body2" rows="3" placeholder="结束语..."></textarea>
     </div>
+    <hr style="border:none; border-top:1px dashed var(--gray-300); margin:1.5rem 0 1rem;">
+    <div style="font-size:0.85rem; color:var(--gray-700); font-weight:600; margin-bottom:0.5rem;">💰 个人收款码（线下扫码转账模式）</div>
+    <div style="font-size:0.72rem; color:var(--gray-500); margin-bottom:0.8rem; line-height:1.5;">
+      上传后，客户在「✎ 订单工坊」点「📱 扫码付款」会显示收款码 + 「我已付款」按钮 → 推送你 Server 酱通知，你核对到账后到 admin 端点「✓ 确认收款」
+    </div>
+    <div class="ab-qr-row">
+      <div class="ab-qr-cell">
+        <label class="ab-qr-label">支付宝收款码</label>
+        <input type="hidden" id="ab-qr-alipay">
+        <img id="ab-qr-alipay-preview" class="ab-qr-preview" alt="支付宝收款码预览" style="display:none;">
+        <div class="ab-qr-actions">
+          <label class="btn btn--ghost btn--sm">
+            上传图片
+            <input type="file" accept="image/*" onchange="_onQrFileChange('alipay', this)" style="display:none;">
+          </label>
+          <button type="button" id="ab-qr-alipay-clear" class="btn btn--ghost btn--sm" onclick="_setQrPreview('alipay','')" style="display:none;">清除</button>
+        </div>
+      </div>
+      <div class="ab-qr-cell">
+        <label class="ab-qr-label">微信收款码</label>
+        <input type="hidden" id="ab-qr-wechat">
+        <img id="ab-qr-wechat-preview" class="ab-qr-preview" alt="微信收款码预览" style="display:none;">
+        <div class="ab-qr-actions">
+          <label class="btn btn--ghost btn--sm">
+            上传图片
+            <input type="file" accept="image/*" onchange="_onQrFileChange('wechat', this)" style="display:none;">
+          </label>
+          <button type="button" id="ab-qr-wechat-clear" class="btn btn--ghost btn--sm" onclick="_setQrPreview('wechat','')" style="display:none;">清除</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>收款提示文案（可选，显示在弹窗底部）</label>
+      <textarea id="ab-qr-note" rows="2" placeholder="例如：付款时请备注订单号，方便核对；到账后请点「我已付款」"></textarea>
+    </div>
     <div class="modal__actions">
       <button class="btn btn--ghost btn--sm" onclick="resetAbout()" style="margin-right:auto;">恢复默认</button>
       <button class="btn btn--ghost btn--sm" onclick="closeModal('aboutModal')">取消</button>
@@ -4092,21 +4208,36 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 
 <div class="toast" id="toast"></div>
 
-<!-- 支付二维码弹窗 -->
+<!-- 支付二维码弹窗（自动二选一：扫码转账模式 / 当面付模式） -->
 <div class="pay-modal__overlay" id="payModalOverlay">
   <div class="pay-modal__content">
     <button class="pay-modal__close" onclick="closePayModal()" aria-label="关闭">×</button>
     <h3 class="pay-modal__title" id="payModalTitle">订单支付</h3>
     <div class="pay-modal__amount" id="payModalAmount">0</div>
     <p class="pay-modal__order" id="payModalOrder">订单号加载中...</p>
-    <div class="pay-modal__qr" id="payModalQr">
-      <div class="pay-modal__qr--loading">二维码生成中...</div>
+
+    <!-- 扫码转账模式（个人收款码）：默认显示，配了 qrAlipay/qrWechat 才会进这个分支 -->
+    <div id="payModalQrPay" style="display:none;">
+      <div class="pay-modal__qr-tabs" id="payModalQrTabs"></div>
+      <div class="pay-modal__qr" id="payModalQrPayImg">
+        <div class="pay-modal__qr--loading">二维码加载中...</div>
+      </div>
+      <div class="pay-modal__qr-note" id="payModalQrNote" style="display:none;"></div>
+      <button class="btn pay-modal__claim-btn" onclick="claimPayConfirm()">✓ 我已付款</button>
+      <p class="pay-modal__claim-tip">付款后请点上方按钮，店主核对到账后会确认订单</p>
     </div>
-    <p class="pay-modal__hint">
-      请使用 <b>支付宝</b> 扫描上方二维码完成支付<br>
-      <span style="font-size:0.75rem; color:var(--gray-500);">二维码 15 分钟内有效</span>
-    </p>
-    <div class="pay-modal__status" id="payModalStatus">⌛ 等待支付中...</div>
+
+    <!-- 当面付模式（支付宝扫码自动到账） -->
+    <div id="payModalAlipay" style="display:none;">
+      <div class="pay-modal__qr" id="payModalQr">
+        <div class="pay-modal__qr--loading">二维码生成中...</div>
+      </div>
+      <p class="pay-modal__hint">
+        请使用 <b>支付宝</b> 扫描上方二维码完成支付<br>
+        <span style="font-size:0.75rem; color:var(--gray-500);">二维码 15 分钟内有效</span>
+      </p>
+      <div class="pay-modal__status" id="payModalStatus">⌛ 等待支付中...</div>
+    </div>
   </div>
 </div>
 
@@ -4335,6 +4466,10 @@ const DEFAULT_ABOUT = {
     yearly: '全年陪跑 · 含 4 首全包 + 不限小段',
     bulk: '一次囤 10 首 · 自由分配 · 不过期',
   },
+  // ── 个人收款码（线下扫码转账模式，2026-06-05 加） ──
+  qrAlipay: '',
+  qrWechat: '',
+  qrPayNote: '',
 };
 
 // ── 套餐工具：从 about 取动态 tier 列表（兼容老数据：没有 tierKeys 时从 tierPrices/Labels 推导）──
@@ -4883,6 +5018,8 @@ window.downloadOrderFile = downloadOrderFile;
 // ────────── 支付：二维码弹窗 + 轮询 ──────────
 let _payPollTimer = null;
 let _payOrderId = null;
+let _payClaimAmount = 0;       // 当前弹窗的应付金额（用于 claim-pay 请求）
+let _payClaimSubmitting = false;
 
 async function openPayModal(orderId, customAmount) {
   if (!UserStore.user) {
@@ -4891,23 +5028,106 @@ async function openPayModal(orderId, customAmount) {
     return;
   }
   _payOrderId = orderId;
+  _payClaimSubmitting = false;
   const overlay = document.getElementById('payModalOverlay');
-  const qrBox = document.getElementById('payModalQr');
   const amountEl = document.getElementById('payModalAmount');
   const orderEl = document.getElementById('payModalOrder');
-  const statusEl = document.getElementById('payModalStatus');
+  const qrPayBox = document.getElementById('payModalQrPay');
+  const alipayBox = document.getElementById('payModalAlipay');
   if (!overlay) return;
-  // 重置 UI
-  qrBox.innerHTML = '<div class="pay-modal__qr--loading">二维码生成中...</div>';
-  // 已传 customAmount 时先预填，避免请求失败时弹窗显示 ¥0 让人困惑
+
+  // 已传 customAmount 时先预填，避免显示 ¥0 让人困惑
   const preAmount = (customAmount !== undefined && customAmount !== null && Number(customAmount) > 0)
     ? Math.floor(Number(customAmount)) : 0;
   amountEl.textContent = preAmount || '0';
   orderEl.textContent = '订单号加载中...';
-  statusEl.className = 'pay-modal__status';
-  statusEl.textContent = '⌛ 等待支付中...';
   overlay.classList.add('is-open');
   document.body.style.overflow = 'hidden';
+
+  // 模式自动选择：店主配了任意一个个人收款码 → 走「扫码转账」模式；否则走「当面付」模式
+  const about = Store.about || {};
+  const hasQrPay = !!(about.qrAlipay || about.qrWechat);
+
+  if (hasQrPay) {
+    qrPayBox.style.display = '';
+    alipayBox.style.display = 'none';
+    _openPayModalQrMode(orderId, preAmount, about);
+  } else {
+    qrPayBox.style.display = 'none';
+    alipayBox.style.display = '';
+    _openPayModalAlipayMode(orderId, customAmount, preAmount);
+  }
+}
+window.openPayModal = openPayModal;
+
+// ─── 扫码转账模式（个人收款码） ───
+function _openPayModalQrMode(orderId, preAmount, about) {
+  const orderEl = document.getElementById('payModalOrder');
+  const amountEl = document.getElementById('payModalAmount');
+  const tabsEl = document.getElementById('payModalQrTabs');
+  const imgBox = document.getElementById('payModalQrPayImg');
+  const noteEl = document.getElementById('payModalQrNote');
+
+  // 从订单数据确认金额（preAmount 0 时回退到 order.price）
+  const order = (Store.orders || []).find(o => o.id === orderId);
+  const finalAmount = preAmount > 0 ? preAmount : Math.floor(Number(order && order.price) || 0);
+  _payClaimAmount = finalAmount;
+  amountEl.textContent = finalAmount || '0';
+
+  const seqStr = order && order.seq ? String(order.seq).padStart(3, '0') : '';
+  orderEl.textContent = seqStr ? ('订单 #' + seqStr + ' · 请扫码转账') : '请扫码转账';
+
+  // tabs：根据店主配了哪几个码渲染
+  const tabs = [];
+  if (about.qrAlipay) tabs.push({ key: 'alipay', label: '🅰️ 支付宝', src: about.qrAlipay });
+  if (about.qrWechat) tabs.push({ key: 'wechat', label: '💬 微信', src: about.qrWechat });
+
+  const renderImg = (src, label) => {
+    imgBox.innerHTML = '<img src="' + escapeHTML(src) + '" alt="' + escapeHTML(label) + '收款码" style="width:240px; height:240px; object-fit:contain;">';
+  };
+
+  if (tabs.length >= 2) {
+    tabsEl.style.display = '';
+    tabsEl.innerHTML = tabs.map((t, i) =>
+      '<button type="button" class="pay-modal__qr-tab' + (i === 0 ? ' is-active' : '') + '" data-qr-tab="' + t.key + '">' + escapeHTML(t.label) + '</button>'
+    ).join('');
+    tabsEl.querySelectorAll('[data-qr-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabsEl.querySelectorAll('[data-qr-tab]').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+        const k = btn.getAttribute('data-qr-tab');
+        const tab = tabs.find(t => t.key === k);
+        if (tab) renderImg(tab.src, tab.label);
+      });
+    });
+  } else {
+    tabsEl.style.display = 'none';
+    tabsEl.innerHTML = '';
+  }
+
+  if (tabs[0]) renderImg(tabs[0].src, tabs[0].label);
+  else imgBox.innerHTML = '<div class="pay-modal__qr--loading" style="color:var(--accent);">店主未配置收款码</div>';
+
+  const note = (about.qrPayNote || '').trim()
+    || ('请用 支付宝/微信 转账 ¥' + finalAmount + (seqStr ? '，备注订单号 #' + seqStr : '') + '；付款后点下方「我已付款」');
+  if (note) {
+    noteEl.style.display = '';
+    noteEl.textContent = note;
+  } else {
+    noteEl.style.display = 'none';
+  }
+}
+
+// ─── 当面付模式（支付宝官方扫码自动到账） ───
+async function _openPayModalAlipayMode(orderId, customAmount, preAmount) {
+  const qrBox = document.getElementById('payModalQr');
+  const amountEl = document.getElementById('payModalAmount');
+  const orderEl = document.getElementById('payModalOrder');
+  const statusEl = document.getElementById('payModalStatus');
+  qrBox.innerHTML = '<div class="pay-modal__qr--loading">二维码生成中...</div>';
+  statusEl.className = 'pay-modal__status';
+  statusEl.textContent = '⌛ 等待支付中...';
+  amountEl.textContent = preAmount || '0';
   // 调 worker 创建支付订单
   try {
     const payload = { orderId };
@@ -4928,7 +5148,6 @@ async function openPayModal(orderId, customAmount) {
     }
     amountEl.textContent = data.amount || 0;
     orderEl.textContent = '商户订单号 ' + (data.outTradeNo || '');
-    // 渲染二维码（用 goqr.me 免费稳定服务，4 年没挂过）
     const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=' + encodeURIComponent(data.qrCode);
     qrBox.innerHTML = '<img src="' + qrUrl + '" alt="支付宝二维码" onerror="this.parentNode.innerHTML=\'<div class=&quot;pay-modal__qr--loading&quot; style=&quot;color:var(--accent);&quot;>二维码加载失败，请点击 <a href=&quot;' + data.qrCode + '&quot; target=&quot;_blank&quot; style=&quot;color:var(--accent); text-decoration:underline;&quot;>这里</a> 手动打开</div>\'">';
     // 开始轮询（每 2 秒查一次，最长 15 分钟）
@@ -4947,12 +5166,10 @@ async function openPayModal(orderId, customAmount) {
           clearInterval(_payPollTimer); _payPollTimer = null;
           statusEl.className = 'pay-modal__status pay-modal__status--success';
           statusEl.textContent = '✅ 支付成功！¥' + (qd.paidAmount || data.amount);
-          // 刷新订单列表
           try {
             await Store.load();
             renderWorkshop();
           } catch (_) {}
-          // 2 秒后自动关
           setTimeout(() => closePayModal(), 2500);
         }
       } catch (_) { /* 静默 */ }
@@ -4963,7 +5180,39 @@ async function openPayModal(orderId, customAmount) {
     statusEl.textContent = '❌ 请检查网络后重试';
   }
 }
-window.openPayModal = openPayModal;
+
+// ─── 「我已付款」按钮：调 /api/orders/:id/claim-pay 写入声明，店主再确认 ───
+async function claimPayConfirm() {
+  if (_payClaimSubmitting) return;
+  const orderId = _payOrderId;
+  const amount = Number(_payClaimAmount) || 0;
+  if (!orderId || amount <= 0) { toast('参数异常，请关闭重新打开'); return; }
+  if (!confirm('确认你已通过支付宝/微信向店主转账 ¥' + amount + ' 吗？\n\n店主收到通知后会核对到账情况并确认订单。')) return;
+  _payClaimSubmitting = true;
+  try {
+    const r = await fetch(API_BASE + '/api/orders/' + encodeURIComponent(orderId) + '/claim-pay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify({ amount }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      toast('提交失败：' + (data.error || ('HTTP ' + r.status)));
+      _payClaimSubmitting = false;
+      return;
+    }
+    toast('✓ 已通知店主，店主核对到账后会确认你的订单');
+    closePayModal();
+    try {
+      await Store.load();
+      renderWorkshop();
+    } catch (_) {}
+  } catch (e) {
+    toast('网络异常：' + (e && e.message || e));
+    _payClaimSubmitting = false;
+  }
+}
+window.claimPayConfirm = claimPayConfirm;
 
 function closePayModal() {
   const overlay = document.getElementById('payModalOverlay');
@@ -5002,6 +5251,37 @@ async function adminTogglePaid(orderId, toPaid) {
   }
 }
 window.adminTogglePaid = adminTogglePaid;
+
+// Admin：确认客户的"我已付款"声明 → 真正标记为已付款（自动按 claimedAmount 入账并升级起步价）
+async function adminConfirmClaim(orderId) {
+  const o = (Store.orders || []).find(x => x.id === orderId);
+  if (!o) { toast('订单不存在'); return; }
+  const amt = o.claimedAmount || o.price;
+  if (!confirm(`确认已收到客户付款 ¥${amt}？\n（确认后订单将标记为已付款，无法误操作回滚需手动撤销）`)) return;
+  try {
+    await Store.updateOrder(orderId, { paid: true });
+    toast('已确认收款 ¥' + amt);
+    await Store.load();
+    renderWorkshop();
+  } catch (e) {
+    toast('确认失败：' + (e.message || e));
+  }
+}
+window.adminConfirmClaim = adminConfirmClaim;
+
+// Admin：驳回客户的"我已付款"声明（清除 claim 字段，订单回到待支付状态）
+async function adminRejectClaim(orderId) {
+  if (!confirm('驳回客户的「我已付款」声明？\n（驳回后客户可重新声明；订单不会变成已付款）')) return;
+  try {
+    await Store.updateOrder(orderId, { rejectClaim: true });
+    toast('已驳回客户声明');
+    await Store.load();
+    renderWorkshop();
+  } catch (e) {
+    toast('驳回失败：' + (e.message || e));
+  }
+}
+window.adminRejectClaim = adminRejectClaim;
 
 // 把日志正文按 ![alt](url) 切分成 segments：[{type:'text',value} | {type:'image',url,alt}]
 function parseLogContent(text) {
@@ -5865,8 +6145,50 @@ function openAboutModal() {
   document.getElementById('ab-body1').value = a.body1 || '';
   document.getElementById('ab-quote').value = a.quote || '';
   document.getElementById('ab-body2').value = a.body2 || '';
+  // 个人收款码
+  document.getElementById('ab-qr-note').value = a.qrPayNote || '';
+  _setQrPreview('alipay', a.qrAlipay || '');
+  _setQrPreview('wechat', a.qrWechat || '');
   document.getElementById('aboutModal').classList.add('open');
 }
+
+// 收款码预览 + 文件读取（admin 端「关于」编辑用）
+function _setQrPreview(kind, dataUrl) {
+  const img = document.getElementById('ab-qr-' + kind + '-preview');
+  const hidden = document.getElementById('ab-qr-' + kind);
+  const clearBtn = document.getElementById('ab-qr-' + kind + '-clear');
+  if (hidden) hidden.value = dataUrl || '';
+  if (img) {
+    if (dataUrl) {
+      img.src = dataUrl;
+      img.style.display = '';
+    } else {
+      img.removeAttribute('src');
+      img.style.display = 'none';
+    }
+  }
+  if (clearBtn) clearBtn.style.display = dataUrl ? '' : 'none';
+}
+window._setQrPreview = _setQrPreview;
+
+async function _onQrFileChange(kind, fileInput) {
+  const f = fileInput && fileInput.files && fileInput.files[0];
+  if (!f) return;
+  try {
+    // 二维码图片：边长 600px、质量 0.92，保证扫码清晰；大约 60~150KB
+    const dataUrl = await compressImageToDataURL(f, 600, 0.92);
+    if (dataUrl.length > 400 * 1024) {
+      toast('图片处理后仍过大（>400KB），请用更小的截图');
+      fileInput.value = '';
+      return;
+    }
+    _setQrPreview(kind, dataUrl);
+  } catch (e) {
+    toast('图片读取失败：' + (e && e.message || e));
+  }
+  fileInput.value = '';
+}
+window._onQrFileChange = _onQrFileChange;
 
 function saveAbout() {
   // ⚠ 必须保留 tier/plan 等字段，否则会把套餐价格/标签/描述全部清空
@@ -5875,7 +6197,10 @@ function saveAbout() {
     intro: document.getElementById('ab-intro').value.trim(),
     body1: document.getElementById('ab-body1').value.trim(),
     quote: document.getElementById('ab-quote').value.trim(),
-    body2: document.getElementById('ab-body2').value.trim()
+    body2: document.getElementById('ab-body2').value.trim(),
+    qrAlipay: (document.getElementById('ab-qr-alipay').value || '').trim(),
+    qrWechat: (document.getElementById('ab-qr-wechat').value || '').trim(),
+    qrPayNote: (document.getElementById('ab-qr-note').value || '').trim(),
   };
   Store.saveAbout();
   renderAbout();
@@ -5896,8 +6221,9 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-05',
-    title: '起步价订单支持客户自定义金额支付',
+    title: '客户自定义支付金额 + 个人收款码兜底（当面付走不通时也能正常收款）',
     items: [
+      '💸 加「方案 B」个人收款码 + 客户声明 + 店主手动确认：当账号未签下支付宝当面付（或被风控）时，店主可以在「✎ 关于」里上传支付宝 / 微信个人收款码（任传其一即可），客户在订单卡片点「💰 立即支付」会弹出二维码扫码转账，转账完成后点「✓ 我已付款」声明本次付款金额；店主同时收到微信通知「⏳ 待确认收款 ¥X」，在 admin 视角下订单卡片显示客户声明信息 + 「✓ 确认收款」 / 「✗ 驳回声明」按钮 — 确认后订单变「✅ 已付款」（起步价订单同步升级为定价 fixed）；当面付审批过审后系统会自动切回原扫码流程，无需重新配置',
       '💰 起步价订单（比如「¥60 起」）现在客户可以自己填实际金额（≥起步价）后直接扫码支付，不用再等店主报价；订单卡片内嵌一个金额输入框 + 「💰 生成支付」按钮，校验通过后弹出支付宝二维码；付款成功后订单自动从「起步价 from」升级为「已定价 fixed」，price 字段写为实际付款金额，避免订单详情页一边显示「¥60 起」一边显示「已付款 ¥150」的混乱',
     ],
   },
@@ -6653,17 +6979,31 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
     // 支付状态展示
     let payHtml = '';
     const showPaid = !!o.paid;
-    const canPayBtn = !showPaid && o._isMine && !admin && o.priceMode === 'fixed' && (o.price > 0) && o.step !== 4;
-    const canPayCustom = !showPaid && o._isMine && !admin && o.priceMode === 'from' && (o.price > 0) && o.step !== 4;
-    const adminMarkBtn = !showPaid && admin && (o.price > 0);
+    const hasClaim = !showPaid && !!o.claimedAt;
+    const canPayBtn = !showPaid && !hasClaim && o._isMine && !admin && o.priceMode === 'fixed' && (o.price > 0) && o.step !== 4;
+    const canPayCustom = !showPaid && !hasClaim && o._isMine && !admin && o.priceMode === 'from' && (o.price > 0) && o.step !== 4;
+    const adminMarkBtn = !showPaid && !hasClaim && admin && (o.price > 0);
     if (showPaid) {
       const paidTime = o.paidAt ? formatDate(o.paidAt) : '';
-      const methodStr = o.payMethod === 'alipay' ? '支付宝' : (o.payMethod === 'offline' ? '线下' : '');
+      const methodMap = { alipay: '支付宝当面付', offline: '线下', qrpay: '扫码转账' };
+      const methodStr = methodMap[o.payMethod] || '';
       payHtml = `<div class="ws-order__pay"><span class="ws-order__paid">✅ 已付款 ¥${o.paidAmount || o.price}${methodStr ? ' · ' + methodStr : ''}<span class="ws-order__paid-time">${paidTime ? ' · ' + paidTime : ''}</span></span>${admin ? `<button class="btn btn--ghost btn--sm" onclick="adminTogglePaid('${o.id}', false)" style="margin-left:auto;">撤销付款</button>` : ''}</div>`;
+    } else if (hasClaim && admin) {
+      const claimTime = o.claimedAt ? formatDate(o.claimedAt) : '';
+      const claimAmt = o.claimedAmount || o.price;
+      const noteHtml = o.claimNote ? `<div class="ws-order__claim-note">📝 ${escapeHTML(String(o.claimNote))}</div>` : '';
+      payHtml = `<div class="ws-order__pay ws-order__pay--claim"><div class="ws-order__claim-info"><span class="ws-order__claim-label">⏳ 客户声明已付款 ¥${claimAmt}</span><span class="ws-order__claim-time">${claimTime ? ' · ' + claimTime : ''}</span>${noteHtml}</div><div class="ws-order__claim-actions"><button class="btn btn--primary btn--sm" onclick="adminConfirmClaim('${o.id}')">✓ 确认收款 ¥${claimAmt}</button><button class="btn btn--ghost btn--sm" style="color:var(--accent);" onclick="adminRejectClaim('${o.id}')">✗ 驳回声明</button></div></div>`;
+    } else if (hasClaim && o._isMine && !admin) {
+      const claimTime = o.claimedAt ? formatDate(o.claimedAt) : '';
+      const claimAmt = o.claimedAmount || o.price;
+      payHtml = `<div class="ws-order__pay ws-order__pay--claim"><span class="ws-order__claim-label">⏳ 已声明付款 ¥${claimAmt}，等店主确认<span class="ws-order__claim-time">${claimTime ? ' · ' + claimTime : ''}</span></span></div>`;
+    } else if (hasClaim) {
+      // 其它访客：只显示中性"待确认"
+      payHtml = `<div class="ws-order__pay"><span style="color:var(--gray-500); font-size:0.83rem;">⏳ 待确认收款</span></div>`;
     } else if (canPayBtn) {
-      payHtml = `<div class="ws-order__pay"><button class="ws-order__pay-btn" onclick="openPayModal('${o.id}')">💰 立即支付 ¥${o.price}</button><span class="ws-order__pay-hint">支付宝扫码 · 安全到账</span></div>`;
+      payHtml = `<div class="ws-order__pay"><button class="ws-order__pay-btn" onclick="openPayModal('${o.id}')">💰 立即支付 ¥${o.price}</button><span class="ws-order__pay-hint">扫码付款 · 安全到账</span></div>`;
     } else if (canPayCustom) {
-      payHtml = `<div class="ws-order__pay"><span class="ws-order__pay-custom-label">起步价 ¥${o.price}，自定金额：</span><span class="ws-order__pay-custom"><input type="number" class="ws-order__pay-custom-input" id="payAmount_${o.id}" min="${o.price}" max="50000" step="1" placeholder="≥${o.price}" value="${o.price}"><button class="ws-order__pay-btn" onclick="payCustomAmount('${o.id}', ${o.price})">💰 生成支付</button></span><span class="ws-order__pay-hint">支付宝扫码 · 付款金额可大于起步价</span></div>`;
+      payHtml = `<div class="ws-order__pay"><span class="ws-order__pay-custom-label">起步价 ¥${o.price}，自定金额：</span><span class="ws-order__pay-custom"><input type="number" class="ws-order__pay-custom-input" id="payAmount_${o.id}" min="${o.price}" max="50000" step="1" placeholder="≥${o.price}" value="${o.price}"><button class="ws-order__pay-btn" onclick="payCustomAmount('${o.id}', ${o.price})">💰 生成支付</button></span><span class="ws-order__pay-hint">扫码付款 · 金额可大于起步价</span></div>`;
     } else if (adminMarkBtn) {
       payHtml = `<div class="ws-order__pay"><span style="color:var(--gray-500); font-size:0.83rem;">💳 未付款</span><button class="btn btn--ghost btn--sm" onclick="adminTogglePaid('${o.id}', true)" style="margin-left:auto;">✓ 标记已付（线下）</button></div>`;
     }
