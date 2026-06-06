@@ -1865,6 +1865,54 @@ async function handleRequest(request, env, ctx, cors) {
       return json({ ok: true }, 200, cors);
     }
 
+    // POST /api/auth/register — 一步注册：邮箱 + 验证码 + 密码
+    //   - 复用 code/<email>（与 send-code 共用）
+    //   - 邮箱已注册且有密码 → 提示已注册请直接登录（409）
+    //   - 邮箱已存在但无密码（之前走过验证码登录） → 允许补设密码并登录（友好降级）
+    //   - 邮箱不存在 → 新建账号 + 设密码 + 颁 session
+    if (path === '/api/auth/register' && method === 'POST') {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const email = normalizeEmail(body.email);
+      const code = String(body.code || '').trim();
+      const password = String(body.password || '');
+      if (!email) return json({ error: '邮箱无效' }, 400, cors);
+      if (!/^\d{6}$/.test(code)) return json({ error: '验证码必须是 6 位数字' }, 400, cors);
+      const pwErr = validatePassword(password);
+      if (pwErr) return json({ error: pwErr }, 400, cors);
+      // 验码（沿用 /api/auth/login 的逻辑）
+      const stored = await env.BLOG.get('code/' + email, 'json');
+      if (!stored) return json({ error: '验证码已过期，请重新发送' }, 400, cors);
+      if (stored.attempts >= 5) return json({ error: '尝试次数过多，请重新发送' }, 429, cors);
+      stored.attempts++;
+      if (stored.code !== code) {
+        await env.BLOG.put('code/' + email, JSON.stringify(stored), { expirationTtl: 300 });
+        return json({ error: '验证码错误', attemptsLeft: 5 - stored.attempts }, 400, cors);
+      }
+      await env.BLOG.delete('code/' + email);
+      // upsert user
+      let user = await env.BLOG.get('user/' + email, 'json');
+      if (user && user.passwordHash) {
+        return json({ error: '该邮箱已注册，请直接登录' }, 409, cors);
+      }
+      const userId = await emailToUserId(email);
+      if (!user) {
+        user = { email, userId, nickname: '', createdAt: Date.now(), lastLogin: Date.now() };
+      } else {
+        user.lastLogin = Date.now();
+      }
+      user.passwordHash = await hashPassword(password);
+      user.passwordSetAt = Date.now();
+      await env.BLOG.put('user/' + email, JSON.stringify(user));
+      await env.BLOG.delete('ratelimit/pwlogin/' + email);
+      const token = genToken();
+      await env.BLOG.put('session/' + token, JSON.stringify({ email }), { expirationTtl: 30 * 86400 });
+      let role = 'user';
+      if (email === SUPER_ADMIN_EMAIL) role = 'super';
+      else if (await isSubAdminEmail(env, email)) role = 'sub';
+      return json({ ok: true, token, user: { email: user.email, userId: user.userId, nickname: user.nickname }, role }, 200, cors);
+    }
+
     // PUT /api/auth/profile — update nickname
     if (path === '/api/auth/profile' && method === 'PUT') {
       const user = await getCurrentUser(request, env);

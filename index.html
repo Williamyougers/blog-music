@@ -4271,6 +4271,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <div class="auth-tabs" id="authTabs">
       <div class="auth-tab active" data-authtab="code" onclick="switchAuthTab('code')">📧 验证码</div>
       <div class="auth-tab" data-authtab="pw" onclick="switchAuthTab('pw')">🔑 密码</div>
+      <div class="auth-tab" data-authtab="reg" onclick="switchAuthTab('reg')">✨ 注册</div>
     </div>
 
     <!-- Step 1: 输入邮箱（验证码模式） -->
@@ -4316,6 +4317,43 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <div class="modal__actions">
         <button class="btn btn--ghost btn--sm" onclick="closeModal('loginModal')">取消</button>
         <button class="btn btn--sm" id="loginPwSubmitBtn" onclick="loginPasswordSubmit()">登 录</button>
+      </div>
+    </div>
+
+    <!-- Step REG1: 注册 - 输入邮箱 -->
+    <div class="auth-step" id="authStepReg1">
+      <div class="field">
+        <label>邮箱</label>
+        <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+        <div class="field__hint">仅用于登录与私信通知，不会出现在站点任何公开位置</div>
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost btn--sm" onclick="closeModal('loginModal')">取消</button>
+        <button class="btn btn--sm" id="regSendBtn" onclick="regSendCode()">发送验证码</button>
+      </div>
+    </div>
+
+    <!-- Step REG2: 注册 - 验证码 + 密码 + 确认密码 -->
+    <div class="auth-step" id="authStepReg2">
+      <div class="field">
+        <label>已发送至 <span id="regEmailEcho" style="color:var(--accent);"></span></label>
+        <div class="code-input-group">
+          <input type="text" id="regCode" placeholder="6 位验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+          <button class="btn btn--ghost btn--sm" id="regResendBtn" onclick="regSendCode(true)">重新发送</button>
+        </div>
+        <div class="field__hint">验证码 5 分钟内有效</div>
+      </div>
+      <div class="field">
+        <label>设置密码</label>
+        <input type="password" id="regPassword" placeholder="6-64 位，不含空格" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>确认密码</label>
+        <input type="password" id="regPasswordConfirm" placeholder="再输一次" autocomplete="new-password">
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost btn--sm" onclick="regBackToStep1()">← 改邮箱</button>
+        <button class="btn btn--sm" id="regSubmitBtn" onclick="regSubmit()">注册并登录</button>
       </div>
     </div>
   </div>
@@ -6322,8 +6360,9 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-06',
-    title: '密码登录上线 + 订单权限隔离 hotfix：账号严格隔离，同浏览器换号也动不了别人的订单',
+    title: '注册入口 + 密码登录上线 + 订单权限隔离 hotfix：账号严格隔离，同浏览器换号也动不了别人的订单',
     items: [
+      '✨ 登录弹窗新增「✨ 注册」tab：邮箱 + 验证码 + 密码 一步注册并自动登录（≥ 6 位、不含空格、双输确认），新用户不用再先验证码登录再去资料里设密码；已注册账号会被识别并提示直接登录，已存在但未设密码的老账号也可借此一步补设密码（防止误注册覆盖）',
       '🔑 新增「密码登录」选项：登录弹窗顶部多了「📧 验证码 / 🔑 密码」tab 切换，已有密码的账号可直接邮箱 + 密码登录；忘记密码时切到验证码模式登录后到「资料设置」改 — 既兼容老用户的验证码体验，也给常用户一个免邮件的快捷登录路径',
       '🛠 资料设置加「登录密码」分区：未设过密码 → 一键「设置密码」（≥ 6 位、不含空格、双输确认）；已设过 → 「修改密码」（需原密码验证）/「清除密码」（回到只能验证码登录）',
       '👑 管理员可以直接管理任意用户的密码：用户管理表多一列「密码」直观显示 🔑 已设 / —，每行加「🔑 改密」按钮 — 可指定新密码，也可留空让系统生成 10 位临时密码（避开 0/O、1/l 等易混淆字符，结果只显示一次便于复制告知用户）；已设密码的用户还可一键清除',
@@ -8939,6 +8978,24 @@ const UserStore = {
     return d;
   },
 
+  async register(email, code, password) {
+    const r = await fetch(API_BASE + '/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code, password })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      this.token = d.token;
+      this.user = d.user;
+      this.role = d.role || 'user';
+      try { localStorage.setItem(USER_TOKEN_KEY, d.token); } catch (_) {}
+      try { this.renderBtn(); } catch (e) { console.error('renderBtn after register failed:', e); }
+      try { applyRoleSideEffects(); } catch (e) { console.error('applyRoleSideEffects after register failed:', e); }
+    }
+    return d;
+  },
+
   async setPassword(newPassword, currentPassword) {
     const body = { newPassword };
     if (currentPassword) body.currentPassword = currentPassword;
@@ -9009,10 +9066,19 @@ function renderAccountTip(elId) {
 function openUserPanel() {
   // 未登录走登录框；已登录用户不应该再点这个（按钮已隐藏），但兜底跳到资料面板
   if (UserStore.user) { openProfilePanel(); return; }
+  // 把所有 step 关掉，tab 回到「📧 验证码」
+  ['authStep1', 'authStep2', 'authStepPw', 'authStepReg1', 'authStepReg2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.authtab === 'code'));
   document.getElementById('authStep1').classList.add('active');
-  document.getElementById('authStep2').classList.remove('active');
-  document.getElementById('loginEmail').value = '';
-  document.getElementById('loginCode').value = '';
+  const subtitle = document.getElementById('loginSubtitle');
+  if (subtitle) subtitle.textContent = '用邮箱接收 6 位验证码完成登录，首次自动建账号';
+  ['loginEmail', 'loginCode', 'loginPwEmail', 'loginPwPassword', 'regEmail', 'regCode', 'regPassword', 'regPasswordConfirm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   document.getElementById('loginModal').classList.add('open');
   setTimeout(() => document.getElementById('loginEmail').focus(), 100);
 }
@@ -9126,34 +9192,46 @@ async function loginSubmit() {
   btn.disabled = false; btn.textContent = '登 录';
 }
 
-// 登录方式切换：'code'=邮箱验证码 / 'pw'=邮箱密码
+// 登录方式切换：'code'=邮箱验证码 / 'pw'=邮箱密码 / 'reg'=邮箱+验证码+密码 一步注册
 function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.authtab === tab));
-  const isPw = tab === 'pw';
-  // 切到密码模式：隐 step1/step2，显 stepPw；并把已经输入的邮箱带过去
-  document.getElementById('authStep1').classList.toggle('active', !isPw);
-  document.getElementById('authStep2').classList.remove('active');  // 切换 tab 一律回到初始
-  document.getElementById('authStepPw').classList.toggle('active', isPw);
-  // 文案
+  // 所有 step 先关，再按 tab 打开
+  ['authStep1', 'authStep2', 'authStepPw', 'authStepReg1', 'authStepReg2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  // 把已输入的邮箱在三个 tab 间互相同步
+  const e1 = (document.getElementById('loginEmail').value || '').trim();
+  const e2 = (document.getElementById('loginPwEmail').value || '').trim();
+  const e3 = (document.getElementById('regEmail').value || '').trim();
+  const shared = e1 || e2 || e3;
+  if (shared) {
+    if (!e1) document.getElementById('loginEmail').value = shared;
+    if (!e2) document.getElementById('loginPwEmail').value = shared;
+    if (!e3) document.getElementById('regEmail').value = shared;
+  }
   const tip = document.getElementById('loginSubtitle');
-  if (tip) tip.textContent = isPw
-    ? '已有密码？直接邮箱 + 密码登录'
-    : '用邮箱接收 6 位验证码完成登录，首次自动建账号';
-  // 邮箱字段互相同步
-  if (isPw) {
-    const e1 = document.getElementById('loginEmail').value.trim();
-    if (e1 && !document.getElementById('loginPwEmail').value.trim()) {
-      document.getElementById('loginPwEmail').value = e1;
-    }
+  if (tab === 'pw') {
+    document.getElementById('authStepPw').classList.add('active');
+    if (tip) tip.textContent = '已有密码？直接邮箱 + 密码登录';
     setTimeout(() => {
       const el = document.getElementById(document.getElementById('loginPwEmail').value ? 'loginPwPassword' : 'loginPwEmail');
       if (el) el.focus();
     }, 50);
+  } else if (tab === 'reg') {
+    document.getElementById('authStepReg1').classList.add('active');
+    if (tip) tip.textContent = '新用户：邮箱 + 验证码 + 密码 一步注册';
+    setTimeout(() => {
+      const el = document.getElementById('regEmail');
+      if (el) el.focus();
+    }, 50);
   } else {
-    const e2 = document.getElementById('loginPwEmail').value.trim();
-    if (e2 && !document.getElementById('loginEmail').value.trim()) {
-      document.getElementById('loginEmail').value = e2;
-    }
+    document.getElementById('authStep1').classList.add('active');
+    if (tip) tip.textContent = '用邮箱接收 6 位验证码完成登录，首次自动建账号';
+    setTimeout(() => {
+      const el = document.getElementById('loginEmail');
+      if (el) el.focus();
+    }, 50);
   }
 }
 
@@ -9175,6 +9253,72 @@ async function loginPasswordSubmit() {
     }
   } catch (e) { toast('网络异常: ' + (e && e.message ? e.message : e)); }
   btn.disabled = false; btn.textContent = '登 录';
+}
+
+// === 注册流（reg tab）：邮箱 → 发码 → 验证码+密码 → 注册并登录 ===
+async function regSendCode(isResend) {
+  const email = document.getElementById('regEmail').value.trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('请输入有效邮箱'); return; }
+  const btn = document.getElementById(isResend ? 'regResendBtn' : 'regSendBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true; btn.textContent = '发送中…';
+  try {
+    const d = await UserStore.sendCode(email);
+    if (d.ok || d.dev) {
+      document.getElementById('regEmailEcho').textContent = email;
+      document.getElementById('authStepReg1').classList.remove('active');
+      document.getElementById('authStepReg2').classList.add('active');
+      document.getElementById('regCode').value = '';
+      document.getElementById('regCode').focus();
+      toast(d.dev ? ('🛠️ DEV 模式，验证码: ' + d.code) : '验证码已发送，请查收邮箱');
+      // 60s 倒计时
+      let cd = 60;
+      const resendBtn = document.getElementById('regResendBtn');
+      resendBtn.disabled = true;
+      const timer = setInterval(() => {
+        resendBtn.textContent = '重新发送 (' + cd + 's)';
+        cd--;
+        if (cd < 0) { clearInterval(timer); resendBtn.disabled = false; resendBtn.textContent = '重新发送'; }
+      }, 1000);
+    } else if (d.retryAfter) {
+      toast('发送过于频繁，请 ' + d.retryAfter + 's 后再试');
+    } else {
+      toast(d.error || '发送失败');
+    }
+  } catch (e) { toast('网络异常: ' + (e && e.message ? e.message : e)); }
+  btn.disabled = false; btn.textContent = originalText;
+}
+
+function regBackToStep1() {
+  document.getElementById('authStepReg2').classList.remove('active');
+  document.getElementById('authStepReg1').classList.add('active');
+  setTimeout(() => { const el = document.getElementById('regEmail'); if (el) el.focus(); }, 50);
+}
+
+async function regSubmit() {
+  const email = document.getElementById('regEmail').value.trim();
+  const code = document.getElementById('regCode').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const confirm = document.getElementById('regPasswordConfirm').value;
+  if (!email) { toast('邮箱丢了，请回上一步'); return; }
+  if (!/^\d{6}$/.test(code)) { toast('请输入 6 位验证码'); return; }
+  if (!password || password.length < 6) { toast('密码至少 6 位'); return; }
+  if (password.length > 64) { toast('密码最长 64 位'); return; }
+  if (/\s/.test(password)) { toast('密码不能含空格'); return; }
+  if (password !== confirm) { toast('两次密码不一致'); return; }
+  const btn = document.getElementById('regSubmitBtn');
+  btn.disabled = true; btn.textContent = '注册中…';
+  try {
+    const d = await UserStore.register(email, code, password);
+    if (d.ok) {
+      closeModal('loginModal');
+      toast('🎉 注册成功，已登录');
+      setTimeout(() => location.reload(), 600);
+    } else {
+      toast(d.error || '注册失败');
+    }
+  } catch (e) { toast('网络异常: ' + (e && e.message ? e.message : e)); }
+  btn.disabled = false; btn.textContent = '注册并登录';
 }
 
 function switchUserTab(tab) {
@@ -10065,6 +10209,23 @@ document.addEventListener('DOMContentLoaded', function() {
   const psc = document.getElementById('pwSetConfirm');
   if (psc) psc.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); pwSetSubmit(); }
+  });
+  // 注册流：Enter 串起 邮箱→发码、验证码→密码→确认→提交
+  const regE = document.getElementById('regEmail');
+  if (regE) regE.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); regSendCode(); }
+  });
+  const regC = document.getElementById('regCode');
+  const regP = document.getElementById('regPassword');
+  const regPC = document.getElementById('regPasswordConfirm');
+  if (regC) regC.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); if (regP) regP.focus(); }
+  });
+  if (regP) regP.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); if (regPC) regPC.focus(); }
+  });
+  if (regPC) regPC.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); regSubmit(); }
   });
 });
 
