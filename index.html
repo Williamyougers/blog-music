@@ -1616,6 +1616,131 @@ body { animation: pageFadeIn 0.6s ease both; }
   0%, 100% { opacity: 0.45; letter-spacing: 0.5em; }
   50%      { opacity: 0.85; letter-spacing: 0.7em; }
 }
+
+/* ── Masthead 运势条 ── */
+.masthead__horoscope {
+  position: relative;
+  z-index: 2;
+  margin: 1.4rem auto 0;
+  max-width: min(640px, 92%);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1rem;
+  background: rgba(255, 253, 248, 0.10);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(184, 136, 74, 0.35);
+  border-radius: 999px;
+  color: #fefdfb;
+  font-size: 0.84rem;
+  transition: background 0.25s, border-color 0.25s, transform 0.25s;
+}
+.masthead__horoscope:hover {
+  background: rgba(255, 253, 248, 0.16);
+  border-color: rgba(184, 136, 74, 0.6);
+}
+.masthead__horoscope-label {
+  flex-shrink: 0;
+  font-family: var(--serif);
+  font-weight: 600;
+  color: var(--gold-light);
+  letter-spacing: 0.04em;
+}
+.masthead__horoscope-sign {
+  flex-shrink: 0;
+  padding: 0.2rem 0.55rem;
+  background: rgba(10,10,10,0.5);
+  border: 1px solid rgba(184, 136, 74, 0.45);
+  border-radius: 6px;
+  color: #fefdfb;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.masthead__horoscope-sign:hover, .masthead__horoscope-sign:focus {
+  border-color: var(--gold-light);
+}
+.masthead__horoscope-sign option { background: #0a0a0a; color: #fefdfb; }
+.masthead__horoscope-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255, 253, 248, 0.85);
+  font-size: 0.82rem;
+}
+.masthead__horoscope-more {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid rgba(184, 136, 74, 0.55);
+  color: var(--gold-light);
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.masthead__horoscope-more:hover {
+  background: var(--gold);
+  color: #0a0a0a;
+  border-color: var(--gold);
+}
+@media (max-width: 640px) {
+  .masthead__horoscope {
+    flex-wrap: wrap;
+    border-radius: 14px;
+    padding: 0.55rem 0.8rem;
+  }
+  .masthead__horoscope-text {
+    width: 100%;
+    white-space: normal;
+    order: 99;
+    font-size: 0.78rem;
+    color: rgba(255, 253, 248, 0.78);
+    line-height: 1.45;
+  }
+}
+
+/* 运势详情弹窗内的指标行 */
+.horoscope-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--gray-200);
+}
+.horoscope-row:last-child { border-bottom: none; }
+.horoscope-row__type {
+  flex-shrink: 0;
+  min-width: 5em;
+  color: var(--gray-600);
+  font-size: 0.82rem;
+  font-family: var(--serif);
+  letter-spacing: 0.02em;
+}
+.horoscope-row__content {
+  flex: 1;
+  color: var(--black);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.horoscope-row--summary {
+  padding: 0.7rem 0.8rem;
+  margin-bottom: 0.4rem;
+  background: var(--cream);
+  border: 1px solid rgba(184, 136, 74, 0.25);
+  border-radius: 6px;
+}
+.horoscope-row--summary .horoscope-row__type { color: var(--accent); }
+.horoscope-row--summary .horoscope-row__content {
+  color: var(--black);
+  font-weight: 500;
+}
 .masthead__edge {
   background-size: 24px 100%;
   animation: edgeFlow 5s linear infinite;
@@ -3539,6 +3664,25 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <h1 class="masthead__title">威灵<em>T</em> · 的音乐社区</h1>
     <p class="masthead__tagline">RECORDS · WORDS · MOOD</p>
     <div class="masthead__ornament">✦ ✦ ✦</div>
+    <div class="masthead__horoscope" id="horoscopeWidget">
+      <span class="masthead__horoscope-label">✨ 今日运势</span>
+      <select class="masthead__horoscope-sign" id="horoscopeSign" aria-label="选择星座">
+        <option value="aries">♈ 白羊</option>
+        <option value="taurus">♉ 金牛</option>
+        <option value="gemini">♊ 双子</option>
+        <option value="cancer">♋ 巨蟹</option>
+        <option value="leo">♌ 狮子</option>
+        <option value="virgo">♍ 处女</option>
+        <option value="libra">♎ 天秤</option>
+        <option value="scorpio">♏ 天蝎</option>
+        <option value="sagittarius">♐ 射手</option>
+        <option value="capricorn">♑ 摩羯</option>
+        <option value="aquarius">♒ 水瓶</option>
+        <option value="pisces">♓ 双鱼</option>
+      </select>
+      <span class="masthead__horoscope-text" id="horoscopeSummary">加载中…</span>
+      <button class="masthead__horoscope-more" id="horoscopeMoreBtn" type="button">详情 →</button>
+    </div>
   </div>
 </header>
 <div class="masthead__edge"></div>
@@ -3984,6 +4128,17 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <button class="btn btn--ghost btn--sm" onclick="closeModal('confirmModal')">取消</button>
       <button class="btn btn--danger btn--sm" id="confirmBtn">确认删除</button>
     </div>
+  </div>
+</div>
+
+<!-- 星座运势详情 Modal -->
+<div class="modal" id="horoscopeModal">
+  <div class="modal__panel" style="max-width:460px;">
+    <button class="modal__close" onclick="closeModal('horoscopeModal')">×</button>
+    <h3 class="modal__title" id="horoscopeModalTitle">✨ 今日运势</h3>
+    <p style="color:var(--gray-500); font-size:0.78rem; margin:-0.3rem 0 1rem;" id="horoscopeModalDate"></p>
+    <div id="horoscopeDetail"><!-- 由 openHoroscopeDetail() 渲染 --></div>
+    <p style="color:var(--gray-400); font-size:0.72rem; margin-top:1rem; text-align:right;">数据 · 天行 API · 24h 缓存</p>
   </div>
 </div>
 
@@ -6421,8 +6576,9 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-06',
-    title: '昵称违禁词审核 + 日志改名「笔记 · 碎碎念」 + 登录用户评论锁定昵称 + 注册入口 + 密码登录 + 订单权限隔离',
+    title: '星座运势接入 banner + 昵称违禁词审核 + 日志改名「笔记 · 碎碎念」 + 登录用户评论锁定昵称 + 注册入口 + 密码登录 + 订单权限隔离',
     items: [
+      '✨ 首页 banner 接入「今日运势」：masthead 内嵌一条胶囊状运势条，可在 12 星座间下拉切换（localStorage 记住上次选的），实时显示今日概述短句，点「详情 →」弹窗看完整 9 个维度（综合 / 爱情 / 工作 / 财运 / 健康 + 幸运色 / 数字 / 贵人星座 / 今日概述）；数据来自天行 API，worker 走 `/api/horoscope?sign=xxx` 代理 + KV 24h 缓存（12 星座 ≪ 100 次/天免费额度），KEY 在 Cloudflare 加密 secret 不入代码，深浅色模式都做了适配',
       '🛡 昵称违禁词审核上线：覆盖访客评论昵称 / 用户改自己昵称 / 管理员创建&修改用户昵称 4 个入口，禁止色情、伪色情、生殖器、侮辱、违禁词等内容；前端即时弹 toast 提示，worker 端最终强制校验（防绕过直接 POST），词库防分隔符绕过（"傻 逼" / "傻.逼" 都拦），单字昵称仅在整体由违禁字组成时才判定，避免误伤"操作员"等正常词',
       '📝 「日志」全站改名为「笔记 · 碎碎念」：导航 / 页头 / 写作按钮 / 空状态 / 弹窗标题 / 提示文案统一改用「笔记」，氛围处点缀「碎碎念」让它更像生活随手记，旧数据不动（id / 分组 / 评论全部保留）',
       '🪪 登录用户发评论时昵称强制锁定为账号昵称：登录后表单不再显示昵称输入框，改为「以 XX 身份发表」+「改昵称」快捷入口；后端同时强制覆盖前端传值并附带 userId/email，杜绝同一账号在不同笔记下伪装成不同昵称留言；未登录访客仍可继续匿名留言（沿用 5s 冷却 + 单访客 30 条限制）',
@@ -10182,6 +10338,106 @@ function escAttr(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
 }
 
+// ── 星座运势（banner widget + 详情弹窗） ──
+const HOROSCOPE_SIGNS_CN = {
+  aries: '白羊座', taurus: '金牛座', gemini: '双子座', cancer: '巨蟹座',
+  leo: '狮子座', virgo: '处女座', libra: '天秤座', scorpio: '天蝎座',
+  sagittarius: '射手座', capricorn: '摩羯座', aquarius: '水瓶座', pisces: '双鱼座',
+};
+const _horoscopeCache = {}; // sign -> { list, date }
+async function loadHoroscope(sign) {
+  const summaryEl = document.getElementById('horoscopeSummary');
+  if (!summaryEl) return;
+  if (typeof API_BASE !== 'string' || !API_BASE) {
+    summaryEl.textContent = '（未联云，运势暂不可用）';
+    return;
+  }
+  if (_horoscopeCache[sign]) {
+    _renderHoroscopeSummary(sign);
+    return;
+  }
+  summaryEl.textContent = '加载中…';
+  try {
+    const res = await fetch(API_BASE + '/api/horoscope?sign=' + encodeURIComponent(sign));
+    const data = await res.json();
+    if (!res.ok || !data.ok || !Array.isArray(data.list)) {
+      summaryEl.textContent = '运势加载失败';
+      return;
+    }
+    _horoscopeCache[sign] = { list: data.list, date: data.date };
+    _renderHoroscopeSummary(sign);
+  } catch (e) {
+    summaryEl.textContent = '运势加载失败';
+  }
+}
+function _renderHoroscopeSummary(sign) {
+  const summaryEl = document.getElementById('horoscopeSummary');
+  if (!summaryEl) return;
+  const cached = _horoscopeCache[sign];
+  if (!cached) { summaryEl.textContent = '加载中…'; return; }
+  const overview = (cached.list.find(x => x.type === '今日概述') || {}).content;
+  const compIdx = (cached.list.find(x => x.type === '综合指数') || {}).content;
+  summaryEl.textContent = overview || (compIdx ? '综合 ' + compIdx : '今日宜随心');
+}
+function openHoroscopeDetail() {
+  const select = document.getElementById('horoscopeSign');
+  if (!select) return;
+  const sign = select.value;
+  const detailEl = document.getElementById('horoscopeDetail');
+  const titleEl = document.getElementById('horoscopeModalTitle');
+  const dateEl = document.getElementById('horoscopeModalDate');
+  const modalEl = document.getElementById('horoscopeModal');
+  if (!detailEl || !modalEl) return;
+  if (titleEl) titleEl.textContent = '✨ ' + (HOROSCOPE_SIGNS_CN[sign] || sign) + ' · 今日运势';
+  const cached = _horoscopeCache[sign];
+  if (!cached) {
+    detailEl.innerHTML = '<p style="color:var(--gray-500); font-size:0.85rem; text-align:center; padding:1rem;">加载中…</p>';
+    if (dateEl) dateEl.textContent = '';
+    modalEl.classList.add('open');
+    loadHoroscope(sign).then(() => {
+      if (modalEl.classList.contains('open')) _renderHoroscopeDetail(sign);
+    });
+    return;
+  }
+  _renderHoroscopeDetail(sign);
+  modalEl.classList.add('open');
+}
+function _renderHoroscopeDetail(sign) {
+  const cached = _horoscopeCache[sign];
+  const detailEl = document.getElementById('horoscopeDetail');
+  const dateEl = document.getElementById('horoscopeModalDate');
+  if (!cached || !detailEl) return;
+  if (dateEl) dateEl.textContent = cached.date || '';
+  const summary = cached.list.find(x => x.type === '今日概述');
+  const others = cached.list.filter(x => x.type !== '今日概述');
+  let html = '';
+  if (summary) {
+    html += '<div class="horoscope-row horoscope-row--summary">' +
+      '<span class="horoscope-row__type">' + escHtml(summary.type) + '</span>' +
+      '<span class="horoscope-row__content">' + escHtml(summary.content) + '</span></div>';
+  }
+  others.forEach(it => {
+    html += '<div class="horoscope-row">' +
+      '<span class="horoscope-row__type">' + escHtml(it.type) + '</span>' +
+      '<span class="horoscope-row__content">' + escHtml(it.content) + '</span></div>';
+  });
+  detailEl.innerHTML = html || '<p style="color:var(--gray-500);">暂无数据</p>';
+}
+function initHoroscope() {
+  const select = document.getElementById('horoscopeSign');
+  const moreBtn = document.getElementById('horoscopeMoreBtn');
+  if (!select) return;
+  let saved = 'aries';
+  try { saved = localStorage.getItem('horoscope_sign') || 'aries'; } catch (e) {}
+  if (HOROSCOPE_SIGNS_CN[saved]) select.value = saved;
+  select.addEventListener('change', () => {
+    try { localStorage.setItem('horoscope_sign', select.value); } catch (e) {}
+    loadHoroscope(select.value);
+  });
+  if (moreBtn) moreBtn.addEventListener('click', openHoroscopeDetail);
+  loadHoroscope(select.value);
+}
+
 // ── 未读轮询 ──
 
 let _unreadTimer = null;
@@ -10301,6 +10557,8 @@ document.addEventListener('DOMContentLoaded', function() {
   if (regPC) regPC.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); regSubmit(); }
   });
+  // ✨ 星座运势 banner widget
+  if (typeof initHoroscope === 'function') initHoroscope();
 });
 
 

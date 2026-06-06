@@ -2409,6 +2409,45 @@ async function handleRequest(request, env, ctx, cors) {
       return json({ ok: true }, 200, cors);
     }
 
+    // ── 星座运势（天行 API 代理 + KV 24h 缓存） ──
+    if (path === '/api/horoscope' && method === 'GET') {
+      const SIGNS = {
+        aries: '白羊座', taurus: '金牛座', gemini: '双子座', cancer: '巨蟹座',
+        leo: '狮子座', virgo: '处女座', libra: '天秤座', scorpio: '天蝎座',
+        sagittarius: '射手座', capricorn: '摩羯座', aquarius: '水瓶座', pisces: '双鱼座',
+      };
+      const sign = (url.searchParams.get('sign') || '').toLowerCase().trim();
+      if (!SIGNS[sign]) {
+        return json({ error: 'invalid sign', allowed: Object.keys(SIGNS) }, 400, cors);
+      }
+      if (!env.TIANAPI_KEY) {
+        return json({ error: 'TIANAPI_KEY not configured' }, 500, cors);
+      }
+      // 用北京时区当前日期做缓存 key（天行按天更新）
+      const beijing = new Date(Date.now() + 8 * 3600 * 1000);
+      const dateStr = beijing.toISOString().slice(0, 10);
+      const cacheKey = `cache/horoscope/${dateStr}/${sign}`;
+      // 命中缓存直接返回
+      const cached = await env.BLOG.get(cacheKey, 'json');
+      if (cached) {
+        return json({ ok: true, sign, signName: SIGNS[sign], date: dateStr, list: cached, cached: true }, 200, cors);
+      }
+      // 回源天行
+      try {
+        const apiUrl = `https://apis.tianapi.com/star/index?key=${encodeURIComponent(env.TIANAPI_KEY)}&astro=${encodeURIComponent(sign)}`;
+        const resp = await fetch(apiUrl);
+        const data = await resp.json();
+        if (data.code !== 200 || !data.result || !Array.isArray(data.result.list)) {
+          return json({ error: 'tianapi upstream error', code: data.code, detail: data.msg || 'unknown' }, 502, cors);
+        }
+        // KV 缓存 24h
+        await env.BLOG.put(cacheKey, JSON.stringify(data.result.list), { expirationTtl: 86400 });
+        return json({ ok: true, sign, signName: SIGNS[sign], date: dateStr, list: data.result.list, cached: false }, 200, cors);
+      } catch (e) {
+        return json({ error: 'fetch failed', detail: String(e && e.message || e) }, 502, cors);
+      }
+    }
+
     if (path === '/' || path === '/health') {
       return json({ status: 'ok', service: 'blog-music-api' }, 200, cors);
     }
