@@ -658,6 +658,69 @@ function genToken() {
   return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ── Password hashing (PBKDF2-SHA256, 100k iterations) ──
+// Stored format: "pbkdf2$100000$<salt_hex>$<hash_hex>"; salt 16B, hash 32B
+const PBKDF2_ITER = 100000;
+const PBKDF2_SALT_LEN = 16;
+const PBKDF2_HASH_LEN = 32;
+
+function _bytesToHex(arr) {
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function _hexToBytes(hex) {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return out;
+}
+async function _pbkdf2(password, salt, iter, hashLen) {
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' },
+    key, hashLen * 8
+  );
+  return new Uint8Array(bits);
+}
+async function hashPassword(password) {
+  const salt = new Uint8Array(PBKDF2_SALT_LEN);
+  crypto.getRandomValues(salt);
+  const hash = await _pbkdf2(password, salt, PBKDF2_ITER, PBKDF2_HASH_LEN);
+  return `pbkdf2$${PBKDF2_ITER}$${_bytesToHex(salt)}$${_bytesToHex(hash)}`;
+}
+async function verifyPassword(password, stored) {
+  if (!stored || typeof stored !== 'string') return false;
+  const parts = stored.split('$');
+  if (parts.length !== 4 || parts[0] !== 'pbkdf2') return false;
+  const iter = parseInt(parts[1], 10);
+  const salt = _hexToBytes(parts[2]);
+  const expected = _hexToBytes(parts[3]);
+  if (!iter || salt.length === 0 || expected.length === 0) return false;
+  const got = await _pbkdf2(password, salt, iter, expected.length);
+  // 常量时间比较
+  if (got.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < got.length; i++) diff |= got[i] ^ expected[i];
+  return diff === 0;
+}
+// 生成 10 位安全可读临时密码（避开易混淆字符）
+function genTempPassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const arr = new Uint8Array(10);
+  crypto.getRandomValues(arr);
+  let out = '';
+  for (let i = 0; i < arr.length; i++) out += alphabet[arr[i] % alphabet.length];
+  return out;
+}
+// 密码强度校验：≥ 6 位、≤ 64 位、不能含空白；返回 '' 表示通过，否则返回错误描述
+function validatePassword(pw) {
+  if (typeof pw !== 'string') return '密码格式错误';
+  if (pw.length < 6) return '密码至少 6 位';
+  if (pw.length > 64) return '密码最多 64 位';
+  if (/\s/.test(pw)) return '密码不能包含空格';
+  return '';
+}
+
 // Mask email for display: ab***@xx.com
 function maskEmail(e) {
   if (!e || typeof e !== 'string') return '';
@@ -1719,13 +1782,86 @@ async function handleRequest(request, env, ctx, cors) {
       let role = 'user';
       if (user.email === SUPER_ADMIN_EMAIL) role = 'super';
       else if (await isSubAdminEmail(env, user.email)) role = 'sub';
-      return json({ email: user.email, userId: user.userId, nickname: user.nickname, role }, 200, cors);
+      return json({ email: user.email, userId: user.userId, nickname: user.nickname, role, hasPassword: !!user.passwordHash }, 200, cors);
     }
 
     // POST /api/auth/logout — invalidate session
     if (path === '/api/auth/logout' && method === 'POST') {
       const h = request.headers.get('X-User-Token') || '';
       if (h) await env.BLOG.delete('session/' + h);
+      return json({ ok: true }, 200, cors);
+    }
+
+    // POST /api/auth/password-login — login with email + password
+    //   失败次数限制：5 次 / 15 分钟（按 email 聚合），超限锁定
+    //   故意对「user 不存在」与「密码错」返回一致提示，避免邮箱探测
+    if (path === '/api/auth/password-login' && method === 'POST') {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const email = normalizeEmail(body.email);
+      const password = String(body.password || '');
+      if (!email || !password) return json({ error: '邮箱或密码错误' }, 401, cors);
+      const rlKey = 'ratelimit/pwlogin/' + email;
+      const rl = await env.BLOG.get(rlKey, 'json');
+      if (rl && rl.fails >= 5 && Date.now() - rl.firstAt < 15 * 60 * 1000) {
+        return json({ error: '密码错误次数过多，请 15 分钟后再试，或改用验证码登录' }, 429, cors);
+      }
+      const user = await env.BLOG.get('user/' + email, 'json');
+      const ok = user && user.passwordHash ? await verifyPassword(password, user.passwordHash) : false;
+      if (!ok) {
+        const next = (rl && Date.now() - rl.firstAt < 15 * 60 * 1000)
+          ? { fails: rl.fails + 1, firstAt: rl.firstAt }
+          : { fails: 1, firstAt: Date.now() };
+        await env.BLOG.put(rlKey, JSON.stringify(next), { expirationTtl: 15 * 60 });
+        return json({ error: '邮箱或密码错误' }, 401, cors);
+      }
+      // 登录成功，清掉限速
+      await env.BLOG.delete(rlKey);
+      user.lastLogin = Date.now();
+      await env.BLOG.put('user/' + email, JSON.stringify(user));
+      const token = genToken();
+      await env.BLOG.put('session/' + token, JSON.stringify({ email }), { expirationTtl: 30 * 86400 });
+      let role = 'user';
+      if (email === SUPER_ADMIN_EMAIL) role = 'super';
+      else if (await isSubAdminEmail(env, email)) role = 'sub';
+      return json({ ok: true, token, user: { email: user.email, userId: user.userId, nickname: user.nickname }, role }, 200, cors);
+    }
+
+    // POST /api/auth/set-password — current user sets / changes own password
+    //   首次设置：body = { newPassword }
+    //   修改密码：body = { currentPassword, newPassword }（已设过密码者必须验证旧密码）
+    if (path === '/api/auth/set-password' && method === 'POST') {
+      const user = await getCurrentUser(request, env);
+      if (!user) return json({ error: 'Not logged in' }, 401, cors);
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const newPassword = String(body.newPassword || '');
+      const err = validatePassword(newPassword);
+      if (err) return json({ error: err }, 400, cors);
+      if (user.passwordHash) {
+        // 已设过密码 → 必须验证旧密码（或走 admin 重置 / 自己清除后重设）
+        const currentPassword = String(body.currentPassword || '');
+        if (!currentPassword) return json({ error: '请输入原密码' }, 400, cors);
+        const ok = await verifyPassword(currentPassword, user.passwordHash);
+        if (!ok) return json({ error: '原密码错误' }, 400, cors);
+      }
+      user.passwordHash = await hashPassword(newPassword);
+      user.passwordSetAt = Date.now();
+      await env.BLOG.put('user/' + user.email, JSON.stringify(user));
+      // 清掉密码登录限速
+      await env.BLOG.delete('ratelimit/pwlogin/' + user.email);
+      return json({ ok: true }, 200, cors);
+    }
+
+    // POST /api/auth/clear-password — current user clears own password (回到只能验证码登录)
+    if (path === '/api/auth/clear-password' && method === 'POST') {
+      const user = await getCurrentUser(request, env);
+      if (!user) return json({ error: 'Not logged in' }, 401, cors);
+      if (!user.passwordHash) return json({ ok: true, alreadyEmpty: true }, 200, cors);
+      delete user.passwordHash;
+      delete user.passwordSetAt;
+      await env.BLOG.put('user/' + user.email, JSON.stringify(user));
+      await env.BLOG.delete('ratelimit/pwlogin/' + user.email);
       return json({ ok: true }, 200, cors);
     }
 
@@ -2040,11 +2176,13 @@ async function handleRequest(request, env, ctx, cors) {
         cursor = r.list_complete ? undefined : r.cursor;
       } while (cursor);
       users.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      // 标记角色
+      // 标记角色 + 密码状态（不返回 hash 本身）
       const subList = await getSubAdmins(env);
       const subEmails = new Set(subList.map(s => s.email));
       for (const u of users) {
         u.role = u.email === SUPER_ADMIN_EMAIL ? 'super' : (subEmails.has(u.email) ? 'sub' : 'user');
+        u.hasPassword = !!u.passwordHash;
+        delete u.passwordHash;
       }
       return json({ users }, 200, cors);
     }
@@ -2063,6 +2201,53 @@ async function handleRequest(request, env, ctx, cors) {
       const user = { email, userId, nickname, createdAt: Date.now(), lastLogin: 0 };
       await env.BLOG.put('user/' + email, JSON.stringify(user));
       return json({ ok: true, user }, 200, cors);
+    }
+
+    // POST /api/admin/users/:email/set-password — admin sets / resets user password
+    //   body 可选 newPassword：传则用该密码，不传则系统生成 10 位临时密码返回给 admin
+    //   返回 { ok, password? } —— 仅当系统生成时才返回明文密码（只此一次）
+    const adminSetPwMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/set-password$/);
+    if (adminSetPwMatch && method === 'POST') {
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      const email = normalizeEmail(decodeURIComponent(adminSetPwMatch[1]));
+      if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      const user = await env.BLOG.get('user/' + email, 'json');
+      if (!user) return json({ error: 'Not found' }, 404, cors);
+      let body = {};
+      try { body = await request.json(); } catch (_) { body = {}; }
+      let plain = String(body.newPassword || '');
+      let generated = false;
+      if (!plain) {
+        plain = genTempPassword();
+        generated = true;
+      } else {
+        const err = validatePassword(plain);
+        if (err) return json({ error: err }, 400, cors);
+      }
+      user.passwordHash = await hashPassword(plain);
+      user.passwordSetAt = Date.now();
+      user.passwordSetByAdmin = true;  // 标记由 admin 设置（用户首次登录后建议改密码）
+      await env.BLOG.put('user/' + email, JSON.stringify(user));
+      await env.BLOG.delete('ratelimit/pwlogin/' + email);
+      // 仅当系统生成时回传明文（让 admin 复制告诉用户）；admin 自定义的不回传
+      return json({ ok: true, generated, password: generated ? plain : undefined }, 200, cors);
+    }
+
+    // POST /api/admin/users/:email/clear-password — admin clears user password
+    const adminClearPwMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/clear-password$/);
+    if (adminClearPwMatch && method === 'POST') {
+      if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      const email = normalizeEmail(decodeURIComponent(adminClearPwMatch[1]));
+      if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      const user = await env.BLOG.get('user/' + email, 'json');
+      if (!user) return json({ error: 'Not found' }, 404, cors);
+      if (!user.passwordHash) return json({ ok: true, alreadyEmpty: true }, 200, cors);
+      delete user.passwordHash;
+      delete user.passwordSetAt;
+      delete user.passwordSetByAdmin;
+      await env.BLOG.put('user/' + email, JSON.stringify(user));
+      await env.BLOG.delete('ratelimit/pwlogin/' + email);
+      return json({ ok: true }, 200, cors);
     }
 
     // PATCH /api/admin/users/:email — update user nickname

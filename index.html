@@ -3453,6 +3453,18 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .user-tab { flex:1; padding:0.6rem; text-align:center; font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; color:var(--gray-400); border-bottom:2px solid transparent; margin-bottom:-2px; transition:color 0.2s, border-color 0.2s; }
 .user-tab.active { color:var(--black); border-bottom-color:var(--accent); font-weight:700; }
 
+/* 登录弹窗：验证码 / 密码 tab 切换（复用 user-tabs 视觉） */
+.auth-tabs { display:flex; border-bottom:2px solid var(--gray-200); margin-bottom:1rem; }
+.auth-tab { flex:1; padding:0.55rem; text-align:center; font-size:0.72rem; letter-spacing:0.1em; cursor:pointer; color:var(--gray-400); border-bottom:2px solid transparent; margin-bottom:-2px; transition:color 0.2s, border-color 0.2s; }
+.auth-tab.active { color:var(--black); border-bottom-color:var(--accent); font-weight:700; }
+
+/* 资料 tab 内的「登录密码」分区 */
+.pw-section { margin-top:1.2rem; padding-top:1.2rem; border-top:1.5px solid var(--gray-200); }
+.pw-section__label { display:flex; align-items:center; gap:0.5rem; font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray-500); margin-bottom:0.6rem; font-weight:700; }
+.pw-section__status { font-size:0.74rem; color:var(--gray-500); padding:0.5rem 0.75rem; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:4px; margin-bottom:0.7rem; }
+.pw-section__status--set { color:var(--gold, #b8884a); border-color:var(--gold, #b8884a); background:transparent; }
+.pw-section__actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
+
 .code-input-group { display:flex; gap:0.5rem; align-items:flex-start; }
 .code-input-group input { flex:1; }
 .code-input-group button { white-space:nowrap; min-width:100px; }
@@ -3471,6 +3483,12 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 [data-theme="dark"] .user-tabs { border-bottom-color:#333; }
 [data-theme="dark"] .user-tab { color:#777; }
 [data-theme="dark"] .user-tab.active { color:#ddd; border-bottom-color:var(--gold); }
+[data-theme="dark"] .auth-tabs { border-bottom-color:#333; }
+[data-theme="dark"] .auth-tab { color:#777; }
+[data-theme="dark"] .auth-tab.active { color:#ddd; border-bottom-color:var(--gold); }
+[data-theme="dark"] .pw-section { border-top-color:#333; }
+[data-theme="dark"] .pw-section__status { background:#1a1a1a; border-color:#333; color:#999; }
+[data-theme="dark"] .pw-section__status--set { background:transparent; border-color:var(--gold); color:var(--gold); }
 
 </style>
 </head>
@@ -3650,16 +3668,17 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <table class="usermgmt-table" id="userMgmtTable">
       <thead>
         <tr>
-          <th style="width:32%;">邮箱</th>
-          <th style="width:18%;">昵称</th>
-          <th style="width:12%;">角色</th>
-          <th style="width:16%;">注册时间</th>
-          <th style="width:14%;">最后登录</th>
-          <th style="width:8%;">操作</th>
+          <th style="width:28%;">邮箱</th>
+          <th style="width:16%;">昵称</th>
+          <th style="width:11%;">角色</th>
+          <th style="width:8%;">密码</th>
+          <th style="width:14%;">注册时间</th>
+          <th style="width:12%;">最后登录</th>
+          <th style="width:11%;">操作</th>
         </tr>
       </thead>
       <tbody id="userMgmtTbody">
-        <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--gray-500);">加载中…</td></tr>
+        <tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--gray-500);">加载中…</td></tr>
       </tbody>
     </table>
   </div>
@@ -4246,9 +4265,15 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <div class="modal__panel auth-modal-panel">
     <button class="modal__close" onclick="closeModal('loginModal')">×</button>
     <h3 class="modal__title">👤 登录 / 注册</h3>
-    <p style="font-size:0.75rem; color:var(--gray-500); margin:-0.8rem 0 1rem;">用邮箱接收 6 位验证码完成登录，首次自动建账号</p>
+    <p style="font-size:0.75rem; color:var(--gray-500); margin:-0.8rem 0 0.8rem;" id="loginSubtitle">用邮箱接收 6 位验证码完成登录，首次自动建账号</p>
 
-    <!-- Step 1: 输入邮箱 -->
+    <!-- 登录方式切换 tab -->
+    <div class="auth-tabs" id="authTabs">
+      <div class="auth-tab active" data-authtab="code" onclick="switchAuthTab('code')">📧 验证码</div>
+      <div class="auth-tab" data-authtab="pw" onclick="switchAuthTab('pw')">🔑 密码</div>
+    </div>
+
+    <!-- Step 1: 输入邮箱（验证码模式） -->
     <div class="auth-step active" id="authStep1">
       <div class="field">
         <label>邮箱</label>
@@ -4274,6 +4299,23 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <div class="modal__actions">
         <button class="btn btn--ghost btn--sm" onclick="loginBackToStep1()">← 改邮箱</button>
         <button class="btn btn--sm" id="loginSubmitBtn" onclick="loginSubmit()">登 录</button>
+      </div>
+    </div>
+
+    <!-- Step PW: 邮箱 + 密码（密码模式） -->
+    <div class="auth-step" id="authStepPw">
+      <div class="field">
+        <label>邮箱</label>
+        <input type="email" id="loginPwEmail" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <input type="password" id="loginPwPassword" placeholder="登录密码" autocomplete="current-password">
+        <div class="field__hint">忘记密码？切到「📧 验证码」登录后到「资料设置」里改</div>
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost btn--sm" onclick="closeModal('loginModal')">取消</button>
+        <button class="btn btn--sm" id="loginPwSubmitBtn" onclick="loginPasswordSubmit()">登 录</button>
       </div>
     </div>
   </div>
@@ -4328,6 +4370,65 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <div class="modal__actions">
         <button class="btn btn--sm" onclick="saveProfile()">保存</button>
       </div>
+
+      <!-- 登录密码 -->
+      <div class="pw-section">
+        <div class="pw-section__label">🔑 登录密码</div>
+        <div class="pw-section__status" id="profilePwStatus">加载中…</div>
+        <div class="pw-section__actions" id="profilePwActions"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 设置 / 修改密码 Modal -->
+<div class="modal" id="pwSetModal">
+  <div class="modal__panel" style="max-width:380px;">
+    <button class="modal__close" onclick="closeModal('pwSetModal')">×</button>
+    <h3 class="modal__title" id="pwSetTitle">🔑 设置登录密码</h3>
+    <p style="font-size:0.74rem; color:var(--gray-500); margin:-0.6rem 0 1rem;" id="pwSetTip">设置后即可用「邮箱 + 密码」直接登录</p>
+    <div class="field" id="pwSetCurrentField" style="display:none;">
+      <label>原密码</label>
+      <input type="password" id="pwSetCurrent" placeholder="当前登录密码" autocomplete="current-password">
+    </div>
+    <div class="field">
+      <label>新密码</label>
+      <input type="password" id="pwSetNew" placeholder="≥ 6 位，不含空格" autocomplete="new-password" maxlength="64">
+    </div>
+    <div class="field">
+      <label>确认新密码</label>
+      <input type="password" id="pwSetConfirm" placeholder="再输一次" autocomplete="new-password" maxlength="64">
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('pwSetModal')">取消</button>
+      <button class="btn btn--sm" id="pwSetSubmitBtn" onclick="pwSetSubmit()">保 存</button>
+    </div>
+  </div>
+</div>
+
+<!-- admin 端：管理用户密码 Modal -->
+<div class="modal" id="adminPwModal">
+  <div class="modal__panel" style="max-width:420px;">
+    <button class="modal__close" onclick="closeModal('adminPwModal')">×</button>
+    <h3 class="modal__title">🔑 管理用户密码</h3>
+    <p style="font-size:0.74rem; color:var(--gray-500); margin:-0.6rem 0 1rem;">
+      目标账号：<span id="adminPwEmail" style="color:var(--accent);"></span><br>
+      当前状态：<span id="adminPwState"></span>
+    </p>
+    <div class="field">
+      <label>新密码（留空则系统生成临时密码）</label>
+      <input type="text" id="adminPwInput" placeholder="≥ 6 位 或 留空自动生成" maxlength="64" autocomplete="off">
+      <div class="field__hint">⚠ 操作后旧密码立即失效；系统生成的临时密码只显示一次，请复制告诉用户</div>
+    </div>
+    <div class="modal__actions" style="flex-wrap:wrap; gap:0.5rem;">
+      <button class="btn btn--ghost btn--sm" onclick="closeModal('adminPwModal')">取消</button>
+      <button class="btn btn--ghost btn--sm" id="adminPwClearBtn" onclick="adminPwClear()" style="color:var(--accent); border-color:var(--accent);">清除密码</button>
+      <button class="btn btn--sm" id="adminPwSubmitBtn" onclick="adminPwSubmit()">设置</button>
+    </div>
+    <div id="adminPwResult" style="display:none; margin-top:1rem; padding:0.8rem; background:#fff8e6; border:1.5px solid var(--gold,#b8884a); border-radius:4px; font-size:0.78rem;">
+      <div style="margin-bottom:0.4rem; font-weight:700; color:#7a5a2a;">✅ 临时密码已生成（仅此一次显示）</div>
+      <div style="font-family:var(--mono,monospace); font-size:1.05rem; letter-spacing:2px; color:var(--accent); user-select:all; padding:0.5rem; background:#fff; border:1px dashed var(--gold,#b8884a); border-radius:3px; text-align:center;" id="adminPwResultText"></div>
+      <div style="margin-top:0.5rem; color:var(--gray-500); font-size:0.7rem;">建议立刻复制 → 通过私信 / 邮件发给用户 → 提醒登录后到「资料设置」改成自己的密码</div>
     </div>
   </div>
 </div>
@@ -6221,8 +6322,12 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-06',
-    title: '订单权限隔离 hotfix：账号严格隔离，同浏览器换号也动不了别人的订单',
+    title: '密码登录上线 + 订单权限隔离 hotfix：账号严格隔离，同浏览器换号也动不了别人的订单',
     items: [
+      '🔑 新增「密码登录」选项：登录弹窗顶部多了「📧 验证码 / 🔑 密码」tab 切换，已有密码的账号可直接邮箱 + 密码登录；忘记密码时切到验证码模式登录后到「资料设置」改 — 既兼容老用户的验证码体验，也给常用户一个免邮件的快捷登录路径',
+      '🛠 资料设置加「登录密码」分区：未设过密码 → 一键「设置密码」（≥ 6 位、不含空格、双输确认）；已设过 → 「修改密码」（需原密码验证）/「清除密码」（回到只能验证码登录）',
+      '👑 管理员可以直接管理任意用户的密码：用户管理表多一列「密码」直观显示 🔑 已设 / —，每行加「🔑 改密」按钮 — 可指定新密码，也可留空让系统生成 10 位临时密码（避开 0/O、1/l 等易混淆字符，结果只显示一次便于复制告知用户）；已设密码的用户还可一键清除',
+      '🛡 密码安全：服务端 PBKDF2-SHA256 + 100k 迭代 + 16 字节随机盐，常量时间比较；密码登录失败 5 次 / 15 分钟锁定该邮箱（不影响验证码登录）；管理员永远拿不到任何用户的明文密码，只能重置或清除',
       '🔒 修复一个安全 bug：之前后端用「登录身份 OR 浏览器指纹（visitorId）」双轨判定订单 owner，目的是兼容老的未登录订单。但 visitorId 只跟浏览器走、不跟账号走，导致**同一浏览器换账号后仍能查看/编辑/支付/声明已付别人的订单**。本次把 visitorId 回退收紧为「只在订单完全没有 userId（极老订单）时才使用」，所有新订单严格按账号 userId 隔离 — 不管换不换浏览器、换不换 IP，自己的账号只能操作自己的订单。涉及 5 个接口：订单详情可见性 / 订单编辑 / 客户声明已付 / 发起支付 / 查支付状态',
     ],
   },
@@ -8770,7 +8875,7 @@ const UserStore = {
       const r = await fetch(API_BASE + '/api/auth/me', { headers: { 'X-User-Token': this.token } });
       if (r.ok) {
         const d = await r.json();
-        this.user = { email: d.email, userId: d.userId, nickname: d.nickname };
+        this.user = { email: d.email, userId: d.userId, nickname: d.nickname, hasPassword: !!d.hasPassword };
         this.role = d.role || 'user';
         this.renderBtn();
         // 角色变化 → 进入/退出管理界面
@@ -8814,6 +8919,43 @@ const UserStore = {
       try { applyRoleSideEffects(); } catch (e) { console.error('applyRoleSideEffects after login failed:', e); }
     }
     return d;
+  },
+
+  async passwordLogin(email, password) {
+    const r = await fetch(API_BASE + '/api/auth/password-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      this.token = d.token;
+      this.user = d.user;
+      this.role = d.role || 'user';
+      try { localStorage.setItem(USER_TOKEN_KEY, d.token); } catch (_) {}
+      try { this.renderBtn(); } catch (e) { console.error('renderBtn after passwordLogin failed:', e); }
+      try { applyRoleSideEffects(); } catch (e) { console.error('applyRoleSideEffects after passwordLogin failed:', e); }
+    }
+    return d;
+  },
+
+  async setPassword(newPassword, currentPassword) {
+    const body = { newPassword };
+    if (currentPassword) body.currentPassword = currentPassword;
+    const r = await fetch(API_BASE + '/api/auth/set-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-User-Token': this.token },
+      body: JSON.stringify(body)
+    });
+    return r.json();
+  },
+
+  async clearPassword() {
+    const r = await fetch(API_BASE + '/api/auth/clear-password', {
+      method: 'POST',
+      headers: { 'X-User-Token': this.token }
+    });
+    return r.json();
   },
 
   async updateProfile(nickname) {
@@ -8984,11 +9126,140 @@ async function loginSubmit() {
   btn.disabled = false; btn.textContent = '登 录';
 }
 
+// 登录方式切换：'code'=邮箱验证码 / 'pw'=邮箱密码
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.authtab === tab));
+  const isPw = tab === 'pw';
+  // 切到密码模式：隐 step1/step2，显 stepPw；并把已经输入的邮箱带过去
+  document.getElementById('authStep1').classList.toggle('active', !isPw);
+  document.getElementById('authStep2').classList.remove('active');  // 切换 tab 一律回到初始
+  document.getElementById('authStepPw').classList.toggle('active', isPw);
+  // 文案
+  const tip = document.getElementById('loginSubtitle');
+  if (tip) tip.textContent = isPw
+    ? '已有密码？直接邮箱 + 密码登录'
+    : '用邮箱接收 6 位验证码完成登录，首次自动建账号';
+  // 邮箱字段互相同步
+  if (isPw) {
+    const e1 = document.getElementById('loginEmail').value.trim();
+    if (e1 && !document.getElementById('loginPwEmail').value.trim()) {
+      document.getElementById('loginPwEmail').value = e1;
+    }
+    setTimeout(() => {
+      const el = document.getElementById(document.getElementById('loginPwEmail').value ? 'loginPwPassword' : 'loginPwEmail');
+      if (el) el.focus();
+    }, 50);
+  } else {
+    const e2 = document.getElementById('loginPwEmail').value.trim();
+    if (e2 && !document.getElementById('loginEmail').value.trim()) {
+      document.getElementById('loginEmail').value = e2;
+    }
+  }
+}
+
+async function loginPasswordSubmit() {
+  const email = document.getElementById('loginPwEmail').value.trim();
+  const password = document.getElementById('loginPwPassword').value;
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('请输入有效邮箱'); return; }
+  if (!password) { toast('请输入密码'); return; }
+  const btn = document.getElementById('loginPwSubmitBtn');
+  btn.disabled = true; btn.textContent = '登录中…';
+  try {
+    const d = await UserStore.passwordLogin(email, password);
+    if (d.ok) {
+      closeModal('loginModal');
+      toast('✅ 登录成功');
+      setTimeout(() => location.reload(), 600);
+    } else {
+      toast(d.error || '登录失败');
+    }
+  } catch (e) { toast('网络异常: ' + (e && e.message ? e.message : e)); }
+  btn.disabled = false; btn.textContent = '登 录';
+}
+
 function switchUserTab(tab) {
   document.querySelectorAll('.user-tab').forEach(t => t.classList.toggle('active', t.dataset.utab === tab));
   document.getElementById('utab-dm').style.display = tab === 'dm' ? '' : 'none';
   document.getElementById('utab-profile').style.display = tab === 'profile' ? '' : 'none';
   if (tab === 'dm') loadUserDm();
+  if (tab === 'profile') renderProfilePwSection();
+}
+
+// 资料 tab 内的「登录密码」分区：根据 hasPassword 显示状态 + 按钮
+function renderProfilePwSection() {
+  const status = document.getElementById('profilePwStatus');
+  const actions = document.getElementById('profilePwActions');
+  if (!status || !actions) return;
+  const u = (UserStore && UserStore.user) ? UserStore.user : null;
+  if (!u) { status.textContent = '未登录'; actions.innerHTML = ''; return; }
+  if (u.hasPassword) {
+    status.textContent = '✅ 已设置 — 可直接「邮箱 + 密码」登录';
+    status.classList.add('pw-section__status--set');
+    actions.innerHTML =
+      '<button class="btn btn--sm" onclick="openPwSetModal(true)">修改密码</button>' +
+      '<button class="btn btn--ghost btn--sm" onclick="clearMyPassword()" style="color:var(--accent); border-color:var(--accent);">清除密码</button>';
+  } else {
+    status.textContent = '⚪ 未设置 — 目前只能通过邮箱验证码登录';
+    status.classList.remove('pw-section__status--set');
+    actions.innerHTML = '<button class="btn btn--sm" onclick="openPwSetModal(false)">设置密码</button>';
+  }
+}
+
+// 打开「设置 / 修改密码」弹窗
+function openPwSetModal(isChange) {
+  document.getElementById('pwSetTitle').textContent = isChange ? '🔑 修改登录密码' : '🔑 设置登录密码';
+  document.getElementById('pwSetTip').textContent = isChange
+    ? '需要输入原密码验证身份'
+    : '设置后即可用「邮箱 + 密码」直接登录';
+  document.getElementById('pwSetCurrentField').style.display = isChange ? '' : 'none';
+  document.getElementById('pwSetCurrent').value = '';
+  document.getElementById('pwSetNew').value = '';
+  document.getElementById('pwSetConfirm').value = '';
+  document.getElementById('pwSetModal').classList.add('open');
+  setTimeout(() => {
+    const el = document.getElementById(isChange ? 'pwSetCurrent' : 'pwSetNew');
+    if (el) el.focus();
+  }, 100);
+}
+
+async function pwSetSubmit() {
+  const cur = document.getElementById('pwSetCurrent').value;
+  const np = document.getElementById('pwSetNew').value;
+  const cf = document.getElementById('pwSetConfirm').value;
+  const needCur = document.getElementById('pwSetCurrentField').style.display !== 'none';
+  if (needCur && !cur) { toast('请输入原密码'); return; }
+  if (!np || np.length < 6) { toast('新密码至少 6 位'); return; }
+  if (np.length > 64) { toast('新密码最多 64 位'); return; }
+  if (/\s/.test(np)) { toast('新密码不能含空格'); return; }
+  if (np !== cf) { toast('两次输入不一致'); return; }
+  const btn = document.getElementById('pwSetSubmitBtn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    const d = await UserStore.setPassword(np, needCur ? cur : '');
+    if (d && d.ok) {
+      if (UserStore.user) UserStore.user.hasPassword = true;
+      closeModal('pwSetModal');
+      toast('✅ 密码已' + (needCur ? '更新' : '设置'));
+      renderProfilePwSection();
+    } else {
+      toast((d && d.error) || '保存失败');
+    }
+  } catch (e) { toast('网络异常: ' + (e && e.message ? e.message : e)); }
+  btn.disabled = false; btn.textContent = '保 存';
+}
+
+async function clearMyPassword() {
+  if (!confirm('确定清除登录密码？\n\n清除后只能用「邮箱验证码」登录；之后想用密码可以重新设置。')) return;
+  try {
+    const d = await UserStore.clearPassword();
+    if (d && d.ok) {
+      if (UserStore.user) UserStore.user.hasPassword = false;
+      toast('✅ 已清除登录密码');
+      renderProfilePwSection();
+    } else {
+      toast((d && d.error) || '清除失败');
+    }
+  } catch (e) { toast('网络异常: ' + (e && e.message ? e.message : e)); }
 }
 
 async function userLogout() {
@@ -9216,8 +9487,8 @@ async function loadUsers() {
   const tbody = document.getElementById('userMgmtTbody');
   const stats = document.getElementById('userMgmtStats');
   if (!tbody) return;
-  if (!isAdmin()) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--gray-500);">仅管理员可访问</td></tr>'; return; }
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--gray-500);">加载中…</td></tr>';
+  if (!isAdmin()) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--gray-500);">仅管理员可访问</td></tr>'; return; }
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--gray-500);">加载中…</td></tr>';
   try {
     const r = await fetch(API_BASE + '/api/admin/users', { headers: adminAuthHeaders() });
     const d = await r.json();
@@ -9231,7 +9502,7 @@ async function loadUsers() {
     }
     renderUserMgmtTable();
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--accent);">' + escHtml(e.message || '加载失败') + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--accent);">' + escHtml(e.message || '加载失败') + '</td></tr>';
     if (stats) stats.textContent = '加载失败';
   }
 }
@@ -9240,7 +9511,7 @@ function renderUserMgmtTable() {
   const tbody = document.getElementById('userMgmtTbody');
   if (!tbody) return;
   if (!_userMgmtCache.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--gray-500);">还没有注册用户</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--gray-500);">还没有注册用户</td></tr>';
     return;
   }
   const fmt = (ts) => {
@@ -9255,13 +9526,18 @@ function renderUserMgmtTable() {
     const delBtn = protectedRow
       ? '<button class="btn-del" disabled style="opacity:0.35; cursor:not-allowed;" title="' + (u.role === 'super' ? '不能删除主管理员' : '请先在副管理员管理中移除') + '">删除</button>'
       : '<button class="btn-del" onclick="deleteUser(\'' + escAttr(u.email) + '\')">删除</button>';
+    const pwBtn = '<button class="btn-del" onclick="openAdminPwModal(\'' + escAttr(u.email) + '\')" title="设置 / 重置 / 清除该用户的登录密码" style="margin-right:0.3rem;">🔑 改密</button>';
+    const pwCell = u.hasPassword
+      ? '<span style="color:var(--gold,#b8884a); font-weight:700;" title="已设置密码">🔑 已设</span>'
+      : '<span style="color:var(--gray-400);" title="未设置密码">—</span>';
     return '<tr data-email="' + escAttr(u.email) + '">' +
       '<td style="font-family:var(--mono,monospace); font-size:0.78rem;">' + escHtml(u.email) + '</td>' +
       '<td><input class="nick-input" type="text" maxlength="20" value="' + escAttr(u.nickname || '') + '" placeholder="未设置" onblur="saveUserNick(\'' + escAttr(u.email) + '\', this.value, this)"></td>' +
       '<td><span class="role-pill ' + roleClass[u.role] + '">' + roleLabel[u.role] + '</span></td>' +
+      '<td style="text-align:center;">' + pwCell + '</td>' +
       '<td>' + fmt(u.createdAt) + '</td>' +
       '<td>' + (u.lastLogin ? fmt(u.lastLogin) : '<span style="color:var(--gray-400);">未登录</span>') + '</td>' +
-      '<td><div class="row-actions">' + delBtn + '</div></td>' +
+      '<td><div class="row-actions">' + pwBtn + delBtn + '</div></td>' +
     '</tr>';
   }).join('');
 }
@@ -9333,6 +9609,91 @@ async function deleteUser(email) {
   } catch (e) {
     toast('❌ ' + (e.message || '删除失败'));
   }
+}
+
+// ── admin 端管理用户密码 ──
+let _adminPwEmail = '';
+
+function openAdminPwModal(email) {
+  if (!isAdmin()) return;
+  _adminPwEmail = email;
+  const u = _userMgmtCache.find(x => x.email === email);
+  document.getElementById('adminPwEmail').textContent = email;
+  document.getElementById('adminPwState').innerHTML = (u && u.hasPassword)
+    ? '<span style="color:var(--gold,#b8884a); font-weight:700;">🔑 已设置密码</span>'
+    : '<span style="color:var(--gray-400);">未设置密码</span>';
+  document.getElementById('adminPwInput').value = '';
+  document.getElementById('adminPwResult').style.display = 'none';
+  document.getElementById('adminPwResultText').textContent = '';
+  // 已有密码 → 显示「清除密码」按钮；没密码 → 隐藏（避免误点）
+  document.getElementById('adminPwClearBtn').style.display = (u && u.hasPassword) ? '' : 'none';
+  document.getElementById('adminPwModal').classList.add('open');
+  setTimeout(() => document.getElementById('adminPwInput').focus(), 100);
+}
+
+async function adminPwSubmit() {
+  if (!_adminPwEmail) return;
+  const input = document.getElementById('adminPwInput').value;
+  // 输入校验：要么留空（系统生成），要么 ≥ 6 位
+  if (input && input.length < 6) { toast('密码至少 6 位（留空可让系统生成）'); return; }
+  if (input && input.length > 64) { toast('密码最多 64 位'); return; }
+  if (input && /\s/.test(input)) { toast('密码不能含空格'); return; }
+  const action = input ? '设为指定密码' : '生成临时密码';
+  if (!confirm('确认为 ' + _adminPwEmail + ' ' + action + '？\n\n旧密码（如有）立即失效。')) return;
+  const btn = document.getElementById('adminPwSubmitBtn');
+  btn.disabled = true; btn.textContent = '处理中…';
+  try {
+    const body = input ? JSON.stringify({ newPassword: input }) : '{}';
+    const r = await fetch(API_BASE + '/api/admin/users/' + encodeURIComponent(_adminPwEmail) + '/set-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: body
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '设置失败');
+    // 本地缓存同步 hasPassword
+    const u = _userMgmtCache.find(x => x.email === _adminPwEmail);
+    if (u) u.hasPassword = true;
+    renderUserMgmtTable();
+    if (d.generated && d.password) {
+      // 系统生成 → 展示明文，提醒复制
+      document.getElementById('adminPwResultText').textContent = d.password;
+      document.getElementById('adminPwResult').style.display = '';
+      // 状态条同步
+      document.getElementById('adminPwState').innerHTML = '<span style="color:var(--gold,#b8884a); font-weight:700;">🔑 已设置密码</span>';
+      document.getElementById('adminPwClearBtn').style.display = '';
+      toast('✅ 临时密码已生成，请复制告诉用户');
+    } else {
+      closeModal('adminPwModal');
+      toast('✅ 已为 ' + _adminPwEmail + ' 设置新密码');
+    }
+  } catch (e) {
+    toast('❌ ' + (e.message || '设置失败'));
+  }
+  btn.disabled = false; btn.textContent = '设置';
+}
+
+async function adminPwClear() {
+  if (!_adminPwEmail) return;
+  if (!confirm('确认清除 ' + _adminPwEmail + ' 的登录密码？\n\n清除后该用户只能用邮箱验证码登录。')) return;
+  const btn = document.getElementById('adminPwClearBtn');
+  btn.disabled = true; btn.textContent = '清除中…';
+  try {
+    const r = await fetch(API_BASE + '/api/admin/users/' + encodeURIComponent(_adminPwEmail) + '/clear-password', {
+      method: 'POST',
+      headers: adminAuthHeaders()
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '清除失败');
+    const u = _userMgmtCache.find(x => x.email === _adminPwEmail);
+    if (u) u.hasPassword = false;
+    renderUserMgmtTable();
+    closeModal('adminPwModal');
+    toast('✅ 已清除 ' + _adminPwEmail + ' 的密码');
+  } catch (e) {
+    toast('❌ ' + (e.message || '清除失败'));
+  }
+  btn.disabled = false; btn.textContent = '清除密码';
 }
 
 // ── 管理员收件箱 ──
@@ -9690,6 +10051,20 @@ document.addEventListener('DOMContentLoaded', function() {
   const lc = document.getElementById('loginCode');
   if (lc) lc.addEventListener('input', function() {
     if (this.value.length === 6) loginSubmit();
+  });
+  // 密码登录：Enter 提交
+  const lpwEmail = document.getElementById('loginPwEmail');
+  const lpwPw = document.getElementById('loginPwPassword');
+  if (lpwEmail) lpwEmail.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); if (lpwPw) lpwPw.focus(); }
+  });
+  if (lpwPw) lpwPw.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); loginPasswordSubmit(); }
+  });
+  // 设置密码弹窗：Enter 在确认框上 = 提交
+  const psc = document.getElementById('pwSetConfirm');
+  if (psc) psc.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); pwSetSubmit(); }
   });
 });
 
