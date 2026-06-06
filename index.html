@@ -1692,17 +1692,33 @@ body { animation: pageFadeIn 0.6s ease both; }
 }
 @media (max-width: 640px) {
   .masthead__horoscope {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-auto-rows: auto;
+    align-items: center;
+    gap: 0.45rem 0.55rem;
     border-radius: 14px;
-    padding: 0.55rem 0.8rem;
+    padding: 0.6rem 0.85rem;
   }
-  .masthead__horoscope-text {
+  .masthead__horoscope-label { grid-row: 1; grid-column: 1; }
+  .masthead__horoscope-sign  { grid-row: 1; grid-column: 2; }
+  .masthead__horoscope-more  { grid-row: 1; grid-column: 3; justify-self: end; }
+  .masthead__horoscope-text  {
+    grid-row: 2;
+    grid-column: 1 / -1;
     width: 100%;
+    min-width: 0;
     white-space: normal;
-    order: 99;
+    text-overflow: clip;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
     font-size: 0.78rem;
-    color: rgba(255, 253, 248, 0.78);
     line-height: 1.45;
+    color: rgba(255, 253, 248, 0.78);
+    text-align: left;
   }
 }
 
@@ -6576,8 +6592,9 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-06',
-    title: '星座运势接入 banner + 昵称违禁词审核 + 日志改名「笔记 · 碎碎念」 + 登录用户评论锁定昵称 + 注册入口 + 密码登录 + 订单权限隔离',
+    title: '星座运势接入 banner（含移动端 grid 修复） + 昵称违禁词审核 + 日志改名「笔记 · 碎碎念」 + 登录用户评论锁定昵称 + 注册入口 + 密码登录 + 订单权限隔离',
     items: [
+      '🔧 修复移动端 banner 运势条 summary 文字逐字竖排溢出问题：原 flex-wrap 方案在窄屏下 text 元素被挤成 1 字宽导致每字独占一行，改用 grid 布局把 summary 强制独占第二行，并加 `-webkit-line-clamp:2` 限制最多两行展示，超出省略',
       '✨ 首页 banner 接入「今日运势」：masthead 内嵌一条胶囊状运势条，可在 12 星座间下拉切换（localStorage 记住上次选的），实时显示今日概述短句，点「详情 →」弹窗看完整 9 个维度（综合 / 爱情 / 工作 / 财运 / 健康 + 幸运色 / 数字 / 贵人星座 / 今日概述）；数据来自天行 API，worker 走 `/api/horoscope?sign=xxx` 代理 + KV 24h 缓存（12 星座 ≪ 100 次/天免费额度），KEY 在 Cloudflare 加密 secret 不入代码，深浅色模式都做了适配',
       '🛡 昵称违禁词审核上线：覆盖访客评论昵称 / 用户改自己昵称 / 管理员创建&修改用户昵称 4 个入口，禁止色情、伪色情、生殖器、侮辱、违禁词等内容；前端即时弹 toast 提示，worker 端最终强制校验（防绕过直接 POST），词库防分隔符绕过（"傻 逼" / "傻.逼" 都拦），单字昵称仅在整体由违禁字组成时才判定，避免误伤"操作员"等正常词',
       '📝 「日志」全站改名为「笔记 · 碎碎念」：导航 / 页头 / 写作按钮 / 空状态 / 弹窗标题 / 提示文案统一改用「笔记」，氛围处点缀「碎碎念」让它更像生活随手记，旧数据不动（id / 分组 / 评论全部保留）',
