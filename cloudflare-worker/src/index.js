@@ -944,7 +944,8 @@ async function handleRequest(request, env, ctx, cors) {
         data.orders = data.orders.map(o => {
           if (!o) return o;
           const mineByUser = !!viewerUserId && o.userId === viewerUserId;
-          const mineByVisitor = !!viewerId && o.visitorId === viewerId;
+          // visitorId 同浏览器跨账号会复用，严禁作为"我"的回退；仅对完全没 userId 的老订单兜底
+          const mineByVisitor = !o.userId && !!viewerId && o.visitorId === viewerId;
           const mine = mineByUser || mineByVisitor;
           const out = { ...o };
           delete out.visitorId; // never leak visitorId
@@ -1191,7 +1192,8 @@ async function handleRequest(request, env, ctx, cors) {
       // Owner 判定：优先 userId 维度（新订单都有 userId），其次回退老 visitorId 维度（老订单兼容）
       const ownerUser = await getCurrentUser(request, env);
       const matchUser = !!ownerUser && !!order.userId && order.userId === ownerUser.userId;
-      const matchVisitor = !!viewerId && order.visitorId === viewerId;
+      // visitorId 同浏览器跨账号会复用，严禁作为"我"的回退；仅对完全没 userId 的老订单兜底
+      const matchVisitor = !order.userId && !!viewerId && order.visitorId === viewerId;
       const isOwner = !admin && (matchUser || matchVisitor);
 
       if (!admin && !isOwner) return json({ error: 'Unauthorized' }, 401, cors);
@@ -1340,7 +1342,8 @@ async function handleRequest(request, env, ctx, cors) {
       const viewerId = request.headers.get('X-Visitor-Id') || '';
       const ownerUser = await getCurrentUser(request, env);
       const matchUser = !!ownerUser && !!order.userId && order.userId === ownerUser.userId;
-      const matchVisitor = !!viewerId && order.visitorId === viewerId;
+      // visitorId 同浏览器跨账号会复用，严禁作为"我"的回退；仅对完全没 userId 的老订单兜底
+      const matchVisitor = !order.userId && !!viewerId && order.visitorId === viewerId;
       if (!matchUser && !matchVisitor) return json({ error: '请先登录后再操作' }, 401, cors);
 
       if (order.paid) return json({ error: '订单已付款' }, 400, cors);
@@ -1401,7 +1404,8 @@ async function handleRequest(request, env, ctx, cors) {
       const viewerId = request.headers.get('X-Visitor-Id') || '';
       const ownerUser = await getCurrentUser(request, env);
       const matchUser = !!ownerUser && !!order.userId && order.userId === ownerUser.userId;
-      const matchVisitor = !!viewerId && order.visitorId === viewerId;
+      // visitorId 同浏览器跨账号会复用，严禁作为"我"的回退；仅对完全没 userId 的老订单兜底
+      const matchVisitor = !order.userId && !!viewerId && order.visitorId === viewerId;
       if (!admin && !matchUser && !matchVisitor) return json({ error: '请先登录后再支付' }, 401, cors);
 
       if (order.paid) return json({ error: '该订单已支付' }, 400, cors);
@@ -1462,7 +1466,8 @@ async function handleRequest(request, env, ctx, cors) {
       const viewerId = request.headers.get('X-Visitor-Id') || '';
       const ownerUser = await getCurrentUser(request, env);
       const matchUser = !!ownerUser && !!order.userId && order.userId === ownerUser.userId;
-      const matchVisitor = !!viewerId && order.visitorId === viewerId;
+      // visitorId 同浏览器跨账号会复用，严禁作为"我"的回退；仅对完全没 userId 的老订单兜底
+      const matchVisitor = !order.userId && !!viewerId && order.visitorId === viewerId;
       if (!admin && !matchUser && !matchVisitor) return json({ error: 'Unauthorized' }, 401, cors);
       // 主动查支付宝（应对异步通知未送达 / 延迟的兜底）
       let synced = false;
