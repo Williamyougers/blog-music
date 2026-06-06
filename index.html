@@ -4702,6 +4702,37 @@ function genPlanKey() {
   return 'p_' + Math.random().toString(36).slice(2, 6);
 }
 
+// ── 昵称违禁词审核（与 worker 同步） ──
+// 仅用于「昵称」等公开标识字段；正文不过滤。worker 端有同名最终校验，前端只做即时反馈。
+const BANNED_NICK_PHRASES = [
+  '色情','黄色片','三级片','成人片','约炮','卖淫','嫖娼','一夜情','打飞机','撸管','自慰',
+  '口交','肛交','做爱','性交','射精','潮吹','调教','sm调教','3p','群p','女优','男优','av女','av男',
+  '阴道','阴茎','龟头','睾丸','乳房','乳头','奶子','屁眼','菊花','后庭','咪咪',
+  'jb','jiba','jber','jbr','jjb','jiwawa','jiwbb',
+  '小鸡鸡','鸡巴','鸡儿','鸡掰','大屌','屌爆','大鸡儿','大棒子',
+  '傻逼','傻b','傻屄','煞笔','沙比','傻屌','二逼','装逼','牛逼','操你妈','艹你妈','日你妈',
+  '婊子','贱人','贱货','畜生','畜牲','王八蛋','混蛋','滚蛋','去死','死全家',
+  '你妈逼','尼玛','你妹','妈的','他妈','妈逼','搞你妈','操你','艹你','干你','日你',
+  '智障','弱智','蠢货','白痴','低能','脑残','残废','瞎子聋子',
+  '法轮功','轮子功','达赖喇嘛','藏独','疆独','台独','港独','反共产党','颠覆国家','分裂国家',
+  '六四事件','64事件','天安门事件',
+  '海洛因','冰毒','大麻','摇头丸','可卡因','贩毒','吸毒','制毒','枪支','炸药','炸弹',
+  'fuck','shit','bitch','sex','porn','dick','cock','pussy','cunt','asshole','nigger',
+  'penis','vagina','boobs','tits','blowjob','handjob','nsfw','xxx','milf','bdsm',
+];
+const BANNED_NICK_SOLO = /^[\s·•・\-_]*[操艹肏屌逼屄嫖奸淫][\s·•・\-_]*$/;
+function checkBannedNickname(s) {
+  const raw = String(s || '');
+  if (!raw) return false;
+  if (BANNED_NICK_SOLO.test(raw)) return true;
+  const n = raw.toLowerCase().replace(/[\s\.\-_·•・*\\\/|]+/g, '');
+  if (!n) return false;
+  for (const w of BANNED_NICK_PHRASES) {
+    if (n.includes(w.toLowerCase())) return true;
+  }
+  return false;
+}
+
 // ── 数据层 ──
 const Store = {
   works: [],
@@ -6243,6 +6274,11 @@ async function submitComment(logId) {
   const isLogged = (typeof UserStore !== 'undefined' && UserStore && UserStore.user);
   const nickname = isLogged ? '' : (cnEl ? cnEl.value : '').trim();
   if (!content) { toast('内容不能为空'); return; }
+  // 访客昵称违禁词审核（登录用户的昵称已审过，跳过）
+  if (!isLogged && nickname && checkBannedNickname(nickname)) {
+    toast('❌ 昵称含违禁内容（色情/侮辱/违禁词等），请修改');
+    return;
+  }
   try {
     await Store.addComment(logId, nickname, content);
     ccEl.value = '';
@@ -6385,8 +6421,9 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-06',
-    title: '日志改名「笔记 · 碎碎念」 + 登录用户评论锁定昵称 + 注册入口 + 密码登录 + 订单权限隔离',
+    title: '昵称违禁词审核 + 日志改名「笔记 · 碎碎念」 + 登录用户评论锁定昵称 + 注册入口 + 密码登录 + 订单权限隔离',
     items: [
+      '🛡 昵称违禁词审核上线：覆盖访客评论昵称 / 用户改自己昵称 / 管理员创建&修改用户昵称 4 个入口，禁止色情、伪色情、生殖器、侮辱、违禁词等内容；前端即时弹 toast 提示，worker 端最终强制校验（防绕过直接 POST），词库防分隔符绕过（"傻 逼" / "傻.逼" 都拦），单字昵称仅在整体由违禁字组成时才判定，避免误伤"操作员"等正常词',
       '📝 「日志」全站改名为「笔记 · 碎碎念」：导航 / 页头 / 写作按钮 / 空状态 / 弹窗标题 / 提示文案统一改用「笔记」，氛围处点缀「碎碎念」让它更像生活随手记，旧数据不动（id / 分组 / 评论全部保留）',
       '🪪 登录用户发评论时昵称强制锁定为账号昵称：登录后表单不再显示昵称输入框，改为「以 XX 身份发表」+「改昵称」快捷入口；后端同时强制覆盖前端传值并附带 userId/email，杜绝同一账号在不同笔记下伪装成不同昵称留言；未登录访客仍可继续匿名留言（沿用 5s 冷却 + 单访客 30 条限制）',
       '✨ 登录弹窗新增「✨ 注册」tab：邮箱 + 验证码 + 密码 一步注册并自动登录（≥ 6 位、不含空格、双输确认），新用户不用再先验证码登录再去资料里设密码；已注册账号会被识别并提示直接登录，已存在但未设密码的老账号也可借此一步补设密码（防止误注册覆盖）',
@@ -9444,6 +9481,10 @@ async function userLogout() {
 
 async function saveProfile() {
   const nickname = document.getElementById('profileNickname').value.trim();
+  if (nickname && checkBannedNickname(nickname)) {
+    toast('❌ 昵称含违禁内容（色情/侮辱/违禁词等），请修改');
+    return;
+  }
   const d = await UserStore.updateProfile(nickname);
   if (d && d.ok) { toast('✅ 已保存'); }
   else { toast((d && d.error) || '保存失败'); }
@@ -9729,6 +9770,7 @@ async function submitAddUser() {
   const email = (document.getElementById('addUserEmail').value || '').trim().toLowerCase();
   const nickname = (document.getElementById('addUserNick').value || '').trim();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('邮箱格式不对'); return; }
+  if (nickname && checkBannedNickname(nickname)) { toast('❌ 昵称含违禁内容'); return; }
   try {
     const r = await fetch(API_BASE + '/api/admin/users', {
       method: 'POST',
@@ -9750,6 +9792,11 @@ async function saveUserNick(email, nickname, inputEl) {
   const orig = cur ? (cur.nickname || '') : '';
   const next = (nickname || '').trim().slice(0, 20);
   if (next === orig) return;
+  if (next && checkBannedNickname(next)) {
+    toast('❌ 昵称含违禁内容');
+    if (inputEl) inputEl.value = orig;
+    return;
+  }
   try {
     const r = await fetch(API_BASE + '/api/admin/users/' + encodeURIComponent(email), {
       method: 'PATCH',

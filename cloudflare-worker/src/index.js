@@ -801,6 +801,50 @@ function sanitizeNickname(s) {
   return t;
 }
 
+// ==========================================================================
+// 昵称违禁词审核（色情/伪色情/生殖器/侮辱/违禁词）
+// 仅用于「昵称」等公开标识字段；不做正文内容过滤。
+// 双端同步：前端 index.html 内同名函数必须与本处保持一致。
+// ==========================================================================
+const BANNED_NICK_PHRASES = [
+  // —— 色情 / 性 —— //
+  '色情','黄色片','三级片','成人片','约炮','卖淫','嫖娼','一夜情','打飞机','撸管','自慰',
+  '口交','肛交','做爱','性交','射精','潮吹','调教','sm调教','3p','群p','女优','男优','av女','av男',
+  '阴道','阴茎','龟头','睾丸','乳房','乳头','奶子','屁眼','菊花','后庭','咪咪',
+  'jb','jiba','jber','jbr','jjb','jiwawa','jiwbb',
+  '小鸡鸡','鸡巴','鸡儿','鸡掰','大屌','屌爆','大鸡儿','大棒子',
+  // —— 中文侮辱 —— //
+  '傻逼','傻b','傻屄','煞笔','沙比','傻屌','二逼','装逼','牛逼','操你妈','艹你妈','日你妈',
+  '婊子','贱人','贱货','畜生','畜牲','王八蛋','混蛋','滚蛋','去死','死全家',
+  '你妈逼','尼玛','你妹','妈的','他妈','妈逼','搞你妈','操你','艹你','干你','日你',
+  '智障','弱智','蠢货','白痴','低能','脑残','残废','瞎子聋子',
+  // —— 政治敏感（克制核心词） —— //
+  '法轮功','轮子功','达赖喇嘛','藏独','疆独','台独','港独','反共产党','颠覆国家','分裂国家',
+  '六四事件','64事件','天安门事件',
+  // —— 涉毒 / 涉恐 —— //
+  '海洛因','冰毒','大麻','摇头丸','可卡因','贩毒','吸毒','制毒','枪支','炸药','炸弹',
+  // —— 英文 —— //
+  'fuck','shit','bitch','sex','porn','dick','cock','pussy','cunt','asshole','nigger',
+  'penis','vagina','boobs','tits','blowjob','handjob','nsfw','xxx','milf','bdsm',
+];
+// 单字模式：trim 去分隔符后整体由这些字符组成才拒（防止误伤"操作员"等正常词）
+const BANNED_NICK_SOLO = /^[\s·•・\-_]*[操艹肏屌逼屄嫖奸淫][\s·•・\-_]*$/;
+function _normalizeForBan(s) {
+  return String(s || '').toLowerCase()
+    .replace(/[\s\.\-_·•・*\\\/|]+/g, '');  // 去空白/常见分隔符防绕过
+}
+function checkBannedNickname(s) {
+  const raw = String(s || '');
+  if (!raw) return false;
+  if (BANNED_NICK_SOLO.test(raw)) return true;
+  const n = _normalizeForBan(raw);
+  if (!n) return false;
+  for (const w of BANNED_NICK_PHRASES) {
+    if (n.includes(w.toLowerCase())) return true;
+  }
+  return false;
+}
+
 // Notify owner via Server Chan when user sends new DM
 async function notifyNewDM(env, user, content) {
   if (!env.SERVERCHAN_KEY) return;
@@ -1648,6 +1692,10 @@ async function handleRequest(request, env, ctx, cors) {
         nickname = sanitizeStr(commentUser.nickname, 20) || ((commentUser.email || '').split('@')[0]) || '乐迷';
       } else {
         nickname = sanitizeStr(body && body.nickname, 20) || '匿名乐迷';
+        // 访客昵称违禁词审核（登录用户的昵称已在改资料时审过，这里只查访客现场输入）
+        if (checkBannedNickname(nickname)) {
+          return json({ error: '昵称含违禁内容（色情/侮辱/违禁词等），请修改后再试' }, 400, cors);
+        }
       }
 
       const [logsRaw, commentsRaw] = await Promise.all([
@@ -1933,6 +1981,9 @@ async function handleRequest(request, env, ctx, cors) {
       let body;
       try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
       const nickname = sanitizeNickname(body.nickname);
+      if (nickname && checkBannedNickname(nickname)) {
+        return json({ error: '昵称含违禁内容（色情/侮辱/违禁词等），请修改' }, 400, cors);
+      }
       user.nickname = nickname;
       await env.BLOG.put('user/' + user.email, JSON.stringify(user));
       return json({ ok: true, nickname }, 200, cors);
@@ -2256,6 +2307,9 @@ async function handleRequest(request, env, ctx, cors) {
       const email = normalizeEmail(body.email);
       const nickname = sanitizeNickname(body.nickname || '');
       if (!email) return json({ error: 'Invalid email' }, 400, cors);
+      if (nickname && checkBannedNickname(nickname)) {
+        return json({ error: '昵称含违禁内容' }, 400, cors);
+      }
       const existing = await env.BLOG.get('user/' + email, 'json');
       if (existing) return json({ error: '该邮箱已注册' }, 400, cors);
       const userId = await emailToUserId(email);
@@ -2321,7 +2375,13 @@ async function handleRequest(request, env, ctx, cors) {
       try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, cors); }
       const user = await env.BLOG.get('user/' + email, 'json');
       if (!user) return json({ error: 'Not found' }, 404, cors);
-      if (typeof body.nickname === 'string') user.nickname = sanitizeNickname(body.nickname);
+      if (typeof body.nickname === 'string') {
+        const nn = sanitizeNickname(body.nickname);
+        if (nn && checkBannedNickname(nn)) {
+          return json({ error: '昵称含违禁内容' }, 400, cors);
+        }
+        user.nickname = nn;
+      }
       await env.BLOG.put('user/' + email, JSON.stringify(user));
       return json({ ok: true, user }, 200, cors);
     }
