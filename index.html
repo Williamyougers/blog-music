@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>威灵T · Tracks & Community — 个人音乐社区 / 编曲分享 / 接单工坊</title>
-<meta name="description" content="威灵T 的个人音乐社区，收录原创编曲、改编作品与创作日志，并提供编曲接单服务。古风 / 流行 / 原创钢琴曲。凡所听过 · 终将回响 · 一首一首，慢慢来。">
+<meta name="description" content="威灵T 的个人音乐社区，收录原创编曲、改编作品与创作笔记，并提供编曲接单服务。古风 / 流行 / 原创钢琴曲。凡所听过 · 终将回响 · 一首一首，慢慢来。">
 <meta name="keywords" content="威灵T,音乐社区,个人音乐网站,编曲,编曲接单,古风音乐,原创钢琴曲,改编作品,Tracks and Community">
 <meta name="author" content="威灵T">
 <meta name="robots" content="index, follow">
@@ -941,6 +941,18 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   background:var(--white);
   font-size:0.85rem;
 }
+.comments__locked-nick {
+  font-size:0.78rem;
+  color:var(--gray-500);
+  padding:0.45rem 0.1rem 0.1rem;
+  letter-spacing:0.02em;
+}
+.comments__locked-nick strong {
+  color:var(--black);
+  font-weight:700;
+  letter-spacing:0.04em;
+}
+[data-theme="dark"] .comments__locked-nick strong { color:#eee; }
 .comments__input {
   width:100%; min-height:64px; resize:vertical;
   padding:0.55rem 0.7rem;
@@ -1211,7 +1223,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   box-shadow:0 0 0 3px rgba(10,10,10,0.06);
 }
 .field textarea { resize:vertical; min-height:120px; font-family:var(--sans); line-height:1.7; }
-/* contenteditable 富文本编辑器（写日志正文） */
+/* contenteditable 富文本编辑器（写笔记正文） */
 .content-editor {
   width:100%; padding:0.75rem 1rem;
   background:var(--gray-50); border:1.5px solid var(--gray-200);
@@ -3533,7 +3545,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 
 <nav class="nav">
   <button data-page="works" class="active">作品</button>
-  <button data-page="logs">日志</button>
+  <button data-page="logs">笔记</button>
   <button data-page="workshop">工坊</button>
   <button data-page="about">关于</button>
   <button data-page="changelog">更新</button>
@@ -3562,21 +3574,21 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <div id="worksList" class="works"></div>
 </main>
 
-<!-- 日志页 -->
+<!-- 笔记页 -->
 <main class="page" id="page-logs">
   <div class="page-header">
     <div class="page-header__left">
       <div class="page-header__label">Journal</div>
-      <h2 class="page-header__title">日志</h2>
+      <h2 class="page-header__title">笔记 · 碎碎念</h2>
       <p class="page-header__desc">关于音乐、创作与生活的文字</p>
     </div>
-    <button class="btn js-write-action" onclick="openLogModal()">+ 写日志</button>
+    <button class="btn js-write-action" onclick="openLogModal()">+ 写笔记</button>
   </div>
   <div class="log-groups-bar" id="logGroupsBar"><!-- 由 renderLogGroupsBar() 动态渲染 --></div>
   <div id="logsList" class="logs"></div>
-  <!-- 日志详情就地展开视图（默认隐藏） -->
+  <!-- 笔记详情就地展开视图（默认隐藏） -->
   <div id="logDetailView" class="log-detail-view" style="display:none;">
-    <button class="btn btn--ghost btn--sm log-detail-view__back" onclick="closeLogDetail()">← 返回日志列表</button>
+    <button class="btn btn--ghost btn--sm log-detail-view__back" onclick="closeLogDetail()">← 返回笔记列表</button>
     <div class="log-detail-layout">
       <article class="log-detail-layout__main" id="logDetailBody"><!-- 由 openLogDetail() 渲染正文 --></article>
       <aside class="log-detail-layout__aside" id="logDetailComments"><!-- 由 openLogDetail() 渲染评论区 --></aside>
@@ -3604,7 +3616,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     </div>
     <div class="about__stats">
       <div class="about__stat"><div class="about__stat-num" id="statWorks">0</div><div class="about__stat-label">作品</div></div>
-      <div class="about__stat"><div class="about__stat-num" id="statLogs">0</div><div class="about__stat-label">日志</div></div>
+      <div class="about__stat"><div class="about__stat-num" id="statLogs">0</div><div class="about__stat-label">笔记</div></div>
       <div class="about__stat"><div class="about__stat-num" id="statDays">0</div><div class="about__stat-label">天</div></div>
     </div>
 
@@ -3899,11 +3911,11 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
 </div>
 
-<!-- 日志 Modal -->
+<!-- 笔记 Modal -->
 <div class="modal" id="logModal">
   <div class="modal__panel">
     <button class="modal__close" onclick="closeModal('logModal')">×</button>
-    <h3 class="modal__title">✎ 写日志</h3>
+    <h3 class="modal__title">✎ 写笔记</h3>
     <div class="field">
       <label>标题 *</label>
       <input id="l-title" type="text" placeholder="今天想说点什么">
@@ -3939,12 +3951,12 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
 </div>
 
-<!-- 日志分组管理 Modal -->
+<!-- 笔记分组管理 Modal -->
 <div class="modal" id="groupMgrModal">
   <div class="modal__panel" style="max-width:480px;">
     <button class="modal__close" onclick="closeModal('groupMgrModal')">×</button>
-    <h3 class="modal__title">🗂 日志分组管理</h3>
-    <p style="color:var(--gray-500); font-size:0.82rem; margin:0 0 0.8rem;">点名字可重命名；删除分组后，该分组下日志会归到「未分组」。</p>
+    <h3 class="modal__title">🗂 笔记分组管理</h3>
+    <p style="color:var(--gray-500); font-size:0.82rem; margin:0 0 0.8rem;">点名字可重命名；删除分组后，该分组下笔记会归到「未分组」。</p>
     <div class="group-mgr__list" id="groupMgrList"></div>
     <div class="group-mgr__add">
       <input id="newGroupName" type="text" placeholder="新分组名（≤20字）" maxlength="20" onkeydown="if(event.key==='Enter'){event.preventDefault(); addNewGroup();}">
@@ -3956,7 +3968,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
 </div>
 
-<!-- 日志详情视图改为就地展开（见 #page-logs > #logDetailView），不再使用 Modal -->
+<!-- 笔记详情视图改为就地展开（见 #page-logs > #logDetailView），不再使用 Modal -->
 
 <!-- Lightbox（点击图片放大） -->
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -4852,7 +4864,7 @@ const Store = {
   addLog(l) { this.logs.unshift(l); this.saveLogs(); },
   delLog(id) {
     this.logs = this.logs.filter(l => l.id !== id);
-    // 同时清掉这条日志的评论
+    // 同时清掉这条笔记的评论
     if (this.comments && this.comments[id]) {
       delete this.comments[id];
       try { localStorage.setItem('tn_comments', JSON.stringify(this.comments)); } catch (_) {}
@@ -4867,7 +4879,7 @@ const Store = {
     return true;
   },
   getLog(id) { return this.logs.find(l => l.id === id); },
-  // ── 日志分组 ──
+  // ── 笔记分组 ──
   saveLogGroups() { this._scheduleSync(); },
   addLogGroup(name) {
     const trimmed = (name || '').trim();
@@ -4890,7 +4902,7 @@ const Store = {
   },
   delLogGroup(id) {
     this.logGroups = this.logGroups.filter(g => g.id !== id);
-    // 把该分组下的日志归到「未分组」
+    // 把该分组下的笔记归到「未分组」
     this.logs.forEach(l => { if (l.groupId === id) l.groupId = null; });
     this.saveLogGroups();
   },
@@ -4899,9 +4911,14 @@ const Store = {
     if (typeof API_BASE !== 'string' || !API_BASE) {
       throw new Error('未联云，无法评论');
     }
+    const headers = { 'Content-Type': 'application/json' };
+    // 已登录用户带上 token，后端会用账号昵称覆盖前端传值
+    if (typeof UserStore !== 'undefined' && UserStore && UserStore.token) {
+      headers['X-User-Token'] = UserStore.token;
+    }
     const res = await fetch(API_BASE + '/api/comments/' + encodeURIComponent(logId), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ nickname, content, visitorId: getVisitorId() })
     });
     const data = await res.json().catch(() => ({}));
@@ -5099,7 +5116,7 @@ function seedSampleData() {
     createdAt: now - 3000
   });
 
-  // ── 日志 ──
+  // ── 笔记 ──
   Store.addLog({
     id: now - 2000,
     title: '关于"留白"的一些想法',
@@ -5422,7 +5439,7 @@ async function adminRejectClaim(orderId) {
 }
 window.adminRejectClaim = adminRejectClaim;
 
-// 把日志正文按 ![alt](url) 切分成 segments：[{type:'text',value} | {type:'image',url,alt}]
+// 把笔记正文按 ![alt](url) 切分成 segments：[{type:'text',value} | {type:'image',url,alt}]
 function parseLogContent(text) {
   const segs = [];
   const src = String(text || '');
@@ -5438,7 +5455,7 @@ function parseLogContent(text) {
   if (last < src.length) segs.push({ type: 'text', value: src.slice(last) });
   return segs;
 }
-// 从日志正文中抽取所有图片 URL（顺序）
+// 从笔记正文中抽取所有图片 URL（顺序）
 function extractImagesFromContent(text) {
   return parseLogContent(text).filter(s => s.type === 'image').map(s => s.url);
 }
@@ -6101,15 +6118,15 @@ function renderLogs() {
   if (all.length === 0) {
     list.innerHTML = `<div class="empty">
       <div class="empty__icon">✎</div>
-      <div class="empty__text">还没有日志</div>
-      <div class="empty__hint">点上方「+ 写日志」开始记录</div>
+      <div class="empty__text">还没有碎碎念</div>
+      <div class="empty__hint">点上方「+ 写笔记」开始记录</div>
     </div>`;
     return;
   }
   if (filtered.length === 0) {
     list.innerHTML = `<div class="empty">
       <div class="empty__icon">📂</div>
-      <div class="empty__text">这个分组还没有日志</div>
+      <div class="empty__text">这个分组还没有笔记</div>
       <div class="empty__hint">切到「全部」看看，或写一条新的</div>
     </div>`;
     return;
@@ -6188,10 +6205,16 @@ function renderCommentSection(logId) {
   const empty = sorted.length === 0 ? `<div class="comments__empty">还没有评论，来留下第一句吧 ✨</div>` : '';
   // 分享版/离线版本：仅展示列表，不显示表单
   const showForm = !window.__VIEWER_MODE__;
+  // 登录用户 → 锁定为账号昵称（昵称为空则用邮箱 @ 前缀）；未登录 → 可填昵称
+  const loggedUser = (typeof UserStore !== 'undefined' && UserStore && UserStore.user) ? UserStore.user : null;
+  const lockedNick = loggedUser ? (loggedUser.nickname || (loggedUser.email || '').split('@')[0] || '乐迷') : '';
+  const nickRow = loggedUser
+    ? `<div class="comments__locked-nick" id="cn-locked-${logId}">以 <strong>${escapeHTML(lockedNick)}</strong> 身份发表 <span style="color:var(--gray-400); margin-left:0.4em;">·</span> <a href="javascript:void(0)" onclick="openProfilePanel()" style="color:var(--gray-500); text-decoration:underline; font-size:0.7rem;">改昵称</a></div>`
+    : `<input class="comments__nick" id="cn-${logId}" type="text" maxlength="20" placeholder="昵称（可选，默认匿名乐迷）">`;
   const form = showForm ? `
     <div class="comments__form">
       <div class="comments__form-row">
-        <input class="comments__nick" id="cn-${logId}" type="text" maxlength="20" placeholder="昵称（可选，默认匿名乐迷）">
+        ${nickRow}
         <textarea class="comments__input" id="cc-${logId}" maxlength="500" placeholder="说点什么…（最多 500 字）" oninput='updateCommentCount(this, ${JSON.stringify(String(logId))})'></textarea>
       </div>
       <div class="comments__form-foot">
@@ -6216,7 +6239,9 @@ async function submitComment(logId) {
   const cnEl = document.getElementById('cn-' + logId);
   if (!ccEl) return;
   const content = (ccEl.value || '').trim();
-  const nickname = (cnEl ? cnEl.value : '').trim();
+  // 登录用户 → 不传 nickname，由后端强制用账号昵称；未登录 → 用输入框值
+  const isLogged = (typeof UserStore !== 'undefined' && UserStore && UserStore.user);
+  const nickname = isLogged ? '' : (cnEl ? cnEl.value : '').trim();
   if (!content) { toast('内容不能为空'); return; }
   try {
     await Store.addComment(logId, nickname, content);
@@ -6360,8 +6385,10 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-06',
-    title: '注册入口 + 密码登录上线 + 订单权限隔离 hotfix：账号严格隔离，同浏览器换号也动不了别人的订单',
+    title: '日志改名「笔记 · 碎碎念」 + 登录用户评论锁定昵称 + 注册入口 + 密码登录 + 订单权限隔离',
     items: [
+      '📝 「日志」全站改名为「笔记 · 碎碎念」：导航 / 页头 / 写作按钮 / 空状态 / 弹窗标题 / 提示文案统一改用「笔记」，氛围处点缀「碎碎念」让它更像生活随手记，旧数据不动（id / 分组 / 评论全部保留）',
+      '🪪 登录用户发评论时昵称强制锁定为账号昵称：登录后表单不再显示昵称输入框，改为「以 XX 身份发表」+「改昵称」快捷入口；后端同时强制覆盖前端传值并附带 userId/email，杜绝同一账号在不同笔记下伪装成不同昵称留言；未登录访客仍可继续匿名留言（沿用 5s 冷却 + 单访客 30 条限制）',
       '✨ 登录弹窗新增「✨ 注册」tab：邮箱 + 验证码 + 密码 一步注册并自动登录（≥ 6 位、不含空格、双输确认），新用户不用再先验证码登录再去资料里设密码；已注册账号会被识别并提示直接登录，已存在但未设密码的老账号也可借此一步补设密码（防止误注册覆盖）',
       '🔑 新增「密码登录」选项：登录弹窗顶部多了「📧 验证码 / 🔑 密码」tab 切换，已有密码的账号可直接邮箱 + 密码登录；忘记密码时切到验证码模式登录后到「资料设置」改 — 既兼容老用户的验证码体验，也给常用户一个免邮件的快捷登录路径',
       '🛠 资料设置加「登录密码」分区：未设过密码 → 一键「设置密码」（≥ 6 位、不含空格、双输确认）；已设过 → 「修改密码」（需原密码验证）/「清除密码」（回到只能验证码登录）',
@@ -8327,10 +8354,10 @@ function openLogModal(editLogId) {
       setEditorContent(contentInit);
       document.getElementById('l-tags').value = (log.tags || []).join(', ');
       if (sel) sel.value = log.groupId || '';
-      if (titleEl) titleEl.textContent = '✎ 编辑日志';
+      if (titleEl) titleEl.textContent = '✎ 编辑笔记';
     }
   } else {
-    if (titleEl) titleEl.textContent = '✎ 写日志';
+    if (titleEl) titleEl.textContent = '✎ 写笔记';
   }
   modal.classList.add('open');
   setTimeout(() => document.getElementById('l-title').focus(), 100);
@@ -8389,12 +8416,12 @@ function saveLog() {
     const editedId = _editingLogId;
     closeModal('logModal');
     renderAll();
-    // 若详情视图正展示同一条日志，重新渲染详情主区与评论区
+    // 若详情视图正展示同一条笔记，重新渲染详情主区与评论区
     const view = document.getElementById('logDetailView');
     if (view && view.style.display !== 'none' && view.dataset.logId === String(editedId)) {
       openLogDetail(editedId);
     }
-    toast('日志已更新 ✓');
+    toast('笔记已更新 ✓');
   } else {
     Store.addLog({
       id: Date.now(),
@@ -8403,11 +8430,11 @@ function saveLog() {
     });
     closeModal('logModal');
     renderAll();
-    toast('日志已发布 ✎');
+    toast('笔记已发布 ✎');
   }
 }
 
-// ── 日志分组管理 Modal ──
+// ── 笔记分组管理 Modal ──
 function openGroupMgr() {
   if (!isAdmin()) { toast('请先用管理员令牌解锁'); return; }
   renderGroupMgr();
@@ -8498,7 +8525,7 @@ async function renameGroupInline(id, newName, inputEl) {
 }
 
 async function delGroupConfirm(id, name) {
-  if (!confirm(`删除分组「${name}」？\n（该分组下的日志会变成「未分组」，不会被删除）`)) return;
+  if (!confirm(`删除分组「${name}」？\n（该分组下的笔记会变成「未分组」，不会被删除）`)) return;
   try {
     Store.delLogGroup(id);
     if (_currentGroupFilter === id) _currentGroupFilter = null;
@@ -8511,12 +8538,12 @@ async function delGroupConfirm(id, name) {
   }
 }
 
-// ── 日志详情：就地展开视图（非 Modal） ──
-// _currentDetailLogId：当前展开的日志 id；null 表示列表视图
+// ── 笔记详情：就地展开视图（非 Modal） ──
+// _currentDetailLogId：当前展开的笔记 id；null 表示列表视图
 let _currentDetailLogId = null;
 function openLogDetail(id) {
   const log = Store.getLog(id);
-  if (!log) { toast('日志不存在'); return; }
+  if (!log) { toast('笔记不存在'); return; }
   const view = document.getElementById('logDetailView');
   const body = document.getElementById('logDetailBody');
   const aside = document.getElementById('logDetailComments');
@@ -8567,7 +8594,7 @@ function openLogDetail(id) {
   `;
   aside.innerHTML = renderCommentSection(log.id);
 
-  // 切换视图：隐藏列表 + 分组栏，显示详情；滚动到日志页顶
+  // 切换视图：隐藏列表 + 分组栏，显示详情；滚动到笔记页顶
   if (list) list.style.display = 'none';
   if (bar) bar.style.display = 'none';
   view.style.display = 'block';
@@ -8617,7 +8644,7 @@ function confirmDelete(type, id) {
 }
 document.getElementById('confirmBtn').addEventListener('click', () => {
   if (!pendingDelete) return;
-  // 若删除的是当前正在详情视图展开的日志，先关闭详情回到列表
+  // 若删除的是当前正在详情视图展开的笔记，先关闭详情回到列表
   if (pendingDelete.type === 'log' && _currentDetailLogId != null && String(_currentDetailLogId) === String(pendingDelete.id)) {
     closeLogDetail();
   }

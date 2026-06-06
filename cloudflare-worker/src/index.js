@@ -1636,11 +1636,19 @@ async function handleRequest(request, env, ctx, cors) {
       let body;
       try { body = await request.json(); }
       catch { return json({ error: 'Invalid JSON' }, 400, cors); }
-      const nickname = sanitizeStr(body && body.nickname, 20) || '匿名乐迷';
       const content = sanitizeStr(body && body.content, 500);
       const visitorId = sanitizeStr(body && body.visitorId, 64);
       if (!content) return json({ error: 'Content required' }, 400, cors);
       if (!visitorId) return json({ error: 'visitorId required' }, 400, cors);
+
+      // 登录用户 → 昵称锁定为账号昵称（兜底用邮箱 @ 前缀）；未登录 → 用前端传入或匿名乐迷
+      const commentUser = await getCurrentUser(request, env);
+      let nickname;
+      if (commentUser) {
+        nickname = sanitizeStr(commentUser.nickname, 20) || ((commentUser.email || '').split('@')[0]) || '乐迷';
+      } else {
+        nickname = sanitizeStr(body && body.nickname, 20) || '匿名乐迷';
+      }
 
       const [logsRaw, commentsRaw] = await Promise.all([
         env.BLOG.get('logs'),
@@ -1670,6 +1678,11 @@ async function handleRequest(request, env, ctx, cors) {
         content,
         createdAt: now,
       };
+      // 登录用户额外记录 userId / email，便于后续追溯与权限判定
+      if (commentUser) {
+        item.userId = commentUser.userId;
+        item.userEmail = commentUser.email;
+      }
       list.push(item);
       comments[logId] = list;
 
