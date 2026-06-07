@@ -5607,6 +5607,11 @@ const Store = {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', API_BASE + '/api/upload');
+      // 注入 admin auth headers（deliverable 必须 admin 鉴权；其他 kind 携带不影响）
+      try {
+        const ah = adminAuthHeaders();
+        Object.keys(ah).forEach(k => xhr.setRequestHeader(k, ah[k]));
+      } catch (_) {}
       if (xhr.upload && typeof onProgress === 'function') {
         xhr.upload.onprogress = e => {
           if (e.lengthComputable) {
@@ -7245,6 +7250,8 @@ const CHANGELOG = [
       '♥ 每篇笔记加点赞功能：详情页标题下方加胶囊状「♥ 喜欢」按钮，可点击 toggle（已点变暗红填充 + 弹跳动画），同一访客 / 笔记仅算一次；点完列表卡片上的数字也会同步更新',
       '👁 每篇笔记加阅读量：列表卡片右下角显示「👁 N」，详情页标题下方显示「👁 N 阅读」；同一访客同一天进同一篇笔记仅计 1 次，避免刷量；按北京时区 0 点重置',
       '🛠 后端新增 3 个 API：`GET /api/notes/stats?ids=&visitorId=` 批量取 stats（一次性渲染列表，附带「我点过哪些」） / `POST /api/notes/:id/like` toggle 点赞 / `POST /api/notes/:id/view` 上报阅读；KV 用聚合 JSON 存 likes/views，单点的 KV key 存「我点过」标记 + TTL 86400 防重复阅读',
+      '📦 接单订单加「成品交付」能力：主管理员在订单卡片底部新增成品管理面板（管理员视角红底），可直接上传 ≤80MB 成品文件（音频/zip/工程文件 MIME 不限）走 R2，也可手填 wrangler 命令上传后的 R2 key 注册更大文件（≤500MB / 单订单 ≤8 个）；文件按 `orders/{visHash8}/deliver/{ts}_{rand}.{ext}` 隔离存储，跟参考音频路径严格分离便于审计',
+      '💾 客户视角下载入口：订单 `paid=true` 且 deliverables 非空时，订单卡里出现金底「💾 成品交付（N 个文件）」区，每行一个文件 + 大小 + ⬇ 下载按钮，点击 fetch+blob 落盘（文件名走 RFC5987 UTF-8 编码，中文不乱），不限次数；管理员视角额外有「测试下载」（不写 lastDownloadAt）+ 「× 移除」（仅从订单字段移除，R2 文件保留）',
     ],
   },
   {
@@ -7932,11 +7939,204 @@ function renderWorkshop() {
   renderOrderSection('wsCompleted', completed, false, true);
 }
 
-// ── 接单成品交付：admin 上传成品 → 客户付款后下载（前端壳，渲染逻辑后续补） ──
+// ── 接单成品交付：admin 上传 + 客户付款后下载 ──
+const MAX_DELIVERABLE_BYTES = 80 * 1024 * 1024; // 单次 multipart 上限 80MB（更大走 wrangler）
+const MAX_ORDER_DELIVERABLES = 8;
+
 function renderOrderDeliverables(o, admin) {
-  // TODO: 完整渲染待补；目前 worker 端已就绪，但客户/admin UI 还在编排
-  return '';
+  if (!o) return '';
+  const list = Array.isArray(o.deliverables) ? o.deliverables : [];
+  const isMine = !!o._isMine;
+  const paid = !!o.paid;
+  // 三种视角：admin 全控 / 客户（已付款）下载 / 其他人不显示
+  if (!admin && !(isMine && paid && list.length)) return '';
+
+  // 客户视角：仅下载
+  if (!admin) {
+    const items = list.map((d, i) => `
+      <div class="ws-order__deliver-file">
+        <span class="ws-order__deliver-name" title="${escapeHTML(d.name || ('文件 ' + (i + 1)))}">💎 ${escapeHTML(d.name || ('文件 ' + (i + 1)))}</span>
+        <span class="ws-order__deliver-meta">${d.size ? formatBytes(d.size) : ''}</span>
+        <button class="ws-order__deliver-dl" type="button" onclick="downloadOrderDeliverable('${escAttr(o.id)}', ${i}, this)" title="下载成品">⬇ 下载</button>
+      </div>`).join('');
+    return `
+      <div class="ws-order__deliver">
+        <div class="ws-order__deliver-title">💾 成品交付（${list.length} 个文件）</div>
+        <div class="ws-order__deliver-files">${items}</div>
+      </div>`;
+  }
+
+  // admin 视角：完整管理面板
+  const filesHtml = list.length
+    ? list.map((d, i) => {
+        const last = d.lastDownloadAt ? ('客户最近下载：' + formatDate(d.lastDownloadAt)) : '客户尚未下载';
+        return `
+        <div class="ws-order__deliver-file" title="${escAttr(last)}">
+          <span class="ws-order__deliver-name" title="${escapeHTML(d.name || ('文件 ' + (i + 1)))}">📦 ${escapeHTML(d.name || ('文件 ' + (i + 1)))}</span>
+          <span class="ws-order__deliver-meta">${d.size ? formatBytes(d.size) : ''} · ${escapeHTML((d.key || '').split('/').slice(-1)[0] || '')}</span>
+          <button class="ws-order__deliver-dl" type="button" onclick="downloadOrderDeliverable('${escAttr(o.id)}', ${i}, this)" title="管理员下载（不计客户下载时间）">⬇ 测试下载</button>
+          <button class="ws-order__deliver-del" type="button" onclick="deleteOrderDeliverable('${escAttr(o.id)}', ${i})" title="从订单移除（R2 文件保留）">× 移除</button>
+        </div>`;
+      }).join('')
+    : '<div class="ws-order__deliver-meta" style="padding:0.4rem 0;">尚未上传任何成品文件</div>';
+
+  // wrangler 命令模板（大文件超 80MB 时用）
+  const visHash = (o.visitorId || '').slice(0, 8) || 'admin';
+  const ts = Date.now();
+  const wranglerTpl = `wrangler r2 object put blog-music-files/orders/${visHash}/deliver/${ts}_我的文件.zip --file=./我的文件.zip --remote`;
+  const remain = MAX_ORDER_DELIVERABLES - list.length;
+  const uploadDisabled = remain <= 0 ? 'disabled style="opacity:0.45;cursor:not-allowed;"' : '';
+
+  return `
+    <div class="ws-order__deliver ws-order__deliver--admin">
+      <div class="ws-order__deliver-title">📦 成品交付（管理员）· ${list.length} / ${MAX_ORDER_DELIVERABLES}</div>
+      <div class="ws-order__deliver-files">${filesHtml}</div>
+      <div class="ws-order__deliver-actions">
+        <label class="ws-order__deliver-upload" ${uploadDisabled}>
+          ⬆ 上传成品（≤80MB）
+          <input type="file" style="display:none;" onchange="uploadOrderDeliverable('${escAttr(o.id)}', this)" ${uploadDisabled}>
+        </label>
+        <input type="text" class="ws-order__deliver-key-input" id="deliverKeyInput-${escAttr(o.id)}" placeholder="或填 wrangler 上传后的 R2 key" maxlength="300">
+        <button class="ws-order__deliver-upload" type="button" onclick="addOrderDeliverableByKey('${escAttr(o.id)}')" ${uploadDisabled}>+ 注册 key</button>
+      </div>
+      <div class="ws-order__deliver-hint">大文件命令模板（替换文件名）：<br>${escapeHTML(wranglerTpl)}</div>
+    </div>`;
 }
+
+async function uploadOrderDeliverable(orderId, input) {
+  if (!input || !input.files || !input.files.length) return;
+  const file = input.files[0];
+  input.value = '';
+  if (file.size > MAX_DELIVERABLE_BYTES) {
+    toast(`单次上传上限 80MB（当前 ${formatBytes(file.size)}），请改用 wrangler 命令后填 key`);
+    return;
+  }
+  const label = file.name || 'deliverable';
+  toast('上传中：' + label);
+  try {
+    const r = await Store.uploadFile('deliverable', file, { name: label.slice(0, 200) });
+    if (!r || !r.key) throw new Error('上传未返回 key');
+    const order = (Store.orders || []).find(x => x.id === orderId);
+    const existing = (order && Array.isArray(order.deliverables)) ? order.deliverables.slice() : [];
+    existing.push({
+      name: label.slice(0, 200),
+      type: r.mime || file.type || 'application/octet-stream',
+      size: r.size || file.size,
+      key: r.key,
+      url: r.url || '',
+      uploadedAt: Date.now(),
+      lastDownloadAt: 0,
+    });
+    await Store.updateOrder(orderId, { deliverables: existing });
+    toast('✓ 已上传：' + label);
+    if (typeof renderWorkshop === 'function') renderWorkshop();
+  } catch (e) {
+    console.error('[deliverable upload]', e);
+    toast('上传失败：' + (e.message || e));
+  }
+}
+
+async function addOrderDeliverableByKey(orderId) {
+  const el = document.getElementById('deliverKeyInput-' + orderId);
+  const key = (el && el.value || '').trim();
+  if (!key) { toast('请填 R2 key'); return; }
+  if (!/^orders\/[a-zA-Z0-9_\-./]+$/.test(key) || key.length > 300) {
+    toast('key 格式不合法（必须 orders/... 开头）'); return;
+  }
+  const name = prompt('文件展示名（建议带扩展名，例如：终混.zip）', key.split('/').slice(-1)[0] || '成品文件');
+  if (!name) return;
+  const sizeStr = prompt('文件大小（字节，可留空）', '0');
+  const size = Math.max(0, parseInt(sizeStr || '0', 10) || 0);
+  try {
+    const order = (Store.orders || []).find(x => x.id === orderId);
+    const existing = (order && Array.isArray(order.deliverables)) ? order.deliverables.slice() : [];
+    existing.push({
+      name: name.slice(0, 200),
+      type: 'application/octet-stream',
+      size,
+      key,
+      url: '',
+      uploadedAt: Date.now(),
+      lastDownloadAt: 0,
+    });
+    await Store.updateOrder(orderId, { deliverables: existing });
+    if (el) el.value = '';
+    toast('✓ 已注册：' + name);
+    if (typeof renderWorkshop === 'function') renderWorkshop();
+  } catch (e) {
+    console.error('[deliverable add key]', e);
+    toast('注册失败：' + (e.message || e));
+  }
+}
+
+async function deleteOrderDeliverable(orderId, fileIdx) {
+  if (!confirm('从订单移除该成品？R2 文件本身保留，可重新注册同 key 找回。')) return;
+  try {
+    const order = (Store.orders || []).find(x => x.id === orderId);
+    const existing = (order && Array.isArray(order.deliverables)) ? order.deliverables.slice() : [];
+    if (fileIdx < 0 || fileIdx >= existing.length) { toast('文件索引无效'); return; }
+    const removed = existing.splice(fileIdx, 1)[0];
+    await Store.updateOrder(orderId, { deliverables: existing });
+    toast('✓ 已移除：' + (removed && removed.name || ''));
+    if (typeof renderWorkshop === 'function') renderWorkshop();
+  } catch (e) {
+    console.error('[deliverable delete]', e);
+    toast('移除失败：' + (e.message || e));
+  }
+}
+
+async function downloadOrderDeliverable(orderId, fileIdx, btn) {
+  // admin 走 fetch+blob（需带 auth header）；客户走带 visitorId 的 GET
+  const vid = getVisitorId();
+  const adminMode = isAdmin();
+  const baseUrl = API_BASE + '/api/orders/' + encodeURIComponent(orderId) + '/download-deliverable?fileIdx=' + fileIdx + (adminMode ? '' : ('&visitorId=' + encodeURIComponent(vid)));
+  if (!btn) {
+    if (adminMode) { toast('admin 请用文件列表里的「测试下载」按钮'); return; }
+    window.open(baseUrl, '_blank'); return;
+  }
+  const oldHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ 下载中…';
+  try {
+    const headers = adminMode ? adminAuthHeaders() : {};
+    const resp = await fetch(baseUrl, { headers });
+    if (!resp.ok) {
+      let msg = 'HTTP ' + resp.status;
+      try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (_) {}
+      throw new Error(msg);
+    }
+    const cd = resp.headers.get('Content-Disposition') || '';
+    let filename = '';
+    const m1 = cd.match(/filename\*=UTF-8''([^;]+)/i);
+    const m2 = cd.match(/filename="?([^";]+)"?/i);
+    if (m1) { try { filename = decodeURIComponent(m1[1]); } catch (_) { filename = m1[1]; } }
+    else if (m2) { filename = m2[1]; }
+    if (!filename) {
+      const order = (Store.orders || []).find(x => x.id === orderId);
+      const d = order && order.deliverables && order.deliverables[fileIdx];
+      filename = (d && d.name) || ('成品_' + (fileIdx + 1));
+    }
+    const blob = await resp.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+    btn.innerHTML = '✓ 已下载';
+    setTimeout(() => { btn.innerHTML = oldHtml; btn.disabled = false; }, 1500);
+    // 客户下载完刷新一下，让 lastDownloadAt 同步显示（admin 不写）
+    if (!adminMode) { try { await Store.loadOrders(); } catch (_) {} }
+  } catch (e) {
+    console.error('[deliverable download]', e);
+    btn.innerHTML = oldHtml; btn.disabled = false;
+    toast('下载失败：' + (e.message || e) + '，已在新标签打开');
+    window.open(baseUrl, '_blank');
+  }
+}
+window.uploadOrderDeliverable = uploadOrderDeliverable;
+window.addOrderDeliverableByKey = addOrderDeliverableByKey;
+window.deleteOrderDeliverable = deleteOrderDeliverable;
+window.downloadOrderDeliverable = downloadOrderDeliverable;
 
 function renderOrderSection(prefix, orders, isQueue, isCompleted) {
   const section = document.getElementById(prefix + 'Section');
