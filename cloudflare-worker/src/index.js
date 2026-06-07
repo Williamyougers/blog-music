@@ -2657,12 +2657,28 @@ async function handleRequest(request, env, ctx, cors) {
         updatedAt: a.updatedAt,
       };
     }
+    function adminArrangement(a) {
+      // admin 视角额外暴露 paidKey + trialKey 便于编辑器回填
+      return {
+        ...publicArrangement(a),
+        trialKey: a.trialKey || '',
+        paidKey: a.paidKey || '',
+        paidMime: a.paidMime || '',
+      };
+    }
 
     // GET /api/arrangements - 公开列表（按 createdAt 倒序）
+    //   默认：publicArrangement（仅 hasPaidFile 布尔）
+    //   admin 加 ?all=1：adminArrangement（含 paidKey/trialKey/paidMime，供编辑器回填）
     if (path === '/api/arrangements' && method === 'GET') {
       const arrsRaw = await env.BLOG.get('arrangements');
       const arrs = JSON.parse(arrsRaw || '[]');
       arrs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const wantAll = url.searchParams.get('all') === '1';
+      const admin = wantAll && (await isAdminOrSub(request, env));
+      if (admin) {
+        return json({ ok: true, arrangements: arrs.map(adminArrangement), isAdmin: true }, 200, cors);
+      }
       return json({ ok: true, arrangements: arrs.map(publicArrangement) }, 200, cors);
     }
 

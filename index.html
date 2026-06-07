@@ -5742,7 +5742,11 @@ const Store = {
   async loadArrangements() {
     if (typeof API_BASE !== 'string' || !API_BASE) return;
     try {
-      const res = await fetch(API_BASE + '/api/arrangements', { cache: 'no-store' });
+      // admin 视角加 ?all=1 拉完整字段（含 paidKey/trialKey/paidMime 供编辑器与渲染判断）
+      const useAdmin = typeof isAdmin === 'function' && isAdmin();
+      const apiUrl = API_BASE + '/api/arrangements' + (useAdmin ? '?all=1' : '');
+      const headers = useAdmin ? adminAuthHeaders() : {};
+      const res = await fetch(apiUrl, { cache: 'no-store', headers });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok && Array.isArray(data.arrangements)) {
         this.arrangements = data.arrangements;
@@ -5759,9 +5763,8 @@ const Store = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     if (data.arrangement) {
-      // 列表里只存公开字段
+      // admin 视角下保留完整字段（含 paidKey），跟 ?all=1 拉的列表格式一致
       const pub = { ...data.arrangement };
-      delete pub.paidKey; delete pub.paidMime;
       pub.hasPaidFile = !!data.arrangement.paidKey;
       this.arrangements.unshift(pub);
     }
@@ -5778,7 +5781,6 @@ const Store = {
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     if (data.arrangement) {
       const pub = { ...data.arrangement };
-      delete pub.paidKey; delete pub.paidMime;
       pub.hasPaidFile = !!data.arrangement.paidKey;
       const idx = this.arrangements.findIndex(a => a.id === arrId);
       if (idx >= 0) this.arrangements[idx] = pub;
@@ -7253,6 +7255,7 @@ const CHANGELOG = [
       '📦 接单订单加「成品交付」能力：主管理员在订单卡片底部新增成品管理面板（管理员视角红底），可直接上传 ≤80MB 成品文件（音频/zip/工程文件 MIME 不限）走 R2，也可手填 wrangler 命令上传后的 R2 key 注册更大文件（≤500MB / 单订单 ≤8 个）；文件按 `orders/{visHash8}/deliver/{ts}_{rand}.{ext}` 隔离存储，跟参考音频路径严格分离便于审计',
       '💾 客户视角下载入口：订单 `paid=true` 且 deliverables 非空时，订单卡里出现金底「💾 成品交付（N 个文件）」区，每行一个文件 + 大小 + ⬇ 下载按钮，点击 fetch+blob 落盘（文件名走 RFC5987 UTF-8 编码，中文不乱），不限次数；管理员视角额外有「测试下载」（不写 lastDownloadAt）+ 「× 移除」（仅从订单字段移除，R2 文件保留）',
       '🐛 修复共享编曲试听播放 404 — worker `/files/` 路由原本只允许 `orders/` 前缀，导致 `upload-trial` 返回的 `arrangements/trial/...` URL 全部 404；本次把白名单扩到 `orders/` + `arrangements/trial/` + `productions/trial/`，付费文件路径继续只走 `/api/.../download` 校验路由（不公开直链）',
+      '🐛 修复共享编曲详情页永远显示「⚠ 未配置付费文件」— 起因是公开列表 `GET /api/arrangements` 故意把 `paidKey` 抹掉只留 `hasPaidFile` 布尔，但前端 render 判断条件却用的是 `a.paidKey`（永远 undefined）；本次 worker 加 `?all=1` 参数 admin 视角返回 `adminArrangement`（含 paidKey/trialKey/paidMime），前端 admin 模式自动用 `?all=1` 拉，渲染条件统一为 `a.paidKey || a.hasPaidFile`，admin 测试下载 / 客户立即购买 / 已付未下下载按钮全部正常出现',
     ],
   },
   {
@@ -9841,17 +9844,19 @@ function renderArrangementDetailBody(arrId) {
       </div>`
     : `<div class="arr-detail-view__trial"><div class="arr-empty" style="padding:1rem;">（暂无试听）</div></div>`;
   const ownership = _getMyArrangementOwnership(a.id);
+  // 是否已配置付费文件 — admin 视角看 a.paidKey 真值，客户视角看 a.hasPaidFile 布尔
+  const hasPaid = !!(a.paidKey || a.hasPaidFile);
   let actionsHTML = '';
   if (isAdmin()) {
     // admin 自己也可以无限下载（用作内部测试）
-    const adminDlBtn = a.paidKey
+    const adminDlBtn = hasPaid
       ? `<button class="arr-detail-view__download-btn" onclick="downloadArrangement('${escAttr(a.id)}')">⬇️ admin 测试下载</button>`
       : `<div class="arr-detail-view__owned-hint">⚠️ 未配置付费文件</div>`;
     const editBtn = isSuperAdmin()
       ? `<button class="btn btn--ghost btn--sm" onclick="openArrangementEditor('${escAttr(a.id)}')">✎ 编辑</button>`
       : '';
     actionsHTML = `<div class="arr-detail-view__actions">${adminDlBtn}${editBtn}</div>`;
-  } else if (ownership.paid && !ownership.downloaded && a.paidKey) {
+  } else if (ownership.paid && !ownership.downloaded && hasPaid) {
     actionsHTML = `<div class="arr-detail-view__actions">
       <button class="arr-detail-view__download-btn" onclick="downloadArrangement('${escAttr(a.id)}','${escAttr(ownership.orderId)}')">⬇️ 下载付费文件（仅限 1 次）</button>
     </div>`;
@@ -9864,7 +9869,7 @@ function renderArrangementDetailBody(arrId) {
       <button class="arr-detail-view__buy-btn" onclick="openPayModal('${escAttr(ownership.orderId)}')">💰 待付款 ¥${Number(a.price || 0)} · 继续付款</button>
       <span class="arr-detail-view__owned-hint">付款后主管理员确认到账，下载按钮会自动出现</span>
     </div>`;
-  } else if (a.paidKey) {
+  } else if (hasPaid) {
     actionsHTML = `<div class="arr-detail-view__actions">
       <button class="arr-detail-view__buy-btn" onclick="buyArrangement('${escAttr(a.id)}')">💰 立即购买 ¥${Number(a.price || 0)}</button>
     </div>`;
@@ -10054,7 +10059,7 @@ async function buyArrangement(arrId) {
   }
   const a = (Store.arrangements || []).find(x => String(x.id) === String(arrId));
   if (!a) { toast('编曲不存在'); return; }
-  if (!a.paidKey) { toast('未配置付费文件，暂不可购买'); return; }
+  if (!a.paidKey && !a.hasPaidFile) { toast('未配置付费文件，暂不可购买'); return; }
   try {
     const order = await Store.submitArrangementOrder(arrId);
     if (order && order.id) {
