@@ -855,6 +855,28 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .arr-editor-form__admin-only { padding:0.6rem 0.8rem; background:#fff8e1; border-left:3px solid #ffd54f; font-size:0.8rem; color:#8d6e00; border-radius:0 4px 4px 0; }
 [data-theme="dark"] .arr-editor-form__admin-only { background:#3d2f00; color:#ffd54f; }
 
+/* ── 成品编曲（productions）专属修饰 — 复用 .arr-* 卡片/详情/网格样式 ── */
+.arr-card--sold { opacity: 0.72; position: relative; }
+.arr-card--sold::after {
+  content: '已售出'; position: absolute; top: 12px; right: 12px;
+  background: var(--accent); color: #fff; padding: 0.2rem 0.6rem;
+  font-size: 0.72rem; letter-spacing: 0.1em; border-radius: 2px;
+  transform: rotate(6deg); font-weight: 700; box-shadow: 0 2px 6px rgba(194, 59, 34, 0.4);
+}
+.arr-card--delivered::after { content: '已交付'; background: var(--gray-500); box-shadow: none; }
+.prod-buyer-info {
+  margin-top: 0.8rem; padding: 0.7rem 0.9rem;
+  background: linear-gradient(135deg, rgba(184, 132, 74, 0.08), rgba(194, 59, 34, 0.05));
+  border-left: 3px solid var(--gold); border-radius: 0 4px 4px 0;
+  font-size: 0.78rem; color: var(--gray-700); line-height: 1.7;
+}
+.prod-buyer-info strong { color: var(--accent); }
+.prod-warn {
+  margin: 0.6rem 0; padding: 0.6rem 0.9rem;
+  background: rgba(194, 59, 34, 0.08); border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0; font-size: 0.78rem; color: var(--accent);
+}
+
 /* ── Log detail (就地展开视图，非 Modal) ── */
 .log-detail-view { max-width: 1200px; margin: 0 auto; padding: 0 1rem 3rem; }
 .log-detail-view__back {
@@ -2264,9 +2286,19 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .ws-view-btn .ws-mode-btn__hint {
   line-height: 1.5;
 }
-/* 视图切换：commission（接单） / orders（排单） */
-.ws-view--commission .ws-view-only--orders { display: none !important; }
-.ws-view--orders .ws-view-only--commission { display: none !important; }
+/* 视图切换：commission（接单） / orders（排单） / arrangements（共享编曲） / productions（成品编曲） */
+.ws-view--commission .ws-view-only--orders,
+.ws-view--commission .ws-view-only--arrangements,
+.ws-view--commission .ws-view-only--productions,
+.ws-view--orders .ws-view-only--commission,
+.ws-view--orders .ws-view-only--arrangements,
+.ws-view--orders .ws-view-only--productions,
+.ws-view--arrangements .ws-view-only--commission,
+.ws-view--arrangements .ws-view-only--orders,
+.ws-view--arrangements .ws-view-only--productions,
+.ws-view--productions .ws-view-only--commission,
+.ws-view--productions .ws-view-only--orders,
+.ws-view--productions .ws-view-only--arrangements { display: none !important; }
 .ws-mode-banner {
   background: linear-gradient(135deg, rgba(194, 59, 34, 0.1), rgba(184, 132, 74, 0.06));
   border: 1px solid rgba(194, 59, 34, 0.3);
@@ -3842,7 +3874,6 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <button data-page="works" class="active">作品</button>
   <button data-page="logs">笔记</button>
   <button data-page="workshop">工坊</button>
-  <button data-page="arrangements">共享编曲</button>
   <button data-page="about">关于</button>
   <button data-page="changelog">更新</button>
   <button data-page="usermgmt" id="navUserMgmt" style="display:none;">用户管理</button>
@@ -3892,26 +3923,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   </div>
 </main>
 
-<!-- 共享编曲页 -->
-<main class="page" id="page-arrangements">
-  <div class="page-header">
-    <div class="page-header__left">
-      <div class="page-header__label">Arrangements</div>
-      <h2 class="page-header__title">共享编曲</h2>
-      <p class="page-header__desc">付费下载 · 试听免费 · 主管理员审核到账后自动解锁下载</p>
-    </div>
-    <button class="btn js-super-only" id="arrNewBtn" onclick="openArrangementEditor()" style="display:none;">+ 新建编曲</button>
-  </div>
-
-  <!-- 列表（卡片网格） -->
-  <div id="arrangementsList" class="arr-grid"></div>
-
-  <!-- 详情视图 -->
-  <div id="arrangementDetailView" class="arr-detail-view" style="display:none;">
-    <button class="btn btn--ghost btn--sm" onclick="closeArrangementDetail()">← 返回列表</button>
-    <div id="arrangementDetailBody"></div>
-  </div>
-</main>
+<!-- 共享编曲已并入「工坊」页（板块切换），独立页移除 -->
 
 <!-- 关于页 -->
 <main class="page" id="page-about">
@@ -4027,24 +4039,38 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <div class="ws-status ws-view-only--orders" id="wsStatus"></div>
 
   <div class="ws-layout">
-    <!-- 左侧：用途菜单（非商 / 商用） + 板块快速跳转 -->
+    <!-- 左侧：板块切换 + 用途菜单（仅接单视图可见） -->
     <aside class="ws-sidebar">
-      <div class="ws-sidebar__label">用途</div>
-      <button class="ws-mode-btn ws-mode-btn--active" data-ws-mode="noncomm" onclick="setWsMode('noncomm')">
-        <span class="ws-mode-btn__title">非商</span>
-        <span class="ws-mode-btn__hint">仅限以个人名义平台发布</span>
+      <div class="ws-sidebar__label">板块</div>
+      <button class="ws-mode-btn ws-view-btn ws-mode-btn--active" data-ws-view="commission" onclick="setWsView('commission')">
+        <span class="ws-mode-btn__title">✎ 接单</span>
+        <span class="ws-mode-btn__hint">下单 / 套餐 / 长期合作</span>
       </button>
-      <button class="ws-mode-btn" data-ws-mode="commercial" onclick="setWsMode('commercial')">
-        <span class="ws-mode-btn__title">商用</span>
-        <span class="ws-mode-btn__hint">企业 / 商演 · 价 ×3</span>
-      </button>
-      <p class="ws-sidebar__tip">商用版价格自动 ×3，订单会标注「[商用]」前缀</p>
-
-      <div class="ws-sidebar__label ws-sidebar__label--nav">板块</div>
-      <button class="ws-mode-btn ws-view-btn" data-ws-view="orders" onclick="toggleWsView('orders')">
-        <span class="ws-mode-btn__title">排单</span>
+      <button class="ws-mode-btn ws-view-btn" data-ws-view="orders" onclick="setWsView('orders')">
+        <span class="ws-mode-btn__title">📋 排单</span>
         <span class="ws-mode-btn__hint">实时状态 / 进行中 / 排队 / 已完结</span>
       </button>
+      <button class="ws-mode-btn ws-view-btn" data-ws-view="arrangements" onclick="setWsView('arrangements')">
+        <span class="ws-mode-btn__title">🎼 共享编曲</span>
+        <span class="ws-mode-btn__hint">付费下载 · 试听免费</span>
+      </button>
+      <button class="ws-mode-btn ws-view-btn" data-ws-view="productions" onclick="setWsView('productions')">
+        <span class="ws-mode-btn__title">💎 成品编曲</span>
+        <span class="ws-mode-btn__hint">独占售出 · 售完即下架</span>
+      </button>
+
+      <div class="ws-view-only--commission">
+        <div class="ws-sidebar__label ws-sidebar__label--nav">用途</div>
+        <button class="ws-mode-btn ws-mode-btn--active" data-ws-mode="noncomm" onclick="setWsMode('noncomm')">
+          <span class="ws-mode-btn__title">非商</span>
+          <span class="ws-mode-btn__hint">仅限以个人名义平台发布</span>
+        </button>
+        <button class="ws-mode-btn" data-ws-mode="commercial" onclick="setWsMode('commercial')">
+          <span class="ws-mode-btn__title">商用</span>
+          <span class="ws-mode-btn__hint">企业 / 商演 · 价 ×3</span>
+        </button>
+        <p class="ws-sidebar__tip">商用版价格自动 ×3，订单会标注「[商用]」前缀</p>
+      </div>
     </aside>
 
     <div class="ws-main">
@@ -4156,6 +4182,51 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       </div>
     </div>
     <div class="ws-orders" id="wsCompletedList"></div>
+  </section>
+
+  <!-- 共享编曲（板块=arrangements） -->
+  <section class="ws-section ws-view-only--arrangements" id="wsArrangementsSection">
+    <div class="ws-section__head">
+      <h3 class="ws-section__title">🎼 共享编曲 · Arrangements</h3>
+      <div class="ws-toolbar">
+        <button class="btn js-super-only" id="arrNewBtn" onclick="openArrangementEditor()" style="display:none;">+ 新建编曲</button>
+      </div>
+    </div>
+    <p class="ws-section__desc" style="margin:-0.4rem 0 1rem; color:var(--gray-600); font-size:0.85rem;">
+      付费下载 · 试听免费 · 主管理员审核到账后自动解锁下载
+    </p>
+
+    <!-- 列表（卡片网格） -->
+    <div id="arrangementsList" class="arr-grid"></div>
+
+    <!-- 详情视图 -->
+    <div id="arrangementDetailView" class="arr-detail-view" style="display:none;">
+      <button class="btn btn--ghost btn--sm" onclick="closeArrangementDetail()">← 返回列表</button>
+      <div id="arrangementDetailBody"></div>
+    </div>
+  </section>
+
+  <!-- 成品编曲（板块=productions） -->
+  <section class="ws-section ws-view-only--productions" id="wsProductionsSection">
+    <div class="ws-section__head">
+      <h3 class="ws-section__title">💎 成品编曲 · Productions</h3>
+      <div class="ws-toolbar">
+        <button class="btn btn--ghost btn--sm js-super-only" id="prodShowSoldBtn" onclick="toggleProdShowSold()" style="display:none;">显示已售记录</button>
+        <button class="btn js-super-only" id="prodNewBtn" onclick="openProductionEditor()" style="display:none;">+ 新建成品</button>
+      </div>
+    </div>
+    <p class="ws-section__desc" style="margin:-0.4rem 0 1rem; color:var(--gray-600); font-size:0.85rem;">
+      独占售出 · 一手作品 · 售出即下架 · 仅留交易记录
+    </p>
+
+    <!-- 列表（卡片网格，复用 .arr-grid 样式） -->
+    <div id="productionsList" class="arr-grid"></div>
+
+    <!-- 详情视图（复用 .arr-detail-view） -->
+    <div id="productionDetailView" class="arr-detail-view" style="display:none;">
+      <button class="btn btn--ghost btn--sm" onclick="closeProductionDetail()">← 返回列表</button>
+      <div id="productionDetailBody"></div>
+    </div>
   </section>
     </div><!-- /.ws-main -->
   </div><!-- /.ws-layout -->
@@ -4494,6 +4565,65 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
         <button class="btn btn--danger btn--sm" id="arr-delete-btn" onclick="confirmDeleteArrFromEditor()" style="margin-right:auto; display:none;">删除</button>
         <button class="btn btn--ghost btn--sm" onclick="closeModal('arrEditorModal')">取消</button>
         <button class="btn btn--sm" onclick="saveArrangementFromEditor()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 成品编曲 编辑器 Modal（super admin only） -->
+<div class="modal" id="prodEditorModal">
+  <div class="modal__panel" style="max-width:640px;">
+    <button class="modal__close" onclick="closeModal('prodEditorModal')">×</button>
+    <h3 class="modal__title" id="prodEditorTitle">💎 新建成品编曲</h3>
+    <div class="arr-editor-form__admin-only">⚠️ 此功能仅主管理员可见。成品独占售出：每个作品只能被买家购买一次，售后文件自动从云端删除，仅保留交易记录。</div>
+    <div class="arr-editor-form">
+      <label>标题 *
+        <input type="text" id="prod-title" placeholder="如：《晚风》原创编曲工程（独家）">
+      </label>
+      <label>描述
+        <textarea id="prod-desc" placeholder="作品说明、风格、独家程度、版权转让条款..."></textarea>
+      </label>
+      <div class="arr-editor-form__row">
+        <label>价格（元） *
+          <input type="number" id="prod-price" min="0" max="99999" step="1" placeholder="如：299">
+        </label>
+        <label>标签（逗号分隔）
+          <input type="text" id="prod-tags" placeholder="如：流行,独家,FL Studio">
+        </label>
+      </div>
+
+      <label style="margin-top:0.6rem;">▶ 试听文件（≤20MB 音频）
+        <input type="file" id="prod-trial-input" accept="audio/*" onchange="uploadProdTrialFile(this)">
+        <div id="prod-trial-state" class="arr-editor-form__upload-state">未上传</div>
+        <audio id="prod-trial-preview" controls style="width:100%; margin-top:0.4rem; display:none;"></audio>
+      </label>
+
+      <div class="arr-editor-form__hint" style="border-top:1px dashed var(--gray-300); padding-top:0.8rem; margin-top:0.4rem;">
+        <strong>💾 付费下载文件（≤200MB）</strong><br>
+        浏览器单次上传 200MB 不稳定。请先用 wrangler 命令一句话传到 R2，再把 key 填进下方：<br>
+        <code style="background:var(--gray-100); padding:0.1rem 0.3rem; border-radius:3px; font-size:0.75rem;">wrangler r2 object put blog-music-files/productions/paid/我的文件.zip --file=./我的文件.zip --remote</code>
+      </div>
+      <div class="arr-editor-form__row">
+        <label>付费文件 R2 key
+          <input type="text" id="prod-paid-key" placeholder="productions/paid/我的文件.zip">
+        </label>
+        <label>扩展名（自动按文件名识别）
+          <input type="text" id="prod-paid-ext" placeholder="zip / wav / mp3 / midi" maxlength="6">
+        </label>
+      </div>
+      <div class="arr-editor-form__row">
+        <label>文件大小（字节，可选）
+          <input type="number" id="prod-paid-size" min="0" placeholder="如 12345678">
+        </label>
+        <label>MIME（可选）
+          <input type="text" id="prod-paid-mime" placeholder="如 application/zip">
+        </label>
+      </div>
+
+      <div class="modal__actions" style="margin-top:1.2rem;">
+        <button class="btn btn--danger btn--sm" id="prod-delete-btn" onclick="confirmDeleteProdFromEditor()" style="margin-right:auto; display:none;">删除</button>
+        <button class="btn btn--ghost btn--sm" onclick="closeModal('prodEditorModal')">取消</button>
+        <button class="btn btn--sm" onclick="saveProductionFromEditor()">保存</button>
       </div>
     </div>
   </div>
@@ -5601,6 +5731,88 @@ const Store = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       if (res.status === 401) throw new Error('请先登录后下单');
+      throw new Error(data.error || ('HTTP ' + res.status));
+    }
+    if (data.order) {
+      this.orders.push(data.order);
+      try { localStorage.setItem('tn_orders', JSON.stringify(this.orders)); } catch (_) {}
+    }
+    return data.order;
+  },
+
+  // ── 成品编曲（productions）— 2026-06-07 加 ──
+  // 每个 production 只售一次：售出后 admin 视角下仍可见（含 buyer 信息作为交易记录）
+  productions: [],
+  prodShowSold: false,  // admin 切换开关：是否在列表中显示已售记录
+  async loadProductions(asAdmin = false) {
+    if (typeof API_BASE !== 'string' || !API_BASE) return;
+    try {
+      const url = API_BASE + '/api/productions' + (asAdmin ? '?all=1' : '');
+      const headers = asAdmin ? adminAuthHeaders() : {};
+      const res = await fetch(url, { headers, cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok && Array.isArray(data.productions)) {
+        this.productions = data.productions;
+      }
+    } catch (e) {}
+  },
+  async createProduction(payload) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const res = await fetch(API_BASE + '/api/productions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    const pub = data.production;
+    if (pub) this.productions.unshift(pub);
+    return pub;
+  },
+  async updateProduction(prodId, patch) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const res = await fetch(API_BASE + '/api/productions/' + encodeURIComponent(prodId), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify(patch),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    const pub = data.production;
+    if (pub) {
+      const idx = this.productions.findIndex(p => p.id === prodId);
+      if (idx >= 0) this.productions[idx] = pub;
+    }
+    return pub;
+  },
+  async deleteProduction(prodId) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const res = await fetch(API_BASE + '/api/productions/' + encodeURIComponent(prodId), {
+      method: 'DELETE',
+      headers: adminAuthHeaders(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    this.productions = this.productions.filter(p => p.id !== prodId);
+  },
+  async submitProductionOrder(prodId) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const res = await fetch(API_BASE + '/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify({
+        productionId: prodId,
+        tier: 'production',
+        tierLabel: '成品编曲',
+        description: '购买成品编曲（独占）',
+        showName: false,
+        visitorId: getVisitorId(),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 401) throw new Error('请先登录后下单');
+      if (res.status === 410) throw new Error('该成品已售出或已交付，无法下单');
       throw new Error(data.error || ('HTTP ' + res.status));
     }
     if (data.order) {
@@ -6943,8 +7155,12 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-07',
-    title: '新增「共享编曲」付费下载区 + 笔记加点赞 + 阅读量（含列表实时同步）',
+    title: '工坊大改版：共享编曲挪入工坊「板块」三选一 + 新增「成品编曲」独占售出区 + 笔记加点赞 + 阅读量（含列表实时同步）',
     items: [
+      '🛠 工坊侧栏「板块」菜单升级为三选一：「📝 接单 / 📒 排单 / 🎼 共享编曲 / 💎 成品编曲」一站直达；顶部导航瘦身（去掉单独的「共享编曲」入口），所有编曲业务全部归入工坊',
+      '💎 新增「成品编曲」付费下载区：每个作品**只能售出一次**，售出即从云端删除文件，仅保留交易记录（买家昵称 / 邮箱 / 成交时间 / 下架时间）；适合不愿意被多家共用的独占式商单成品',
+      '🔒 成品编曲售出流程：客户下单 → 弹收款码 → 客户「我已付款」→ 主管理员「✓ 确认收款」瞬间锁定（worker 端原子化写入 sold + 买家信息，并发返 409 + 回滚 paid） → 客户 15s 内弹 toast 「🎉 已到账！点此下载」 → 客户**首次点下载**触发 worker 先把 R2 文件 buffer 读完再删 R2、再标 fileDeletedAt、再返回 bytes（避免流中断丢文件）',
+      '🛟 售出锁的容错：主管理员撤销「已付」时，如果 fileDeletedAt 为空（客户还没下载）则自动反向解锁让作品回到在售；如果已经下载过（fileDeletedAt 已有值）则保留 sold 状态不再解锁（避免文件已发出还能反复重置）',
       '🎼 新增「共享编曲」付费下载区：顶部导航多一个 tab，进去是卡片网格（每张卡有标题 / 简介 / 标签 / 价格 / 文件大小），点开看详情可在线试听 + 「立即购买」；主管理员可在右上角点「+ 新建编曲」上架作品（试听文件 ≤20MB 直接拖拽上传，付费文件 ≤200MB 推荐先用 `wrangler r2 object put` 命令一句话传 R2 再把 key 填进表单）',
       '💰 共享编曲走「方案 B 收款码」流程：客户点购买 → 弹收款码 → 扫码付完点「我已付款」→ 主管理员后台点「✓ 确认收款」→ 客户页面 15s 内弹 toast「🎉 已到账！点此下载」可一键下载；下载按钮可点击 toast 直接触发，无需手动找菜单',
       '🔒 共享编曲下载锁单次：每个订单同一身份仅能下载 1 次（首次下载时 worker 写 `downloadedAt` 时间戳，再次请求返回 410）；下载凭证 4 重校验（订单 + 已付款 + 身份匹配 userId 优先回退 visitorId + 未下载过），文件名走 RFC5987 UTF-8 编码确保中文标题正常落盘',
@@ -7144,28 +7360,29 @@ function syncWsModeUI() {
   if (banner) banner.style.display = _wsMode === 'commercial' ? '' : 'none';
 }
 
-// 左侧视图切换：commission（接单：下单+长期合作） / orders（排单：状态+进行中+排队+已完结）
+// 左侧视图切换：commission（接单：下单+长期合作） / orders（排单：状态+进行中+排队+已完结） / arrangements（共享编曲：付费下载区）
 const WS_VIEW_KEY = 'wsView_v1';
+const WS_VIEWS = ['commission', 'orders', 'arrangements', 'productions'];
 let _wsView = 'commission';
 
 function initWsView() {
   try {
     const saved = localStorage.getItem(WS_VIEW_KEY);
-    if (saved === 'commission' || saved === 'orders') _wsView = saved;
+    if (WS_VIEWS.includes(saved)) _wsView = saved;
   } catch (e) {}
   syncWsViewUI();
 }
 
 function setWsView(view) {
-  if (view !== 'commission' && view !== 'orders') return;
+  if (!WS_VIEWS.includes(view)) return;
   _wsView = view;
   try { localStorage.setItem(WS_VIEW_KEY, view); } catch (e) {}
   syncWsViewUI();
-  // 切到排单视图时，滚到顶部，让用户能从 wsStatus 开始看
-  if (view === 'orders') window.scrollTo({ top: 0, behavior: 'smooth' });
+  // 切到排单或共享编曲/成品编曲视图时，滚到顶部
+  if (view === 'orders' || view === 'arrangements' || view === 'productions') window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// 单按钮 toggle：当前已是该 view 则切回 commission
+// 单按钮 toggle：当前已是该 view 则切回 commission（保留向后兼容）
 function toggleWsView(view) {
   setWsView(_wsView === view ? 'commission' : view);
 }
@@ -7173,8 +7390,7 @@ function toggleWsView(view) {
 function syncWsViewUI() {
   const main = document.getElementById('page-workshop');
   if (main) {
-    main.classList.toggle('ws-view--commission', _wsView === 'commission');
-    main.classList.toggle('ws-view--orders', _wsView === 'orders');
+    WS_VIEWS.forEach(v => main.classList.toggle('ws-view--' + v, _wsView === v));
   }
   document.querySelectorAll('.ws-view-btn[data-ws-view]').forEach(btn => {
     btn.classList.toggle('ws-mode-btn--active', btn.dataset.wsView === _wsView);
@@ -9658,6 +9874,422 @@ function stopArrangementOrderPolling() {
   if (_arrPollTimer) { clearInterval(_arrPollTimer); _arrPollTimer = null; }
 }
 
+// 💎 成品编曲（productions）— 2026-06-07 加
+// 核心：每个 production 只能售一次，售后文件从 R2 删除，仅留交易记录
+// 与共享编曲（arrangements）的关键区别：
+//   - 列表中已售（sold=true）会显示「已售出」印章，普通用户看不到（worker 过滤）
+//   - admin 可切换显示已售记录（toggleProdShowSold）
+//   - 详情中已售状态显示交易记录（买家信息），不再有「立即购买」按钮
+//   - 下载后 worker 删 R2 paidKey + 标记 fileDeletedAt，再次访问 410
+
+let _editingProdId = null;
+let _currentProdDetailId = null;
+let _prodTrialMeta = null;
+
+function _fmtProdSize(bytes) {
+  if (!bytes || bytes <= 0) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+}
+
+function renderProductions() {
+  const box = document.getElementById('productionsList');
+  if (!box) return;
+  const detail = document.getElementById('productionDetailView');
+  if (detail && detail.style.display !== 'none') return; // 详情打开时不重渲列表
+
+  const prods = Array.isArray(Store.productions) ? Store.productions : [];
+  if (!prods.length) {
+    box.innerHTML = '<div class="arr-empty">暂无成品编曲，等待 admin 上架</div>';
+    return;
+  }
+  const isSuper = typeof isSuperAdmin === 'function' && isSuperAdmin();
+  // 普通用户：worker 已过滤已售；admin（开 prodShowSold）：显示全部
+  const visible = isSuper ? prods : prods.filter(p => !p.sold);
+  if (!visible.length) {
+    box.innerHTML = '<div class="arr-empty">暂无在售成品（已售记录在 admin 视角下可见）</div>';
+    return;
+  }
+  box.innerHTML = visible.map(p => {
+    const tags = (p.tags || '').split(/[,，]/).map(t => t.trim()).filter(Boolean).slice(0, 3);
+    const tagsHtml = tags.length
+      ? '<div class="arr-card__tags">' + tags.map(t => '<span class="arr-card__tag">' + escapeHTML(t) + '</span>').join('') + '</div>'
+      : '';
+    const sizeHtml = p.paidSize ? '<span class="arr-card__size">📦 ' + _fmtProdSize(p.paidSize) + '</span>' : '';
+    const soldCls = p.sold ? (p.fileDeletedAt ? ' arr-card--sold arr-card--delivered' : ' arr-card--sold') : '';
+    return `
+      <article class="arr-card${soldCls}" onclick="openProductionDetail(${JSON.stringify(p.id)})">
+        <div class="arr-card__head">
+          <h3 class="arr-card__title">${escapeHTML(p.title || '未命名')}</h3>
+          <div class="arr-card__price">¥${p.price || 0}</div>
+        </div>
+        <p class="arr-card__desc">${escapeHTML((p.desc || '').slice(0, 80))}${(p.desc || '').length > 80 ? '…' : ''}</p>
+        ${tagsHtml}
+        <div class="arr-card__meta">
+          ${sizeHtml}
+          <span class="arr-card__hint">${p.sold ? '已售出 · 仅留记录' : '点击查看 · 试听免费'}</span>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+// 查"我"是否拥有该 production 的有效订单（只可能有 1 个，因为独占售出）
+function _getMyProductionOwnership(prodId) {
+  const orders = Array.isArray(Store.orders) ? Store.orders : [];
+  const myUserId = (typeof currentUser !== 'undefined' && currentUser && currentUser.userId) ? currentUser.userId : '';
+  const myVisitorId = getVisitorId();
+  const isMine = (o) => {
+    if (myUserId && o.userId) return o.userId === myUserId;
+    if (!o.userId && myVisitorId) return o.visitorId === myVisitorId;
+    return false;
+  };
+  const myOrders = orders.filter(o => o.productionId === prodId && isMine(o));
+  if (!myOrders.length) return { owned: false };
+  // 优先返回已付款的（应该只有 1 个）
+  const paid = myOrders.find(o => o.paid);
+  if (paid) {
+    return { owned: true, paid: true, downloaded: !!paid.downloadedAt, orderId: paid.id };
+  }
+  // 否则返回最新一个未付款订单（让"待付款继续付"按钮指向最近订单）
+  const unpaid = myOrders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+  return { owned: true, paid: false, downloaded: false, orderId: unpaid.id };
+}
+
+function renderProductionDetailBody(prodId) {
+  const body = document.getElementById('productionDetailBody');
+  if (!body) return;
+  const p = (Store.productions || []).find(x => String(x.id) === String(prodId));
+  if (!p) { body.innerHTML = '<p>成品不存在或已被删除。</p>'; return; }
+
+  const tags = (p.tags || '').split(/[,，]/).map(t => t.trim()).filter(Boolean);
+  const tagsHtml = tags.length
+    ? '<div class="arr-detail__tags">' + tags.map(t => '<span class="arr-card__tag">' + escapeHTML(t) + '</span>').join('') + '</div>'
+    : '';
+  const isSuper = typeof isSuperAdmin === 'function' && isSuperAdmin();
+  const isLoggedIn = typeof currentUser !== 'undefined' && currentUser && currentUser.userId;
+  const own = _getMyProductionOwnership(p.id);
+
+  let actionsHtml = '';
+  if (p.sold) {
+    // 已售出
+    if (isSuper) {
+      const buyerLine = p.buyerEmail
+        ? `<div class="prod-buyer-info">
+            📜 <strong>交易记录</strong><br>
+            买家：${escapeHTML(p.buyerName || p.buyerEmail)}（${escapeHTML(p.buyerEmail || '-')}）<br>
+            订单：${escapeHTML(p.soldOrderId || '-')}<br>
+            售出时间：${p.soldAt ? new Date(p.soldAt).toLocaleString('zh-CN') : '-'}<br>
+            ${p.fileDeletedAt ? '文件已交付并下架于 ' + new Date(p.fileDeletedAt).toLocaleString('zh-CN') : '文件待买家下载（下载后自动从 R2 删除）'}
+          </div>`
+        : '<div class="prod-buyer-info">该成品已售出（无买家信息）</div>';
+      const adminTestBtn = (p.hasPaidFile && !p.fileDeletedAt)
+        ? `<button class="btn btn--ghost btn--sm" onclick="downloadProduction(${JSON.stringify(p.id)}, '')">⬇ admin 测试下载（不删文件）</button>`
+        : '';
+      actionsHtml = buyerLine + '<div class="arr-detail__actions">' + adminTestBtn + '</div>';
+    } else {
+      actionsHtml = '<div class="prod-warn">该成品已售出，不再提供购买。</div>';
+    }
+  } else if (own.owned && own.paid && !own.downloaded) {
+    actionsHtml = `
+      <div class="prod-warn">⚠️ 成品文件仅可下载 1 次。请确保网络稳定后再点击下载，下载完成后文件将立即从云端删除。</div>
+      <div class="arr-detail__actions">
+        <button class="btn" onclick="downloadProduction(${JSON.stringify(p.id)}, ${JSON.stringify(own.orderId)})">⬇ 立即下载（仅一次机会）</button>
+      </div>`;
+  } else if (own.owned && own.paid && own.downloaded) {
+    actionsHtml = '<div class="prod-buyer-info">✅ 你已下载过该成品，文件已从云端删除。如有问题请联系 admin。</div>';
+  } else if (own.owned && !own.paid) {
+    actionsHtml = `<div class="arr-detail__actions">
+      <button class="btn" onclick="openPayModal(${JSON.stringify(own.orderId)})">💳 继续付款</button>
+    </div>`;
+  } else {
+    if (!isLoggedIn) {
+      actionsHtml = `<div class="arr-detail__actions">
+        <button class="btn" onclick="buyProduction(${JSON.stringify(p.id)})">🔒 登录后购买 · ¥${p.price || 0}</button>
+      </div>`;
+    } else {
+      actionsHtml = `<div class="arr-detail__actions">
+        <button class="btn" onclick="buyProduction(${JSON.stringify(p.id)})">立即购买（独占售出） · ¥${p.price || 0}</button>
+      </div>`;
+    }
+    if (isSuper) {
+      actionsHtml += `<div class="arr-detail__actions" style="margin-top:0.4rem;">
+        <button class="btn btn--ghost btn--sm" onclick="openProductionEditor(${JSON.stringify(p.id)})">✎ 编辑</button>
+        ${p.hasPaidFile ? `<button class="btn btn--ghost btn--sm" onclick="downloadProduction(${JSON.stringify(p.id)}, '')">⬇ admin 测试下载（不删文件）</button>` : ''}
+      </div>`;
+    }
+  }
+
+  const trialHtml = p.trialUrl
+    ? `<audio controls preload="metadata" style="width:100%; margin:0.8rem 0;"><source src="${escAttr(p.trialUrl)}" type="${escAttr(p.trialMime || 'audio/mpeg')}">浏览器不支持音频播放</audio>`
+    : '<p class="arr-detail__no-trial">（未上传试听文件）</p>';
+
+  body.innerHTML = `
+    <header class="arr-detail__head">
+      <h2 class="arr-detail__title">${escapeHTML(p.title || '未命名')}</h2>
+      <div class="arr-detail__price">¥${p.price || 0}${p.sold ? ' <span style="font-size:0.65em; color:var(--accent);">· 已售出</span>' : ''}</div>
+    </header>
+    ${tagsHtml}
+    <div class="arr-detail__desc">${escapeHTML(p.desc || '').replace(/\n/g, '<br>')}</div>
+    <div class="arr-detail__trial">
+      <div class="arr-detail__section-label">▶ 试听</div>
+      ${trialHtml}
+    </div>
+    ${actionsHtml}
+  `;
+}
+
+function openProductionDetail(prodId) {
+  _currentProdDetailId = prodId;
+  const list = document.getElementById('productionsList');
+  const detail = document.getElementById('productionDetailView');
+  if (list) list.style.display = 'none';
+  if (detail) detail.style.display = '';
+  // 进详情前强制刷一次 orders 拉最新付款状态（已登录用户场景）
+  if (typeof loadOrders === 'function' && typeof currentUser !== 'undefined' && currentUser && currentUser.userId) {
+    Store.loadOrders ? Store.loadOrders().finally(() => renderProductionDetailBody(prodId)) : renderProductionDetailBody(prodId);
+  } else {
+    renderProductionDetailBody(prodId);
+  }
+}
+
+function closeProductionDetail() {
+  _currentProdDetailId = null;
+  const list = document.getElementById('productionsList');
+  const detail = document.getElementById('productionDetailView');
+  if (list) list.style.display = '';
+  if (detail) detail.style.display = 'none';
+  renderProductions();
+}
+
+function openProductionEditor(prodId) {
+  _editingProdId = prodId || null;
+  _prodTrialMeta = null;
+  const $ = id => document.getElementById(id);
+  $('prodEditorTitle').textContent = prodId ? '✎ 编辑成品编曲' : '💎 新建成品编曲';
+  $('prod-delete-btn').style.display = prodId ? '' : 'none';
+  if (prodId) {
+    const p = (Store.productions || []).find(x => String(x.id) === String(prodId));
+    if (!p) { toast('成品不存在'); return; }
+    if (p.sold) { toast('已售出成品仅可改标题 / 描述 / 标签'); }
+    $('prod-title').value = p.title || '';
+    $('prod-desc').value = p.desc || '';
+    $('prod-price').value = p.price || '';
+    $('prod-tags').value = p.tags || '';
+    $('prod-paid-key').value = p.paidKey || '';
+    $('prod-paid-ext').value = p.paidExt || '';
+    $('prod-paid-size').value = p.paidSize || '';
+    $('prod-paid-mime').value = p.paidMime || '';
+    if (p.trialUrl) {
+      $('prod-trial-state').textContent = '已上传：' + _fmtProdSize(p.trialSize);
+      $('prod-trial-preview').src = p.trialUrl;
+      $('prod-trial-preview').style.display = '';
+      _prodTrialMeta = { url: p.trialUrl, key: p.trialKey, size: p.trialSize, mime: p.trialMime };
+    } else {
+      $('prod-trial-state').textContent = '未上传';
+      $('prod-trial-preview').style.display = 'none';
+    }
+  } else {
+    ['prod-title','prod-desc','prod-price','prod-tags','prod-paid-key','prod-paid-ext','prod-paid-size','prod-paid-mime'].forEach(id => { $(id).value = ''; });
+    $('prod-trial-state').textContent = '未上传';
+    $('prod-trial-preview').style.display = 'none';
+  }
+  const inp = $('prod-trial-input');
+  if (inp) inp.value = '';
+  document.getElementById('prodEditorModal').classList.add('open');
+}
+
+async function uploadProdTrialFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { toast('试听文件不能超过 20MB'); input.value = ''; return; }
+  if (!/^audio\//i.test(file.type || '')) { toast('仅支持音频文件'); input.value = ''; return; }
+  const stateEl = document.getElementById('prod-trial-state');
+  stateEl.textContent = '上传中 ' + _fmtProdSize(file.size) + '…';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(API_BASE + '/api/productions/upload-trial', {
+      method: 'POST',
+      headers: adminAuthHeaders(),
+      body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    _prodTrialMeta = { url: data.url, key: data.key, size: data.size, mime: data.mime };
+    stateEl.textContent = '✅ 已上传：' + _fmtProdSize(data.size);
+    const audio = document.getElementById('prod-trial-preview');
+    audio.src = data.url;
+    audio.style.display = '';
+    toast('试听上传成功');
+  } catch (e) {
+    stateEl.textContent = '❌ 失败：' + e.message;
+    toast('上传失败：' + e.message);
+  }
+}
+
+async function saveProductionFromEditor() {
+  const $ = id => document.getElementById(id);
+  const title = $('prod-title').value.trim();
+  if (!title) { toast('请填写标题'); return; }
+  let paidKey = $('prod-paid-key').value.trim();
+  let paidExt = $('prod-paid-ext').value.trim().toLowerCase();
+  if (paidKey && !paidExt) {
+    // 自动从 paidKey 推 ext
+    const m = paidKey.match(/\.([a-zA-Z0-9]+)$/);
+    if (m) paidExt = m[1].toLowerCase();
+  }
+  const payload = {
+    title,
+    desc: $('prod-desc').value.trim(),
+    price: Math.floor(Number($('prod-price').value) || 0),
+    tags: $('prod-tags').value.trim(),
+    paidKey,
+    paidExt,
+    paidSize: Math.floor(Number($('prod-paid-size').value) || 0),
+    paidMime: $('prod-paid-mime').value.trim(),
+  };
+  if (_prodTrialMeta) {
+    payload.trialUrl = _prodTrialMeta.url;
+    payload.trialKey = _prodTrialMeta.key;
+    payload.trialSize = _prodTrialMeta.size;
+    payload.trialMime = _prodTrialMeta.mime;
+  }
+  try {
+    if (_editingProdId) {
+      await Store.updateProduction(_editingProdId, payload);
+      toast('已保存');
+    } else {
+      await Store.createProduction(payload);
+      toast('已发布');
+    }
+    closeModal('prodEditorModal');
+    renderProductions();
+  } catch (e) {
+    toast('保存失败：' + e.message);
+  }
+}
+
+async function confirmDeleteProdFromEditor() {
+  if (!_editingProdId) return;
+  if (!confirm('确认删除该成品？元数据将被移除（R2 文件不会主动删除）。')) return;
+  try {
+    await Store.deleteProduction(_editingProdId);
+    toast('已删除');
+    closeModal('prodEditorModal');
+    renderProductions();
+  } catch (e) {
+    toast('删除失败：' + e.message);
+  }
+}
+
+async function buyProduction(prodId) {
+  if (typeof currentUser === 'undefined' || !currentUser || !currentUser.userId) {
+    toast('请先登录后再购买');
+    if (typeof openLoginModal === 'function') openLoginModal();
+    return;
+  }
+  const p = (Store.productions || []).find(x => String(x.id) === String(prodId));
+  if (!p) { toast('成品不存在'); return; }
+  if (p.sold) { toast('该成品已售出'); return; }
+  try {
+    const order = await Store.submitProductionOrder(prodId);
+    if (!order) throw new Error('未拿到订单');
+    _seedProdLastPaidOrderIds(); // 把刚下的单种入"已知未付款"集合，避免假到账
+    toast('订单已创建，请支付');
+    openPayModal(order.id);
+  } catch (e) {
+    toast('下单失败：' + e.message);
+  }
+}
+
+async function downloadProduction(prodId, orderId) {
+  try {
+    const vid = encodeURIComponent(getVisitorId());
+    const oid = orderId ? '&orderId=' + encodeURIComponent(orderId) : '';
+    const url = API_BASE + '/api/productions/' + encodeURIComponent(prodId) + '/download?visitorId=' + vid + oid;
+    const res = await fetch(url, { headers: adminAuthHeaders() });
+    if (!res.ok) {
+      const errorMsg = await res.text().catch(() => '');
+      if (res.status === 410) throw new Error('文件已交付，无法再次下载');
+      if (res.status === 403) throw new Error('未付款或身份不匹配');
+      throw new Error(errorMsg || ('HTTP ' + res.status));
+    }
+    // 解析 filename
+    const cd = res.headers.get('Content-Disposition') || '';
+    let filename = 'production.bin';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    if (m) { try { filename = decodeURIComponent(m[1]); } catch (_) { filename = m[1]; } }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('✅ 已下载（文件已从云端删除）', 8000);
+    // 标记本地 downloadedAt
+    if (orderId) {
+      const o = (Store.orders || []).find(x => x.id === orderId);
+      if (o) {
+        o.downloadedAt = Date.now();
+        try { localStorage.setItem('tn_orders', JSON.stringify(Store.orders)); } catch (_) {}
+      }
+    }
+    // 刷新 productions 让卡片显示 "已交付"
+    Store.loadProductions(isSuperAdmin && isSuperAdmin()).then(renderProductions);
+    if (_currentProdDetailId === prodId) renderProductionDetailBody(prodId);
+  } catch (e) {
+    toast('下载失败：' + e.message);
+  }
+}
+
+// ─── 成品编曲到账轮询（复用共享编曲的同款 15s 节奏，但单独 timer） ───
+let _prodLastPaidOrderIds = new Set();
+let _prodPollTimer = null;
+function _seedProdLastPaidOrderIds() {
+  const orders = Array.isArray(Store.orders) ? Store.orders : [];
+  _prodLastPaidOrderIds = new Set(orders.filter(o => o.productionId && o.paid).map(o => o.id));
+}
+async function _checkProductionOrderPayments() {
+  try {
+    if (typeof Store.loadOrders === 'function') await Store.loadOrders();
+    const orders = Array.isArray(Store.orders) ? Store.orders : [];
+    for (const o of orders) {
+      if (!o.productionId || !o.paid) continue;
+      if (_prodLastPaidOrderIds.has(o.id)) continue;
+      _prodLastPaidOrderIds.add(o.id);
+      // 新增的已付款 production 订单 → 弹 toast 通知可下载
+      const prod = (Store.productions || []).find(p => p.id === o.productionId);
+      const title = (prod && prod.title) || o.productionTitle || '成品编曲';
+      toast('🎉 「' + title + '」已到账！点此下载（独占交付，仅 1 次）', {
+        duration: 12000,
+        onClick: () => downloadProduction(o.productionId, o.id),
+      });
+    }
+  } catch (e) {}
+}
+function startProductionOrderPolling() {
+  if (_prodPollTimer) return;
+  _seedProdLastPaidOrderIds();
+  _prodPollTimer = setInterval(_checkProductionOrderPayments, 15000);
+}
+function stopProductionOrderPolling() {
+  if (_prodPollTimer) { clearInterval(_prodPollTimer); _prodPollTimer = null; }
+}
+
+// admin 切换：是否在列表中显示已售记录（开启后会用 ?all=1 拉全量）
+async function toggleProdShowSold() {
+  Store.prodShowSold = !Store.prodShowSold;
+  const btn = document.getElementById('prodShowSoldBtn');
+  if (btn) btn.textContent = Store.prodShowSold ? '隐藏已售记录' : '显示已售记录';
+  await Store.loadProductions(Store.prodShowSold && isSuperAdmin());
+  renderProductions();
+}
+
 // ── Lightbox ──
 function openLightbox(url) {
   const box = document.getElementById('lightbox');
@@ -9981,8 +10613,10 @@ function applyRoleSideEffects() {
   const loggedIn = (typeof UserStore !== 'undefined' && UserStore && !!UserStore.token);
   if (loggedIn) {
     try { if (typeof startArrangementOrderPolling === 'function') startArrangementOrderPolling(); } catch (_) {}
+    try { if (typeof startProductionOrderPolling === 'function') startProductionOrderPolling(); } catch (_) {}
   } else {
     try { if (typeof stopArrangementOrderPolling === 'function') stopArrangementOrderPolling(); } catch (_) {}
+    try { if (typeof stopProductionOrderPolling === 'function') stopProductionOrderPolling(); } catch (_) {}
   }
 
   // 角色切换 → 重拉数据（admin 拿未脱敏 contact / 完整 orders；普通用户拿脱敏版）
@@ -11468,6 +12102,15 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   if (typeof UserStore !== 'undefined' && UserStore && UserStore.token) {
     if (typeof startArrangementOrderPolling === 'function') startArrangementOrderPolling();
+  }
+  // 💎 成品编曲：拉公开列表 + 渲染；登录后启动到账轮询
+  if (typeof Store.loadProductions === 'function') {
+    Store.loadProductions().then(() => {
+      if (typeof renderProductions === 'function') renderProductions();
+    });
+  }
+  if (typeof UserStore !== 'undefined' && UserStore && UserStore.token) {
+    if (typeof startProductionOrderPolling === 'function') startProductionOrderPolling();
   }
   // 启动后激活美化层
   setupUiEnhancements();

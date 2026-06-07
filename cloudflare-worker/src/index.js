@@ -1235,6 +1235,25 @@ async function handleRequest(request, env, ctx, cors) {
         finalPrice = arrangementPrice;
       }
 
+      // ── 成品编曲订单（2026-06-07 加）：客户从「成品编曲」详情页发起，带 productionId
+      //    与共享编曲的关键区别：每个成品只能被卖出一次
+      //    校验：production 必须存在 + 未售出（未被 sold 锁定）；价格强制从后端 production.price 取
+      //    锁定时机：admin「✓ 确认收款」时（避免下单不付款占坑）
+      const rawProductionId = sanitizeStr(body && body.productionId, 32);
+      let productionId = '';
+      let productionTitle = '';
+      if (rawProductionId) {
+        const prodsRaw = await env.BLOG.get('productions');
+        const prods = JSON.parse(prodsRaw || '[]');
+        const prod = prods.find(p => p.id === rawProductionId);
+        if (!prod) return json({ error: 'production not found' }, 404, cors);
+        if (prod.soldOrderId) return json({ error: 'production already sold' }, 410, cors);
+        if (prod.fileDeletedAt) return json({ error: 'production file already delivered' }, 410, cors);
+        productionId = prod.id;
+        productionTitle = prod.title || '';
+        finalPrice = Number(prod.price) || 0;
+      }
+
       const order = {
         id: 'ord_' + now + '_' + Math.random().toString(36).slice(2, 8),
         seq: seqNum,
@@ -1280,6 +1299,9 @@ async function handleRequest(request, env, ctx, cors) {
         arrangementId,                 // 关联 arrangements.id（非共享编曲订单为空串）
         arrangementTitle,              // 下单瞬时快照标题（即使作品被删/改名也保留）
         downloadedAt: null,            // 客户首次下载付费文件的时间戳（单次下载锁）
+        // ── 成品编曲订单（2026-06-07 加） ──
+        productionId,                  // 关联 productions.id（非成品订单为空串）
+        productionTitle,               // 下单瞬时快照标题
       };
 
       orders.push(order);
@@ -1378,12 +1400,59 @@ async function handleRequest(request, env, ctx, cors) {
             order.claimedAt = null;
             order.claimedAmount = 0;
             order.claimNote = '';
+            // ── 成品编曲：admin 确认收款时锁定 production（独占售出）──
+            // 由于 PUT /api/orders 此处无法 await 二次 KV write（已在最外层 write orders），
+            // 这里同步读 productions、改字段、写回 KV；如果 production 已被并发锁定则报错回滚 paid 状态
+            if (order.productionId) {
+              const prodsRaw = await env.BLOG.get('productions');
+              const prods = JSON.parse(prodsRaw || '[]');
+              const pIdx = prods.findIndex(p => p.id === order.productionId);
+              if (pIdx < 0) {
+                // 成品已被删，admin 仍可强制确认，但提示该订单失去成品关联
+                // 不阻塞确认流程
+              } else {
+                const prod = prods[pIdx];
+                if (prod.soldOrderId && prod.soldOrderId !== order.id) {
+                  // 已被其他订单抢先锁定 → 回滚 paid，让 admin 知道
+                  order.paid = false;
+                  order.paidAt = null;
+                  order.paidAmount = 0;
+                  order.payMethod = '';
+                  return json({ error: 'Production already sold by another order: ' + prod.soldOrderId }, 409, cors);
+                }
+                prod.sold = true;
+                prod.soldOrderId = order.id;
+                prod.soldAt = Date.now();
+                prod.buyerUserId = order.userId || '';
+                prod.buyerVisitorId = order.visitorId || '';
+                prod.buyerEmail = order.contact || '';
+                prod.buyerName = order.clientName || '';
+                prods[pIdx] = prod;
+                await env.BLOG.put('productions', JSON.stringify(prods));
+              }
+            }
           } else {
             order.paid = false;
             order.paidAt = null;
             order.paidAmount = 0;
             order.tradeNo = '';
             order.payMethod = '';
+            // ── 成品编曲：admin 撤销 paid 时同步解锁 production（如未交付）──
+            if (order.productionId) {
+              const prodsRaw = await env.BLOG.get('productions');
+              const prods = JSON.parse(prodsRaw || '[]');
+              const pIdx = prods.findIndex(p => p.id === order.productionId);
+              if (pIdx >= 0 && prods[pIdx].soldOrderId === order.id && !prods[pIdx].fileDeletedAt) {
+                prods[pIdx].sold = false;
+                prods[pIdx].soldOrderId = '';
+                prods[pIdx].soldAt = null;
+                prods[pIdx].buyerUserId = '';
+                prods[pIdx].buyerVisitorId = '';
+                prods[pIdx].buyerEmail = '';
+                prods[pIdx].buyerName = '';
+                await env.BLOG.put('productions', JSON.stringify(prods));
+              }
+            }
           }
         }
         // Admin 可单独驳回客户的"已付款声明"（清除 claim 字段，不动 paid 状态）
@@ -2744,6 +2813,289 @@ async function handleRequest(request, env, ctx, cors) {
       };
       if (obj.size != null) headers['Content-Length'] = String(obj.size);
       return new Response(obj.body, { status: 200, headers });
+    }
+
+    // ── 成品编曲（productions）— 2026-06-07 加 ──
+    // 与共享编曲（arrangements）思路一致，但每个 production 只能售卖一次：
+    //   下单：worker 校验 production.soldOrderId 必须为空（未售）→ 价格强制 production.price
+    //   锁定：admin「✓ 确认收款」(PUT /api/orders body.paid=true) 时 sold=true + 记买家信息
+    //   下载：客户单次下载后立即删 R2 文件 + 标记 fileDeletedAt（"售出即下架"）
+    // KV 'productions' = JSON array of:
+    //   { id, title, desc, price, tags, trialUrl, trialKey, trialSize, trialMime,
+    //     paidKey, paidSize, paidMime, paidExt, createdAt, updatedAt,
+    //     sold, soldOrderId, soldAt, buyerUserId, buyerVisitorId, buyerEmail, buyerName,
+    //     fileDeletedAt }
+    function publicProduction(p) {
+      return {
+        id: p.id,
+        title: p.title,
+        desc: p.desc,
+        price: p.price,
+        tags: p.tags || '',
+        trialUrl: p.trialUrl || '',
+        trialSize: p.trialSize || 0,
+        trialMime: p.trialMime || '',
+        paidExt: p.paidExt || '',
+        paidSize: p.paidSize || 0,
+        hasPaidFile: !!p.paidKey && !p.fileDeletedAt,
+        sold: !!p.sold,
+        soldAt: p.soldAt || null,
+        // 客户端不暴露 buyer 详情（admin 用 ?all=1 看完整）
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      };
+    }
+    function adminProduction(p) {
+      // admin 视角下额外暴露交易信息（不暴露 paidKey）
+      return {
+        ...publicProduction(p),
+        paidKey: p.paidKey || '',
+        soldOrderId: p.soldOrderId || '',
+        buyerUserId: p.buyerUserId || '',
+        buyerVisitorId: p.buyerVisitorId || '',
+        buyerEmail: p.buyerEmail || '',
+        buyerName: p.buyerName || '',
+        fileDeletedAt: p.fileDeletedAt || null,
+      };
+    }
+
+    // GET /api/productions - 列表
+    //   默认：仅返回未售出 + 文件未删除的 production（客户视角）
+    //   admin 加 ?all=1：返回全部（含已售记录）
+    if (path === '/api/productions' && method === 'GET') {
+      const prodsRaw = await env.BLOG.get('productions');
+      const prods = JSON.parse(prodsRaw || '[]');
+      prods.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const wantAll = url.searchParams.get('all') === '1';
+      const admin = wantAll && (await isAdminOrSub(request, env));
+      if (admin) {
+        return json({ ok: true, productions: prods.map(adminProduction), isAdmin: true }, 200, cors);
+      }
+      const visible = prods.filter(p => !p.sold && !p.fileDeletedAt);
+      return json({ ok: true, productions: visible.map(publicProduction) }, 200, cors);
+    }
+
+    // POST /api/productions - 创建（super admin only）
+    if (path === '/api/productions' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+
+      const title = sanitizeStr(body && body.title, 100);
+      const desc = sanitizeStr(body && body.desc, 1000);
+      const price = Math.max(0, Math.floor(Number(body && body.price) || 0));
+      const tags = sanitizeStr(body && body.tags, 100);
+      const trialUrl = sanitizeStr(body && body.trialUrl, 500);
+      const trialKey = sanitizeStr(body && body.trialKey, 200);
+      const trialSize = Math.max(0, Math.floor(Number(body && body.trialSize) || 0));
+      const trialMime = sanitizeStr(body && body.trialMime, 100);
+      const paidKey = sanitizeStr(body && body.paidKey, 200);
+      const paidSize = Math.max(0, Math.floor(Number(body && body.paidSize) || 0));
+      const paidMime = sanitizeStr(body && body.paidMime, 100);
+      const paidExt = sanitizeStr(body && body.paidExt, 16);
+
+      if (!title) return json({ error: 'title required' }, 400, cors);
+      if (price > 99999) return json({ error: 'price too large' }, 400, cors);
+      if (trialSize > 20 * 1024 * 1024) return json({ error: 'trial too large (>20MB)' }, 400, cors);
+      if (paidSize > 200 * 1024 * 1024) return json({ error: 'paid too large (>200MB)' }, 400, cors);
+      if (paidExt && !/^(zip|wav|mp3|midi|mid)$/i.test(paidExt)) {
+        return json({ error: 'paidExt must be zip/wav/mp3/midi' }, 400, cors);
+      }
+
+      const prodsRaw = await env.BLOG.get('productions');
+      const prods = JSON.parse(prodsRaw || '[]');
+      const now = Date.now();
+      const item = {
+        id: 'prod_' + now + '_' + Math.random().toString(36).slice(2, 8),
+        title, desc, price, tags,
+        trialUrl, trialKey, trialSize, trialMime,
+        paidKey, paidSize, paidMime, paidExt,
+        createdAt: now, updatedAt: now,
+        sold: false, soldOrderId: '', soldAt: null,
+        buyerUserId: '', buyerVisitorId: '', buyerEmail: '', buyerName: '',
+        fileDeletedAt: null,
+      };
+      prods.push(item);
+      await env.BLOG.put('productions', JSON.stringify(prods));
+      return json({ ok: true, production: adminProduction(item) }, 200, cors);
+    }
+
+    // PUT /api/productions/:id - 修改（super admin only；已售出的不允许改 price/paidKey）
+    const prodPutMatch = path.match(/^\/api\/productions\/([^/]+)$/);
+    if (prodPutMatch && method === 'PUT') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      const prodId = prodPutMatch[1];
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+
+      const prodsRaw = await env.BLOG.get('productions');
+      const prods = JSON.parse(prodsRaw || '[]');
+      const idx = prods.findIndex(p => p.id === prodId);
+      if (idx < 0) return json({ error: 'Not found' }, 404, cors);
+      const item = prods[idx];
+      const locked = !!item.sold || !!item.fileDeletedAt;
+
+      if (body.title !== undefined) item.title = sanitizeStr(body.title, 100);
+      if (body.desc !== undefined) item.desc = sanitizeStr(body.desc, 1000);
+      if (body.price !== undefined) {
+        if (locked) return json({ error: 'Sold production cannot change price' }, 403, cors);
+        const p = Math.max(0, Math.floor(Number(body.price) || 0));
+        if (p > 99999) return json({ error: 'price too large' }, 400, cors);
+        item.price = p;
+      }
+      if (body.tags !== undefined) item.tags = sanitizeStr(body.tags, 100);
+      if (body.trialUrl !== undefined) item.trialUrl = sanitizeStr(body.trialUrl, 500);
+      if (body.trialKey !== undefined) item.trialKey = sanitizeStr(body.trialKey, 200);
+      if (body.trialSize !== undefined) {
+        const s = Math.max(0, Math.floor(Number(body.trialSize) || 0));
+        if (s > 20 * 1024 * 1024) return json({ error: 'trial too large (>20MB)' }, 400, cors);
+        item.trialSize = s;
+      }
+      if (body.trialMime !== undefined) item.trialMime = sanitizeStr(body.trialMime, 100);
+      if (body.paidKey !== undefined) {
+        if (locked) return json({ error: 'Sold production cannot change paidKey' }, 403, cors);
+        item.paidKey = sanitizeStr(body.paidKey, 200);
+      }
+      if (body.paidSize !== undefined) {
+        const s = Math.max(0, Math.floor(Number(body.paidSize) || 0));
+        if (s > 200 * 1024 * 1024) return json({ error: 'paid too large (>200MB)' }, 400, cors);
+        item.paidSize = s;
+      }
+      if (body.paidMime !== undefined) item.paidMime = sanitizeStr(body.paidMime, 100);
+      if (body.paidExt !== undefined) {
+        const e = sanitizeStr(body.paidExt, 16);
+        if (e && !/^(zip|wav|mp3|midi|mid)$/i.test(e)) {
+          return json({ error: 'paidExt must be zip/wav/mp3/midi' }, 400, cors);
+        }
+        item.paidExt = e;
+      }
+      item.updatedAt = Date.now();
+      prods[idx] = item;
+      await env.BLOG.put('productions', JSON.stringify(prods));
+      return json({ ok: true, production: adminProduction(item) }, 200, cors);
+    }
+
+    // DELETE /api/productions/:id - 删除（super admin only，仅删元数据，R2 文件不动手）
+    if (prodPutMatch && method === 'DELETE') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      const prodId = prodPutMatch[1];
+      const prodsRaw = await env.BLOG.get('productions');
+      const prods = JSON.parse(prodsRaw || '[]');
+      const next = prods.filter(p => p.id !== prodId);
+      if (next.length === prods.length) return json({ error: 'Not found' }, 404, cors);
+      await env.BLOG.put('productions', JSON.stringify(next));
+      return json({ ok: true }, 200, cors);
+    }
+
+    // POST /api/productions/upload-trial - 上传试听文件（super admin only，≤20MB）
+    if (path === '/api/productions/upload-trial' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
+      let form;
+      try { form = await request.formData(); }
+      catch { return json({ error: 'Invalid form data' }, 400, cors); }
+      const file = form.get('file');
+      if (!file || typeof file === 'string') return json({ error: 'file required' }, 400, cors);
+      const mime = (file.type || '').toLowerCase();
+      if (!/^audio\/[a-z0-9.+-]+$/i.test(mime)) return json({ error: 'Invalid audio type' }, 400, cors);
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      if (bytes.length > 20 * 1024 * 1024) return json({ error: 'Trial too large (>20MB)' }, 413, cors);
+
+      const ext = mimeToExt(mime);
+      const ts = Date.now();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const key = `productions/trial/${ts}_${rand}.${ext}`;
+      await env.R2.put(key, bytes, { httpMetadata: { contentType: mime } });
+      const origin = new URL(request.url).origin;
+      const url2 = `${origin}/files/${key}`;
+      return json({ ok: true, url: url2, key, size: bytes.length, mime }, 200, cors);
+    }
+
+    // GET /api/productions/:id/download?orderId=&visitorId= - 客户下载付费文件（独占售出 + 售出即删）
+    //   验证：order 真实 + paid=true + productionId 匹配 + 属于该 visitor/user + 文件未被删
+    //   通过后：返回文件流，并立即异步删 R2 paidKey + KV 标记 fileDeletedAt（首次下载即下架）
+    //   admin 可重复下载（不触发删除）
+    const prodDlMatch = path.match(/^\/api\/productions\/([^/]+)\/download$/);
+    if (prodDlMatch && method === 'GET') {
+      const prodId = prodDlMatch[1];
+      const orderId = sanitizeStr(url.searchParams.get('orderId'), 64);
+      const viewerVisitor = sanitizeStr(url.searchParams.get('visitorId'), 64);
+      const admin = await isAdminOrSub(request, env);
+
+      const prodsRaw = await env.BLOG.get('productions');
+      const prods = JSON.parse(prodsRaw || '[]');
+      const prodIdx = prods.findIndex(p => p.id === prodId);
+      if (prodIdx < 0) return new Response('Production not found', { status: 404 });
+      const prod = prods[prodIdx];
+
+      // admin 测试下载分支：不需 orderId，不删文件
+      if (admin && !orderId) {
+        if (!prod.paidKey) return new Response('Paid file not configured', { status: 404 });
+        if (!env.R2) return new Response('R2 not configured', { status: 500 });
+        const obj = await env.R2.get(prod.paidKey);
+        if (!obj) return new Response('Paid file missing in R2', { status: 404 });
+        const safeTitle = (prod.title || 'production').replace(/[^\w\u4e00-\u9fa5._-]+/g, '_').slice(0, 60);
+        const filename = `${safeTitle}.${prod.paidExt || mimeToExt(prod.paidMime || '') || 'bin'}`;
+        const headers = {
+          ...cors,
+          'Content-Type': prod.paidMime || obj.httpMetadata?.contentType || 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+          'Cache-Control': 'no-store',
+        };
+        if (obj.size != null) headers['Content-Length'] = String(obj.size);
+        return new Response(obj.body, { status: 200, headers });
+      }
+
+      if (!orderId) return new Response('orderId required', { status: 400 });
+      const ordersRaw = await env.BLOG.get('orders');
+      const orders = JSON.parse(ordersRaw || '[]');
+      const orderIdx = orders.findIndex(o => o.id === orderId);
+      if (orderIdx < 0) return new Response('Order not found', { status: 404 });
+      const order = orders[orderIdx];
+
+      if (order.productionId !== prodId) return new Response('Order mismatch', { status: 403 });
+      if (!order.paid) return new Response('Order not paid', { status: 403 });
+      const viewerUser = await getCurrentUser(request, env);
+      const matchUser = !!viewerUser && !!order.userId && order.userId === viewerUser.userId;
+      const matchVisitor = !order.userId && !!viewerVisitor && order.visitorId === viewerVisitor;
+      if (!matchUser && !matchVisitor) return new Response('Forbidden', { status: 403 });
+      if (prod.fileDeletedAt) return new Response('File already delivered and removed.', { status: 410 });
+      if (!prod.paidKey) return new Response('Paid file not configured', { status: 404 });
+      if (!env.R2) return new Response('R2 not configured', { status: 500 });
+      const obj = await env.R2.get(prod.paidKey);
+      if (!obj) return new Response('Paid file missing in R2', { status: 404 });
+
+      // 读取完整 buffer，确保返回给客户后才删（避免流中断丢文件）
+      const buf = await obj.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+
+      // 同步删 R2 + 标 fileDeletedAt（在响应前完成，确保删除真正成功）
+      try {
+        await env.R2.delete(prod.paidKey);
+      } catch (_) { /* R2 删除失败不阻塞下载，下次客户重试时再删 */ }
+      prod.fileDeletedAt = Date.now();
+      prods[prodIdx] = prod;
+      await env.BLOG.put('productions', JSON.stringify(prods));
+      // 订单标记 downloadedAt（与共享编曲对齐）
+      if (!order.downloadedAt) {
+        order.downloadedAt = Date.now();
+        orders[orderIdx] = order;
+        await env.BLOG.put('orders', JSON.stringify(orders));
+      }
+
+      const safeTitle = (prod.title || 'production').replace(/[^\w\u4e00-\u9fa5._-]+/g, '_').slice(0, 60);
+      const filename = `${safeTitle}.${prod.paidExt || mimeToExt(prod.paidMime || '') || 'bin'}`;
+      const headers = {
+        ...cors,
+        'Content-Type': prod.paidMime || obj.httpMetadata?.contentType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        'Cache-Control': 'no-store',
+        'Content-Length': String(bytes.length),
+      };
+      return new Response(bytes, { status: 200, headers });
     }
 
     // ── 星座运势（天行 API 代理 + KV 24h 缓存） ──
