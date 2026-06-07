@@ -967,8 +967,9 @@ async function handleRequest(request, env, ctx, cors) {
     if (filesMatch && method === 'GET') {
       if (!env.R2) return new Response('R2 not configured', { status: 500 });
       const key = decodeURIComponent(filesMatch[1]);
-      // 安全校验：只允许 orders/ 前缀，禁止 .. 和过长 key
-      if (key.length > 300 || /\.\./.test(key) || !/^orders\//.test(key)) {
+      // 安全校验：允许 orders/ 与 arrangements/trial/ 前缀（试听公开），
+      // 付费 arrangements/paid/ 与 productions/paid/ 严禁直链 — 走 /api/.../download 校验路由
+      if (key.length > 300 || /\.\./.test(key) || !/^(orders\/|arrangements\/trial\/|productions\/trial\/)/.test(key)) {
         return new Response('Bad key', { status: 400 });
       }
       const obj = await env.R2.get(key);

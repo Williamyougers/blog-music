@@ -7252,6 +7252,7 @@ const CHANGELOG = [
       '🛠 后端新增 3 个 API：`GET /api/notes/stats?ids=&visitorId=` 批量取 stats（一次性渲染列表，附带「我点过哪些」） / `POST /api/notes/:id/like` toggle 点赞 / `POST /api/notes/:id/view` 上报阅读；KV 用聚合 JSON 存 likes/views，单点的 KV key 存「我点过」标记 + TTL 86400 防重复阅读',
       '📦 接单订单加「成品交付」能力：主管理员在订单卡片底部新增成品管理面板（管理员视角红底），可直接上传 ≤80MB 成品文件（音频/zip/工程文件 MIME 不限）走 R2，也可手填 wrangler 命令上传后的 R2 key 注册更大文件（≤500MB / 单订单 ≤8 个）；文件按 `orders/{visHash8}/deliver/{ts}_{rand}.{ext}` 隔离存储，跟参考音频路径严格分离便于审计',
       '💾 客户视角下载入口：订单 `paid=true` 且 deliverables 非空时，订单卡里出现金底「💾 成品交付（N 个文件）」区，每行一个文件 + 大小 + ⬇ 下载按钮，点击 fetch+blob 落盘（文件名走 RFC5987 UTF-8 编码，中文不乱），不限次数；管理员视角额外有「测试下载」（不写 lastDownloadAt）+ 「× 移除」（仅从订单字段移除，R2 文件保留）',
+      '🐛 修复共享编曲试听播放 404 — worker `/files/` 路由原本只允许 `orders/` 前缀，导致 `upload-trial` 返回的 `arrangements/trial/...` URL 全部 404；本次把白名单扩到 `orders/` + `arrangements/trial/` + `productions/trial/`，付费文件路径继续只走 `/api/.../download` 校验路由（不公开直链）',
     ],
   },
   {
