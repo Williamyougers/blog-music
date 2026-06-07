@@ -7485,6 +7485,7 @@ const CHANGELOG = [
       '❌ 客户付款被店主驳回有明确反馈：worker 端 admin 驳回时写 `claimRejectedAt` 时间戳（客户再次声明时清零），客户端共享编曲 / 成品详情页和排单页订单卡片在驳回态下都显示「❌ 你上次的付款声明已被店主驳回，请重新付款」红条 + 「💳 重新付款 ¥X」按钮，付完款再点「✓ 我已付款」走完整流程',
       '🐛 修复商品详情页 admin 按钮 `Uncaught SyntaxError: Unexpected end of input` — 全局排查发现 11 处 `onclick="xxx(${JSON.stringify(id)})"` 在 HTML 属性双引号内嵌 JSON.stringify 产生的双引号，导致 onclick 被提前闭合后续 JS 全废；统一改为 `onclick="xxx(\'${id}\')"` 单引号包字符串字面量（id 都是安全短串无注入风险），「✓ 确认收款」「✗ 驳回声明」「💰 立即购买」「💳 待付款」「⬇️ 立即下载」「🔄 跳转」等全部恢复',
       '🐛 修复客户下载付费文件 `net::ERR_FAILED 410` + `Access blocked by CORS policy` — worker 端 `GET /api/{arrangements,productions}/:id/download` 路由的 10+ 处错误响应（404 / 403 / 410 / 500）原本都用 `new Response("text", { status: N })` 没带 `cors` headers，导致浏览器把任何非 2xx 直接当成 CORS 错挡住，前端 fetch 进 catch 但 res 拿不到状态码与错误消息；本次全部改为 `json({ error: "中文描述" }, N, cors)` JSON 化 + 自动带 CORS 头，前端能正确进 410/403 分支显示「⚠️ 该订单付费文件已下载过 1 次，单次有效；如需重新下载请联系店主重置」友好提示并强制 Store.load 让按钮立刻变灰，杜绝 console 一片红',
+      '✅ 共享编曲 / 成品编曲订单「下载即完结」自动收尾 — 客户首次成功下载付费文件时，worker 在写 `downloadedAt` 单次下载锁的同时同步写 `step=4 + completedAt=now`，订单在 5s 内自动从「排单」的「排队中」分组移到「已完结」分组（绿条 + 「已交付 ✓」徽章），无需店主手动一步步推进度条；同时前端排单分组对历史订单做兼容（凡 `arrangementId/productionId` 商品订单只要有 `downloadedAt` 一律强制归入「已完结」），存量旧数据无需 worker 迁移也能正确归位',
     ],
   },
   {
@@ -8099,9 +8100,11 @@ function renderWorkshop() {
   const modeFiltered = (_wsMode === 'commercial')
     ? orders.filter(isCommercialOrder)
     : orders.filter(o => !isCommercialOrder(o));
-  let inProgress = modeFiltered.filter(o => o.step >= 1 && o.step < 4);
-  let queue = modeFiltered.filter(o => o.step === 0);
-  let completed = modeFiltered.filter(o => o.step === 4);
+  // 商品订单（共享编曲 / 成品）已下载即视为完结 — 兼容历史订单（worker 端新订单会直接写 step=4，但旧数据 step 可能仍 0）
+  const isProductDownloaded = (o) => !!((o.arrangementId || o.productionId) && o.downloadedAt);
+  let inProgress = modeFiltered.filter(o => o.step >= 1 && o.step < 4 && !isProductDownloaded(o));
+  let queue = modeFiltered.filter(o => o.step === 0 && !isProductDownloaded(o));
+  let completed = modeFiltered.filter(o => o.step === 4 || isProductDownloaded(o));
 
   // 完结订单的「套餐」筛选 select 动态填充（当前 tier + 完结订单出现过的 tier 合并去重，多选订单展开 tiers 数组）
   const tierSelect = document.getElementById('wsCompletedTier');

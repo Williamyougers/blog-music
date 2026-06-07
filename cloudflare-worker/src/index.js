@@ -2880,9 +2880,13 @@ async function handleRequest(request, env, ctx, cors) {
       const obj = await env.R2.get(arr.paidKey);
       if (!obj) return json({ error: 'Paid file missing in R2' }, 404, cors);
 
-      // 标记单次下载锁（admin 跳过）
+      // 标记单次下载锁（admin 跳过）+ 商品订单自动完结
       if (!admin) {
-        order.downloadedAt = Date.now();
+        const dlNow = Date.now();
+        order.downloadedAt = dlNow;
+        // 共享编曲一锤子买卖：客户下载即视为订单完结（step=4 + completedAt 写时间戳）
+        order.step = 4;
+        if (!order.completedAt) order.completedAt = dlNow;
         orders[orderIdx] = order;
         await env.BLOG.put('orders', JSON.stringify(orders));
       }
@@ -3219,9 +3223,13 @@ async function handleRequest(request, env, ctx, cors) {
       prod.fileDeletedAt = Date.now();
       prods[prodIdx] = prod;
       await env.BLOG.put('productions', JSON.stringify(prods));
-      // 订单标记 downloadedAt（与共享编曲对齐）
+      // 订单标记 downloadedAt + 商品订单自动完结（与共享编曲对齐）
       if (!order.downloadedAt) {
-        order.downloadedAt = Date.now();
+        const dlNow = Date.now();
+        order.downloadedAt = dlNow;
+        // 成品编曲一锤子买卖：客户下载即视为订单完结（step=4 + completedAt 写时间戳）
+        order.step = 4;
+        if (!order.completedAt) order.completedAt = dlNow;
         orders[orderIdx] = order;
         await env.BLOG.put('orders', JSON.stringify(orders));
       }
