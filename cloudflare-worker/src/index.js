@@ -2833,14 +2833,14 @@ async function handleRequest(request, env, ctx, cors) {
       const admin = await isAdminOrSub(request, env);
       // admin 测试下载：无 orderId 时短路（不校验订单 / 不写下载锁）
       if (!orderId) {
-        if (!admin) return new Response('orderId required', { status: 400 });
+        if (!admin) return json({ error: 'orderId required' }, 400, cors);
         const arrsRaw0 = await env.BLOG.get('arrangements');
         const arrs0 = JSON.parse(arrsRaw0 || '[]');
         const arr0 = arrs0.find(a => a.id === arrId);
-        if (!arr0 || !arr0.paidKey) return new Response('Paid file not configured', { status: 404 });
-        if (!env.R2) return new Response('R2 not configured', { status: 500 });
+        if (!arr0 || !arr0.paidKey) return json({ error: 'Paid file not configured' }, 404, cors);
+        if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
         const obj0 = await env.R2.get(arr0.paidKey);
-        if (!obj0) return new Response('Paid file missing in R2', { status: 404 });
+        if (!obj0) return json({ error: 'Paid file missing in R2' }, 404, cors);
         const safeTitle0 = (arr0.title || 'arrangement').replace(/[^\w\u4e00-\u9fa5._-]+/g, '_').slice(0, 60);
         const filename0 = `${safeTitle0}.${arr0.paidExt || mimeToExt(arr0.paidMime || '') || 'bin'}`;
         const headers0 = {
@@ -2856,29 +2856,29 @@ async function handleRequest(request, env, ctx, cors) {
       const ordersRaw = await env.BLOG.get('orders');
       const orders = JSON.parse(ordersRaw || '[]');
       const orderIdx = orders.findIndex(o => o.id === orderId);
-      if (orderIdx < 0) return new Response('Order not found', { status: 404 });
+      if (orderIdx < 0) return json({ error: 'Order not found' }, 404, cors);
       const order = orders[orderIdx];
 
       // 验证 1：订单是这个 arrangement 的
-      if (order.arrangementId !== arrId) return new Response('Order mismatch', { status: 403 });
+      if (order.arrangementId !== arrId) return json({ error: 'Order mismatch' }, 403, cors);
       // 验证 2：订单已付款
-      if (!order.paid) return new Response('Order not paid', { status: 403 });
+      if (!order.paid) return json({ error: 'Order not paid' }, 403, cors);
       // 验证 3：身份匹配（优先 userId，回退 visitorId）
       const viewerUser = await getCurrentUser(request, env);
       const matchUser = !!viewerUser && !!order.userId && order.userId === viewerUser.userId;
       const matchVisitor = !order.userId && !!viewerVisitor && order.visitorId === viewerVisitor;
-      if (!admin && !matchUser && !matchVisitor) return new Response('Forbidden', { status: 403 });
+      if (!admin && !matchUser && !matchVisitor) return json({ error: 'Forbidden' }, 403, cors);
       // 验证 4：未下载过（admin 不受此限）
-      if (!admin && order.downloadedAt) return new Response('Already downloaded once. Contact admin to reset.', { status: 410 });
+      if (!admin && order.downloadedAt) return json({ error: '该订单已下载过 1 次，付费文件单次有效；如需重新下载请联系店主重置' }, 410, cors);
 
       // 找 arrangement 拿 paidKey
       const arrsRaw = await env.BLOG.get('arrangements');
       const arrs = JSON.parse(arrsRaw || '[]');
       const arr = arrs.find(a => a.id === arrId);
-      if (!arr || !arr.paidKey) return new Response('Paid file not configured', { status: 404 });
-      if (!env.R2) return new Response('R2 not configured', { status: 500 });
+      if (!arr || !arr.paidKey) return json({ error: 'Paid file not configured' }, 404, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
       const obj = await env.R2.get(arr.paidKey);
-      if (!obj) return new Response('Paid file missing in R2', { status: 404 });
+      if (!obj) return json({ error: 'Paid file missing in R2' }, 404, cors);
 
       // 标记单次下载锁（admin 跳过）
       if (!admin) {
@@ -3168,15 +3168,15 @@ async function handleRequest(request, env, ctx, cors) {
       const prodsRaw = await env.BLOG.get('productions');
       const prods = JSON.parse(prodsRaw || '[]');
       const prodIdx = prods.findIndex(p => p.id === prodId);
-      if (prodIdx < 0) return new Response('Production not found', { status: 404 });
+      if (prodIdx < 0) return json({ error: 'Production not found' }, 404, cors);
       const prod = prods[prodIdx];
 
       // admin 测试下载分支：不需 orderId，不删文件
       if (admin && !orderId) {
-        if (!prod.paidKey) return new Response('Paid file not configured', { status: 404 });
-        if (!env.R2) return new Response('R2 not configured', { status: 500 });
+        if (!prod.paidKey) return json({ error: 'Paid file not configured' }, 404, cors);
+        if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
         const obj = await env.R2.get(prod.paidKey);
-        if (!obj) return new Response('Paid file missing in R2', { status: 404 });
+        if (!obj) return json({ error: 'Paid file missing in R2' }, 404, cors);
         const safeTitle = (prod.title || 'production').replace(/[^\w\u4e00-\u9fa5._-]+/g, '_').slice(0, 60);
         const filename = `${safeTitle}.${prod.paidExt || mimeToExt(prod.paidMime || '') || 'bin'}`;
         const headers = {
@@ -3189,24 +3189,24 @@ async function handleRequest(request, env, ctx, cors) {
         return new Response(obj.body, { status: 200, headers });
       }
 
-      if (!orderId) return new Response('orderId required', { status: 400 });
+      if (!orderId) return json({ error: 'orderId required' }, 400, cors);
       const ordersRaw = await env.BLOG.get('orders');
       const orders = JSON.parse(ordersRaw || '[]');
       const orderIdx = orders.findIndex(o => o.id === orderId);
-      if (orderIdx < 0) return new Response('Order not found', { status: 404 });
+      if (orderIdx < 0) return json({ error: 'Order not found' }, 404, cors);
       const order = orders[orderIdx];
 
-      if (order.productionId !== prodId) return new Response('Order mismatch', { status: 403 });
-      if (!order.paid) return new Response('Order not paid', { status: 403 });
+      if (order.productionId !== prodId) return json({ error: 'Order mismatch' }, 403, cors);
+      if (!order.paid) return json({ error: 'Order not paid' }, 403, cors);
       const viewerUser = await getCurrentUser(request, env);
       const matchUser = !!viewerUser && !!order.userId && order.userId === viewerUser.userId;
       const matchVisitor = !order.userId && !!viewerVisitor && order.visitorId === viewerVisitor;
-      if (!matchUser && !matchVisitor) return new Response('Forbidden', { status: 403 });
-      if (prod.fileDeletedAt) return new Response('File already delivered and removed.', { status: 410 });
-      if (!prod.paidKey) return new Response('Paid file not configured', { status: 404 });
-      if (!env.R2) return new Response('R2 not configured', { status: 500 });
+      if (!matchUser && !matchVisitor) return json({ error: 'Forbidden' }, 403, cors);
+      if (prod.fileDeletedAt) return json({ error: '该成品付费文件已被首次下载并自动销毁；如需重新下载请联系店主' }, 410, cors);
+      if (!prod.paidKey) return json({ error: 'Paid file not configured' }, 404, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
       const obj = await env.R2.get(prod.paidKey);
-      if (!obj) return new Response('Paid file missing in R2', { status: 404 });
+      if (!obj) return json({ error: 'Paid file missing in R2' }, 404, cors);
 
       // 读取完整 buffer，确保返回给客户后才删（避免流中断丢文件）
       const buf = await obj.arrayBuffer();
