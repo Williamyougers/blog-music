@@ -965,36 +965,67 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   background:rgba(27,140,70,0.06); border-left-color:#1b8c46; color:#1b8c46;
 }
 
-/* 兼容老 BEM（.arr-detail__* 不带 -view，成品编曲仍在用）*/
-.arr-detail__header { margin-top:1.2rem; padding-bottom:1.2rem; border-bottom:1px solid var(--gray-200); }
-.arr-detail__title { font-family:var(--font-serif); font-size:1.85rem; font-weight:700; color:var(--ink); margin:0 0 0.6rem; letter-spacing:0.005em; }
-.arr-detail__meta { display:flex; gap:1.2rem; flex-wrap:wrap; font-size:0.85rem; color:var(--gray-700); align-items:center; }
-.arr-detail__price { font-family:var(--font-serif); font-size:2rem; font-weight:700; color:var(--accent); }
-.arr-detail__desc { margin:1.4rem 0; line-height:1.8; color:var(--gray-800); white-space:pre-wrap; font-family:var(--font-serif); }
-.arr-detail__trial { margin:1.4rem 0; padding:1rem 1.1rem; background:var(--cream); border:1px solid var(--gray-200); border-radius:4px; }
-.arr-detail__trial-label { font-size:0.72rem; color:var(--gray-700); margin-bottom:0.5rem; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; }
-.arr-detail__trial audio { width:100%; height:38px; }
-.arr-detail__actions { display:flex; gap:0.8rem; margin-top:1.4rem; flex-wrap:wrap; }
-.arr-detail__buy-btn { background:var(--accent); color:#fff; border:none; padding:0.85rem 1.9rem; border-radius:2px; font-size:0.95rem; font-weight:600; cursor:pointer; transition:all 0.2s; letter-spacing:0.04em; }
-.arr-detail__buy-btn:hover { background:#a82e18; transform:translateY(-1px); }
-.arr-detail__buy-btn:disabled { background:var(--gray-400); cursor:not-allowed; transform:none; }
-.arr-detail__owned-hint { padding:0.7rem 0.95rem; background:var(--cream); border-left:3px solid var(--gold); border-radius:0 3px 3px 0; font-size:0.83rem; color:var(--gray-800); margin-top:1rem; }
-.arr-detail__download-btn { background:#1b8c46; color:#fff; border:none; padding:0.85rem 1.9rem; border-radius:2px; font-size:0.95rem; font-weight:600; cursor:pointer; transition:all 0.2s; letter-spacing:0.04em; }
-.arr-detail__download-btn:hover { background:#146d36; transform:translateY(-1px); }
-
-/* 暗色 */
+/* 老 BEM .arr-detail__* 已废弃 — 共享编曲 / 成品统一使用 arr-detail-view__* 命名（2026-06-07） */
 [data-theme="dark"] .arr-card { background:var(--gray-100); border-color:var(--gray-300); }
 [data-theme="dark"] .arr-card__title { color:var(--ink); }
 [data-theme="dark"] .arr-card__desc { color:var(--gray-700); }
 [data-theme="dark"] .arr-card__tag { background:transparent; border-color:var(--gray-300); color:var(--gray-700); }
-[data-theme="dark"] .arr-detail-view__title,
-[data-theme="dark"] .arr-detail__title { color:var(--ink); }
-[data-theme="dark"] .arr-detail-view__desc,
-[data-theme="dark"] .arr-detail__desc { color:var(--gray-800); }
-[data-theme="dark"] .arr-detail-view__trial,
-[data-theme="dark"] .arr-detail__trial { background:var(--gray-100); border-color:var(--gray-300); }
-[data-theme="dark"] .arr-detail-view__owned-hint,
-[data-theme="dark"] .arr-detail__owned-hint { background:var(--gray-100); color:var(--gray-800); }
+[data-theme="dark"] .arr-detail-view__title { color:var(--ink); }
+[data-theme="dark"] .arr-detail-view__desc { color:var(--gray-800); }
+[data-theme="dark"] .arr-detail-view__trial { background:var(--gray-100); border-color:var(--gray-300); }
+[data-theme="dark"] .arr-detail-view__owned-hint { background:var(--gray-100); color:var(--gray-800); }
+
+/* ── 商品详情页 admin "待确认收款"块（共享编曲 / 成品） ── */
+.arr-detail-view__admin-claims {
+  margin-top:1.6rem; padding-top:1.2rem;
+  border-top:1px dashed var(--gray-300);
+  display:flex; flex-direction:column; gap:0.8rem;
+}
+.arr-detail-view__admin-claims-label {
+  font-size:0.72rem; color:var(--gray-700);
+  letter-spacing:0.18em; text-transform:uppercase; font-weight:600;
+  margin-bottom:0.2rem;
+}
+.arr-detail-view__claim-card {
+  padding:0.9rem 1rem;
+  background:linear-gradient(135deg, rgba(184,132,74,0.10), rgba(194,59,34,0.04));
+  border-left:3px solid var(--gold); border-radius:0 4px 4px 0;
+}
+.arr-detail-view__claim-head {
+  display:flex; gap:0.8rem; flex-wrap:wrap; align-items:baseline;
+  font-size:0.85rem; color:var(--gray-800);
+}
+.arr-detail-view__claim-amount {
+  font-family:var(--font-serif); font-size:1.25rem; font-weight:700; color:var(--accent);
+}
+.arr-detail-view__claim-buyer { color:var(--gray-700); }
+.arr-detail-view__claim-time { color:var(--gray-500); font-size:0.78rem; margin-left:auto; }
+.arr-detail-view__claim-note {
+  margin-top:0.5rem; padding:0.45rem 0.7rem;
+  background:rgba(0,0,0,0.04); border-radius:3px;
+  font-size:0.8rem; color:var(--gray-700); line-height:1.6;
+}
+.arr-detail-view__claim-actions {
+  margin-top:0.8rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;
+}
+.arr-detail-view__claim-confirm {
+  background:var(--accent); color:#fff; border:none;
+  padding:0.55rem 1.2rem; border-radius:2px;
+  font-size:0.88rem; font-weight:600; cursor:pointer;
+  letter-spacing:0.04em; transition:all 0.2s;
+  box-shadow:0 2px 8px rgba(194,59,34,0.25);
+}
+.arr-detail-view__claim-confirm:hover { background:#a82e18; transform:translateY(-1px); }
+.arr-detail-view__claim-reject {
+  background:transparent; color:var(--accent);
+  border:1px solid var(--accent); padding:0.5rem 1rem;
+  border-radius:2px; font-size:0.85rem; cursor:pointer; transition:all 0.2s;
+}
+.arr-detail-view__claim-reject:hover { background:rgba(194,59,34,0.06); }
+[data-theme="dark"] .arr-detail-view__claim-card {
+  background:linear-gradient(135deg, rgba(184,132,74,0.14), rgba(194,59,34,0.08));
+}
+[data-theme="dark"] .arr-detail-view__claim-note { background:rgba(255,255,255,0.04); color:var(--gray-700); }
 
 /* ── 编辑器 modal（杂志感表单）── */
 .arr-editor-form { display:flex; flex-direction:column; gap:1rem; }
@@ -1045,18 +1076,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   transform: rotate(6deg); font-weight: 700; box-shadow: 0 2px 6px rgba(194, 59, 34, 0.4);
 }
 .arr-card--delivered::after { content: '已交付'; background: var(--gray-500); box-shadow: none; }
-.prod-buyer-info {
-  margin-top: 0.8rem; padding: 0.7rem 0.9rem;
-  background: linear-gradient(135deg, rgba(184, 132, 74, 0.08), rgba(194, 59, 34, 0.05));
-  border-left: 3px solid var(--gold); border-radius: 0 4px 4px 0;
-  font-size: 0.78rem; color: var(--gray-700); line-height: 1.7;
-}
-.prod-buyer-info strong { color: var(--accent); }
-.prod-warn {
-  margin: 0.6rem 0; padding: 0.6rem 0.9rem;
-  background: rgba(194, 59, 34, 0.08); border-left: 3px solid var(--accent);
-  border-radius: 0 4px 4px 0; font-size: 0.78rem; color: var(--accent);
-}
+/* 老 .prod-buyer-info / .prod-warn 已废弃 — 改用 .arr-detail-view__owned-hint[data-tone] */
 
 /* ── Log detail (就地展开视图，非 Modal) ── */
 .log-detail-view { max-width: 1200px; margin: 0 auto; padding: 0 1rem 3rem; }
@@ -2800,6 +2820,10 @@ aside.ws-sidebar > .ws-view-only--commission {
   word-break: break-word; white-space: pre-wrap;
 }
 .ws-order__claim-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.ws-order__claim-hint {
+  margin-top: 0.3rem; font-size: 0.78rem; color: var(--gold);
+  letter-spacing: 0.02em; font-style: italic;
+}
 [data-theme="dark"] .ws-order__pay--claim { background: rgba(184,132,74,0.12); border-top-color: rgba(184,132,74,0.45); }
 [data-theme="dark"] .ws-order__claim-label { color: #d4a55c; }
 [data-theme="dark"] .ws-order__claim-note { background: rgba(255,255,255,0.04); color: #bbb; }
@@ -6445,6 +6469,9 @@ async function adminConfirmClaim(orderId) {
     toast('已确认收款 ¥' + amt);
     await Store.load();
     renderWorkshop();
+    // 商品订单：同步刷新对应商品详情页的"待确认"块 + 三态按钮
+    try { if (typeof _currentArrDetailId !== 'undefined' && _currentArrDetailId) renderArrangementDetailBody(_currentArrDetailId); } catch (_) {}
+    try { if (typeof _currentProdDetailId !== 'undefined' && _currentProdDetailId) renderProductionDetailBody(_currentProdDetailId); } catch (_) {}
   } catch (e) {
     toast('确认失败：' + (e.message || e));
   }
@@ -6459,6 +6486,8 @@ async function adminRejectClaim(orderId) {
     toast('已驳回客户声明');
     await Store.load();
     renderWorkshop();
+    try { if (typeof _currentArrDetailId !== 'undefined' && _currentArrDetailId) renderArrangementDetailBody(_currentArrDetailId); } catch (_) {}
+    try { if (typeof _currentProdDetailId !== 'undefined' && _currentProdDetailId) renderProductionDetailBody(_currentProdDetailId); } catch (_) {}
   } catch (e) {
     toast('驳回失败：' + (e.message || e));
   }
@@ -7439,6 +7468,9 @@ const CHANGELOG = [
       '🐛 修复共享编曲详情页永远显示「⚠ 未配置付费文件」— 起因是公开列表 `GET /api/arrangements` 故意把 `paidKey` 抹掉只留 `hasPaidFile` 布尔，但前端 render 判断条件却用的是 `a.paidKey`（永远 undefined）；本次 worker 加 `?all=1` 参数 admin 视角返回 `adminArrangement`（含 paidKey/trialKey/paidMime），前端 admin 模式自动用 `?all=1` 拉，渲染条件统一为 `a.paidKey || a.hasPaidFile`，admin 测试下载 / 客户立即购买 / 已付未下下载按钮全部正常出现',
       '🐛 修复共享编曲「admin 测试下载」按钮 400 — `GET /api/arrangements/:id/download` 原本强制要求 `orderId` 参数，但 admin 测试下载是不带订单的纯文件拉取场景；本次对齐成品编曲 productions 的做法，admin 无 orderId 时短路（直接读 paidKey 返回，不写下载锁），客户路径依然严格要求订单 4 重校验',
       '🎨 共享编曲整体 UI 升级 — 修复隐藏多日的 BEM 错位（HTML 用 `arr-detail-view__*`，CSS 只写了 `arr-detail__*`，导致详情页标题/价签/试听/按钮全裸奔）；同步给卡片/详情/编辑器套上杂志感样式：金红渐变条 hover 显形、价签大号衬线、tag 边框胶囊、试听卡片米白底 + 标签大写、按钮三态色分（购买暗红 / 客户下载墨绿 / admin 测试金棕）、提示条按 data-tone 着色（warn 暗红 / ok 墨绿 / 默认金黄）、编辑器输入框改下划线风格',
+      '🎨 成品编曲 UI 同步杂志感升级：详情页 HTML 命名从老 `.arr-detail__*` 全面迁到 `.arr-detail-view__*`，复用共享编曲那套升级版样式 — 标题大号衬线 + 已售出小标 + 金线收尾、价签暗红衬线、米白试听卡 + ▶ TRIAL 大写小字标签、立即购买 / 立即下载 / admin 测试下载三态分色（暗红 / 墨绿 / 金棕）、交易记录块改用 owned-hint data-tone="ok" 金线高亮；同步清掉废弃的 .prod-buyer-info / .prod-warn / .arr-detail__* 老 CSS 100+ 行，命名彻底归一',
+      '🔁 商品订单「✓ 确认收款 / ✗ 驳回声明」按钮迁出排单页 — 共享编曲 / 成品类订单的客户付款声明，admin 不再在「排单」里看到按钮（改显示 ⏳ 客户声明已付款 ¥X + 「→ 前往 🎼 共享编曲 / 💎 成品」跳转按钮），改在对应商品详情页底部新增「⏳ 待确认收款 (N)」专区聚合展示 — 每条卡片显示金额 / 买家 / 时间 / 备注 + 「✓ 确认收款」「✗ 驳回声明」按钮，主管理员看着商品本身就能直接处理收款，省去「排单 ↔ 商品」来回切换；接单类（commission）订单仍保留原排单页按钮不动',
+      '🔄 共享编曲到账推送改造为「无门槛轮询」— 原 `_checkArrangementOrderPayments` 要求 `UserStore.user` 必须存在才执行，访客客户（仅 visitorId 模式）刚完成付款回来仍要手动 F5 才看到下载按钮；本次去掉登录门槛 + 让 `openArrangementDetail` 进详情就立刻 Store.load + check 一次，配合已有的 15s 轮询，无论访客 / 登录用户付完款回来基本都能秒看到「⬇️ 下载付费文件」按钮自动出现',
     ],
   },
   {
@@ -8430,7 +8462,17 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
       const claimTime = o.claimedAt ? formatDate(o.claimedAt) : '';
       const claimAmt = o.claimedAmount || o.price;
       const noteHtml = o.claimNote ? `<div class="ws-order__claim-note">📝 ${escapeHTML(String(o.claimNote))}</div>` : '';
-      payHtml = `<div class="ws-order__pay ws-order__pay--claim"><div class="ws-order__claim-info"><span class="ws-order__claim-label">⏳ 客户声明已付款 ¥${claimAmt}</span><span class="ws-order__claim-time">${claimTime ? ' · ' + claimTime : ''}</span>${noteHtml}</div><div class="ws-order__claim-actions"><button class="btn btn--primary btn--sm" onclick="adminConfirmClaim('${o.id}')">✓ 确认收款 ¥${claimAmt}</button><button class="btn btn--ghost btn--sm" style="color:var(--accent);" onclick="adminRejectClaim('${o.id}')">✗ 驳回声明</button></div></div>`;
+      // 商品订单（共享编曲 / 成品）的确认按钮搬到对应商品详情页 — 避免管理员在排单 ↔ 商品页之间来回切换
+      if (o.arrangementId || o.productionId) {
+        const isArr = !!o.arrangementId;
+        const targetLabel = isArr ? '🎼 共享编曲' : '💎 成品';
+        const jumpFn = isArr
+          ? `setWsView('arrangements');setTimeout(function(){openArrangementDetail(${JSON.stringify(o.arrangementId)});}, 60);`
+          : `setWsView('productions');setTimeout(function(){openProductionDetail(${JSON.stringify(o.productionId)});}, 60);`;
+        payHtml = `<div class="ws-order__pay ws-order__pay--claim"><div class="ws-order__claim-info"><span class="ws-order__claim-label">⏳ 客户声明已付款 ¥${claimAmt}</span><span class="ws-order__claim-time">${claimTime ? ' · ' + claimTime : ''}</span>${noteHtml}<div class="ws-order__claim-hint">→ 请到「${targetLabel}」页对该商品确认收款</div></div><div class="ws-order__claim-actions"><button class="btn btn--ghost btn--sm" onclick="${jumpFn}">前往 ${targetLabel} →</button></div></div>`;
+      } else {
+        payHtml = `<div class="ws-order__pay ws-order__pay--claim"><div class="ws-order__claim-info"><span class="ws-order__claim-label">⏳ 客户声明已付款 ¥${claimAmt}</span><span class="ws-order__claim-time">${claimTime ? ' · ' + claimTime : ''}</span>${noteHtml}</div><div class="ws-order__claim-actions"><button class="btn btn--primary btn--sm" onclick="adminConfirmClaim('${o.id}')">✓ 确认收款 ¥${claimAmt}</button><button class="btn btn--ghost btn--sm" style="color:var(--accent);" onclick="adminRejectClaim('${o.id}')">✗ 驳回声明</button></div></div>`;
+      }
     } else if (hasClaim && o._isMine && !admin) {
       const claimTime = o.claimedAt ? formatDate(o.claimedAt) : '';
       const claimAmt = o.claimedAmount || o.price;
@@ -10008,6 +10050,42 @@ function _getMyArrangementOwnership(arrId) {
   return { owned: false, paid: false, downloaded: false, orderId: null };
 }
 
+// 抽工具：在商品详情页底部渲染 admin 视角下"等待确认收款"的订单卡片
+// （把原本散落在「排单」页的「✓ 确认收款」/「✗ 驳回声明」按钮搬到对应商品旁，admin 看到商品也能直接处理）
+function _renderAdminPendingClaimsHTML(filterFn) {
+  if (typeof isAdmin !== 'function' || !isAdmin()) return '';
+  const orders = (Array.isArray(Store.orders) ? Store.orders : [])
+    .filter(o => !o.paid && o.claimedAt && filterFn(o))
+    .sort((a, b) => (b.claimedAt || 0) - (a.claimedAt || 0));
+  if (!orders.length) return '';
+  const cards = orders.map(o => {
+    const amt = o.claimedAmount || o.price;
+    const time = o.claimedAt ? new Date(o.claimedAt).toLocaleString('zh-CN') : '';
+    const note = o.claimNote ? `<div class="arr-detail-view__claim-note">📝 ${escapeHTML(String(o.claimNote))}</div>` : '';
+    let buyer = '-';
+    if (o.userEmail) buyer = o.userEmail;
+    else if (o.userId) buyer = String(o.userId);
+    else if (o.contact) buyer = String(o.contact);
+    else if (o.visitorId) buyer = '访客 · ' + String(o.visitorId).slice(-6);
+    return `<div class="arr-detail-view__claim-card">
+      <div class="arr-detail-view__claim-head">
+        <span class="arr-detail-view__claim-amount">¥${amt}</span>
+        <span class="arr-detail-view__claim-buyer">${escapeHTML(buyer)}</span>
+        <span class="arr-detail-view__claim-time">${escapeHTML(time)}</span>
+      </div>
+      ${note}
+      <div class="arr-detail-view__claim-actions">
+        <button class="arr-detail-view__claim-confirm" onclick="adminConfirmClaim(${JSON.stringify(o.id)})">✓ 确认收款 ¥${amt}</button>
+        <button class="arr-detail-view__claim-reject" onclick="adminRejectClaim(${JSON.stringify(o.id)})">✗ 驳回声明</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="arr-detail-view__admin-claims">
+    <div class="arr-detail-view__admin-claims-label">⏳ 待确认收款（${orders.length}）</div>
+    ${cards}
+  </div>`;
+}
+
 function renderArrangementDetailBody(arrId) {
   const body = document.getElementById('arrangementDetailBody');
   if (!body) return;
@@ -10071,6 +10149,7 @@ function renderArrangementDetailBody(arrId) {
     ${a.desc ? `<div class="arr-detail-view__desc">${escapeHTML(a.desc)}</div>` : ''}
     ${trialHTML}
     ${actionsHTML}
+    ${_renderAdminPendingClaimsHTML(o => String(o.arrangementId || '') === String(a.id))}
   `;
 }
 
@@ -10081,10 +10160,10 @@ function openArrangementDetail(arrId) {
   if (list) list.style.display = 'none';
   if (detail) detail.style.display = '';
   renderArrangementDetailBody(arrId);
-  // 进详情时刷新一次列表 stats（拉最新订单状态以正确显示按钮）
-  if (typeof UserStore !== 'undefined' && UserStore && UserStore.user) {
-    Store.load().then(() => renderArrangementDetailBody(arrId)).catch(() => {});
-  }
+  // 进详情时立刻拉一次最新订单状态（登录用户 / 访客客户都需要，否则刚付完款回来仍显示"待付款"）
+  Store.load().then(() => renderArrangementDetailBody(arrId)).catch(() => {});
+  // 顺手 check 一次到账（命中则直接 toast + 重渲）
+  try { _checkArrangementOrderPayments(); } catch (_) {}
 }
 
 function closeArrangementDetail() {
@@ -10313,7 +10392,7 @@ function _seedArrLastPaidOrderIds() {
 }
 
 async function _checkArrangementOrderPayments() {
-  if (typeof UserStore === 'undefined' || !UserStore || !UserStore.user) return;
+  // 登录用户和访客客户都需要轮询（订单可绑 userId 或 visitorId）
   try {
     await Store.load();
   } catch (_) { return; }
@@ -10434,11 +10513,11 @@ function renderProductionDetailBody(prodId) {
   const body = document.getElementById('productionDetailBody');
   if (!body) return;
   const p = (Store.productions || []).find(x => String(x.id) === String(prodId));
-  if (!p) { body.innerHTML = '<p>成品不存在或已被删除。</p>'; return; }
+  if (!p) { body.innerHTML = '<p class="arr-empty">成品不存在或已被删除。</p>'; return; }
 
   const tags = (p.tags || '').split(/[,，]/).map(t => t.trim()).filter(Boolean);
   const tagsHtml = tags.length
-    ? '<div class="arr-detail__tags">' + tags.map(t => '<span class="arr-card__tag">' + escapeHTML(t) + '</span>').join('') + '</div>'
+    ? '<div class="arr-detail-view__tags">' + tags.map(t => '<span class="arr-card__tag">' + escapeHTML(t) + '</span>').join('') + '</div>'
     : '';
   const isSuper = typeof isSuperAdmin === 'function' && isSuperAdmin();
   const isLoggedIn = typeof currentUser !== 'undefined' && currentUser && currentUser.userId;
@@ -10449,67 +10528,75 @@ function renderProductionDetailBody(prodId) {
     // 已售出
     if (isSuper) {
       const buyerLine = p.buyerEmail
-        ? `<div class="prod-buyer-info">
+        ? `<div class="arr-detail-view__owned-hint" data-tone="ok">
             📜 <strong>交易记录</strong><br>
             买家：${escapeHTML(p.buyerName || p.buyerEmail)}（${escapeHTML(p.buyerEmail || '-')}）<br>
             订单：${escapeHTML(p.soldOrderId || '-')}<br>
             售出时间：${p.soldAt ? new Date(p.soldAt).toLocaleString('zh-CN') : '-'}<br>
             ${p.fileDeletedAt ? '文件已交付并下架于 ' + new Date(p.fileDeletedAt).toLocaleString('zh-CN') : '文件待买家下载（下载后自动从 R2 删除）'}
           </div>`
-        : '<div class="prod-buyer-info">该成品已售出（无买家信息）</div>';
+        : '<div class="arr-detail-view__owned-hint">该成品已售出（无买家信息）</div>';
       const adminTestBtn = (p.hasPaidFile && !p.fileDeletedAt)
-        ? `<button class="btn btn--ghost btn--sm" onclick="downloadProduction(${JSON.stringify(p.id)}, '')">⬇ admin 测试下载（不删文件）</button>`
+        ? `<button class="arr-detail-view__download-btn arr-detail-view__download-btn--admin" onclick="downloadProduction(${JSON.stringify(p.id)}, '')">⬇️ admin 测试下载（不删文件）</button>`
         : '';
-      actionsHtml = buyerLine + '<div class="arr-detail__actions">' + adminTestBtn + '</div>';
+      actionsHtml = buyerLine + (adminTestBtn ? '<div class="arr-detail-view__actions">' + adminTestBtn + '</div>' : '');
     } else {
-      actionsHtml = '<div class="prod-warn">该成品已售出，不再提供购买。</div>';
+      actionsHtml = '<div class="arr-detail-view__owned-hint" data-tone="warn">该成品已售出，不再提供购买。</div>';
     }
   } else if (own.owned && own.paid && !own.downloaded) {
     actionsHtml = `
-      <div class="prod-warn">⚠️ 成品文件仅可下载 1 次。请确保网络稳定后再点击下载，下载完成后文件将立即从云端删除。</div>
-      <div class="arr-detail__actions">
-        <button class="btn" onclick="downloadProduction(${JSON.stringify(p.id)}, ${JSON.stringify(own.orderId)})">⬇ 立即下载（仅一次机会）</button>
+      <div class="arr-detail-view__owned-hint" data-tone="warn">⚠️ 成品文件仅可下载 1 次。请确保网络稳定后再点击下载，下载完成后文件将立即从云端删除。</div>
+      <div class="arr-detail-view__actions">
+        <button class="arr-detail-view__download-btn" onclick="downloadProduction(${JSON.stringify(p.id)}, ${JSON.stringify(own.orderId)})">⬇️ 立即下载（仅一次机会）</button>
       </div>`;
   } else if (own.owned && own.paid && own.downloaded) {
-    actionsHtml = '<div class="prod-buyer-info">✅ 你已下载过该成品，文件已从云端删除。如有问题请联系 admin。</div>';
+    actionsHtml = '<div class="arr-detail-view__owned-hint" data-tone="ok">✓ 你已下载过该成品，文件已从云端删除。如有问题请联系 admin。</div>';
   } else if (own.owned && !own.paid) {
-    actionsHtml = `<div class="arr-detail__actions">
-      <button class="btn" onclick="openPayModal(${JSON.stringify(own.orderId)})">💳 继续付款</button>
-    </div>`;
+    actionsHtml = `<div class="arr-detail-view__actions">
+      <button class="arr-detail-view__buy-btn" onclick="openPayModal(${JSON.stringify(own.orderId)})">💳 待付款 ¥${p.price || 0} · 继续付款</button>
+    </div>
+    <div class="arr-detail-view__owned-hint">付款后主管理员确认到账，下载按钮会自动出现</div>`;
   } else {
     if (!isLoggedIn) {
-      actionsHtml = `<div class="arr-detail__actions">
-        <button class="btn" onclick="buyProduction(${JSON.stringify(p.id)})">🔒 登录后购买 · ¥${p.price || 0}</button>
+      actionsHtml = `<div class="arr-detail-view__actions">
+        <button class="arr-detail-view__buy-btn" onclick="buyProduction(${JSON.stringify(p.id)})">🔒 登录后购买 · ¥${p.price || 0}</button>
       </div>`;
     } else {
-      actionsHtml = `<div class="arr-detail__actions">
-        <button class="btn" onclick="buyProduction(${JSON.stringify(p.id)})">立即购买（独占售出） · ¥${p.price || 0}</button>
+      actionsHtml = `<div class="arr-detail-view__actions">
+        <button class="arr-detail-view__buy-btn" onclick="buyProduction(${JSON.stringify(p.id)})">💰 立即购买（独占售出） · ¥${p.price || 0}</button>
       </div>`;
     }
     if (isSuper) {
-      actionsHtml += `<div class="arr-detail__actions" style="margin-top:0.4rem;">
+      actionsHtml += `<div class="arr-detail-view__actions" style="margin-top:0.6rem;">
         <button class="btn btn--ghost btn--sm" onclick="openProductionEditor(${JSON.stringify(p.id)})">✎ 编辑</button>
-        ${p.hasPaidFile ? `<button class="btn btn--ghost btn--sm" onclick="downloadProduction(${JSON.stringify(p.id)}, '')">⬇ admin 测试下载（不删文件）</button>` : ''}
+        ${p.hasPaidFile ? `<button class="arr-detail-view__download-btn arr-detail-view__download-btn--admin" onclick="downloadProduction(${JSON.stringify(p.id)}, '')">⬇️ admin 测试下载（不删文件）</button>` : ''}
       </div>`;
     }
   }
 
   const trialHtml = p.trialUrl
-    ? `<audio controls preload="metadata" style="width:100%; margin:0.8rem 0;"><source src="${escAttr(p.trialUrl)}" type="${escAttr(p.trialMime || 'audio/mpeg')}">浏览器不支持音频播放</audio>`
-    : '<p class="arr-detail__no-trial">（未上传试听文件）</p>';
+    ? `<div class="arr-detail-view__trial">
+        <div class="arr-detail-view__trial-label">▶ 试听</div>
+        <audio controls preload="metadata" style="width:100%;"><source src="${escAttr(p.trialUrl)}" type="${escAttr(p.trialMime || 'audio/mpeg')}">浏览器不支持音频播放</audio>
+      </div>`
+    : `<div class="arr-detail-view__trial"><div class="arr-empty" style="padding:1rem;">（暂无试听）</div></div>`;
+
+  const soldBadge = p.sold ? ` <span style="font-size:0.55em; color:var(--accent); letter-spacing:0.12em; vertical-align:middle;">· 已售出</span>` : '';
+  const sizeMeta = p.paidSize ? `<span>📦 ${_fmtProdSize(p.paidSize)}${p.paidExt ? '·.' + escapeHTML(p.paidExt) : ''}</span>` : '';
 
   body.innerHTML = `
-    <header class="arr-detail__head">
-      <h2 class="arr-detail__title">${escapeHTML(p.title || '未命名')}</h2>
-      <div class="arr-detail__price">¥${p.price || 0}${p.sold ? ' <span style="font-size:0.65em; color:var(--accent);">· 已售出</span>' : ''}</div>
-    </header>
-    ${tagsHtml}
-    <div class="arr-detail__desc">${escapeHTML(p.desc || '').replace(/\n/g, '<br>')}</div>
-    <div class="arr-detail__trial">
-      <div class="arr-detail__section-label">▶ 试听</div>
-      ${trialHtml}
+    <div class="arr-detail-view__header">
+      <h3 class="arr-detail-view__title">${escapeHTML(p.title || '未命名')}${soldBadge}</h3>
+      <div class="arr-detail-view__meta">
+        <span class="arr-detail-view__price">¥${p.price || 0}</span>
+        ${sizeMeta}
+      </div>
+      ${tagsHtml}
     </div>
+    ${p.desc ? `<div class="arr-detail-view__desc">${escapeHTML(p.desc).replace(/\n/g, '<br>')}</div>` : ''}
+    ${trialHtml}
     ${actionsHtml}
+    ${_renderAdminPendingClaimsHTML(o => String(o.productionId || '') === String(p.id))}
   `;
 }
 
