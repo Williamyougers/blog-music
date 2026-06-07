@@ -7256,6 +7256,7 @@ const CHANGELOG = [
       '💾 客户视角下载入口：订单 `paid=true` 且 deliverables 非空时，订单卡里出现金底「💾 成品交付（N 个文件）」区，每行一个文件 + 大小 + ⬇ 下载按钮，点击 fetch+blob 落盘（文件名走 RFC5987 UTF-8 编码，中文不乱），不限次数；管理员视角额外有「测试下载」（不写 lastDownloadAt）+ 「× 移除」（仅从订单字段移除，R2 文件保留）',
       '🐛 修复共享编曲试听播放 404 — worker `/files/` 路由原本只允许 `orders/` 前缀，导致 `upload-trial` 返回的 `arrangements/trial/...` URL 全部 404；本次把白名单扩到 `orders/` + `arrangements/trial/` + `productions/trial/`，付费文件路径继续只走 `/api/.../download` 校验路由（不公开直链）',
       '🐛 修复共享编曲详情页永远显示「⚠ 未配置付费文件」— 起因是公开列表 `GET /api/arrangements` 故意把 `paidKey` 抹掉只留 `hasPaidFile` 布尔，但前端 render 判断条件却用的是 `a.paidKey`（永远 undefined）；本次 worker 加 `?all=1` 参数 admin 视角返回 `adminArrangement`（含 paidKey/trialKey/paidMime），前端 admin 模式自动用 `?all=1` 拉，渲染条件统一为 `a.paidKey || a.hasPaidFile`，admin 测试下载 / 客户立即购买 / 已付未下下载按钮全部正常出现',
+      '🐛 修复共享编曲「admin 测试下载」按钮 400 — `GET /api/arrangements/:id/download` 原本强制要求 `orderId` 参数，但 admin 测试下载是不带订单的纯文件拉取场景；本次对齐成品编曲 productions 的做法，admin 无 orderId 时短路（直接读 paidKey 返回，不写下载锁），客户路径依然严格要求订单 4 重校验',
     ],
   },
   {

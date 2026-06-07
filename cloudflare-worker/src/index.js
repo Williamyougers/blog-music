@@ -2818,14 +2818,36 @@ async function handleRequest(request, env, ctx, cors) {
     }
 
     // GET /api/arrangements/:id/download?orderId=&visitorId= - 客户下载付费文件
-    //   验证：order 真实 + paid=true + arrangementId 匹配 + 属于该 visitor/user + 未下载过
-    //   通过后标记 downloadedAt=now（单次下载锁），R2 stream 返回文件
+    //   客户：order 真实 + paid=true + arrangementId 匹配 + 属于该 visitor/user + 未下载过
+    //         通过后标记 downloadedAt=now（单次下载锁），R2 stream 返回文件
+    //   admin：可省略 orderId 直接拿文件（测试下载，不写入下载锁）
     const arrDlMatch = path.match(/^\/api\/arrangements\/([^/]+)\/download$/);
     if (arrDlMatch && method === 'GET') {
       const arrId = arrDlMatch[1];
       const orderId = sanitizeStr(url.searchParams.get('orderId'), 64);
       const viewerVisitor = sanitizeStr(url.searchParams.get('visitorId'), 64);
-      if (!orderId) return new Response('orderId required', { status: 400 });
+      const admin = await isAdminOrSub(request, env);
+      // admin 测试下载：无 orderId 时短路（不校验订单 / 不写下载锁）
+      if (!orderId) {
+        if (!admin) return new Response('orderId required', { status: 400 });
+        const arrsRaw0 = await env.BLOG.get('arrangements');
+        const arrs0 = JSON.parse(arrsRaw0 || '[]');
+        const arr0 = arrs0.find(a => a.id === arrId);
+        if (!arr0 || !arr0.paidKey) return new Response('Paid file not configured', { status: 404 });
+        if (!env.R2) return new Response('R2 not configured', { status: 500 });
+        const obj0 = await env.R2.get(arr0.paidKey);
+        if (!obj0) return new Response('Paid file missing in R2', { status: 404 });
+        const safeTitle0 = (arr0.title || 'arrangement').replace(/[^\w\u4e00-\u9fa5._-]+/g, '_').slice(0, 60);
+        const filename0 = `${safeTitle0}.${arr0.paidExt || mimeToExt(arr0.paidMime || '') || 'bin'}`;
+        const headers0 = {
+          ...cors,
+          'Content-Type': arr0.paidMime || obj0.httpMetadata?.contentType || 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename0)}"; filename*=UTF-8''${encodeURIComponent(filename0)}`,
+          'Cache-Control': 'no-store',
+        };
+        if (obj0.size != null) headers0['Content-Length'] = String(obj0.size);
+        return new Response(obj0.body, { status: 200, headers: headers0 });
+      }
 
       const ordersRaw = await env.BLOG.get('orders');
       const orders = JSON.parse(ordersRaw || '[]');
@@ -2841,7 +2863,6 @@ async function handleRequest(request, env, ctx, cors) {
       const viewerUser = await getCurrentUser(request, env);
       const matchUser = !!viewerUser && !!order.userId && order.userId === viewerUser.userId;
       const matchVisitor = !order.userId && !!viewerVisitor && order.visitorId === viewerVisitor;
-      const admin = await isAdminOrSub(request, env);
       if (!admin && !matchUser && !matchVisitor) return new Response('Forbidden', { status: 403 });
       // 验证 4：未下载过（admin 不受此限）
       if (!admin && order.downloadedAt) return new Response('Already downloaded once. Contact admin to reset.', { status: 410 });
