@@ -2237,7 +2237,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .ws-mode-btn {
   background: var(--white);
   border: 1px solid var(--gray-300);
-  padding: 0.85rem 1rem;
+  padding: 0.9rem 1rem;
   cursor: pointer;
   text-align: left;
   font-family: var(--sans);
@@ -2245,11 +2245,13 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   flex-direction: column;
   justify-content: center;
   gap: 0.3rem;
-  min-height: 4.6rem;
+  min-height: 5.4rem;
   box-sizing: border-box;
   color: var(--text);
   border-radius: 2px;
   transition: border-color 0.18s, color 0.18s, background 0.18s;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 .ws-mode-btn:hover {
   border-color: var(--gold);
@@ -2264,15 +2266,16 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 .ws-mode-btn__title {
   font-size: 1rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  line-height: 1.35;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
 }
 .ws-mode-btn__hint {
   font-size: 0.72rem;
   color: var(--gray-500);
   letter-spacing: 0.04em;
-  line-height: 1.45;
+  line-height: 1.5;
 }
+.ws-mode-btn--active .ws-mode-btn__title { font-weight: 600; }
 .ws-mode-btn--active .ws-mode-btn__hint {
   color: rgba(255, 255, 255, 0.65);
 }
@@ -2289,7 +2292,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   border-top: 1px solid var(--gray-200);
 }
 .ws-view-btn .ws-mode-btn__hint {
-  line-height: 1.5;
+  /* 已统一到 .ws-mode-btn__hint 的 line-height: 1.5；保留选择器留作未来板块按钮独有样式钩子 */
 }
 /* 视图切换：commission（接单） / orders（排单） / arrangements（共享编曲） / productions（成品编曲） */
 .ws-view--commission .ws-view-only--orders,
@@ -3047,6 +3050,64 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 [data-theme="dark"] .ws-order__audio-name { color:#ddd; }
 [data-theme="dark"] .ws-order__audio-dl { color:#bbb; border-color:#444; }
 [data-theme="dark"] .ws-order__audio-dl:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ── 接单成品交付（admin 上传 + 客户付款后下载） ── */
+.ws-order__deliver {
+  margin-top: 0.75rem; padding: 0.75rem 0.85rem;
+  background: rgba(184,132,74,0.07);
+  border: 1px solid rgba(184,132,74,0.3);
+  border-radius: 6px;
+  display: flex; flex-direction: column; gap: 0.55rem;
+}
+.ws-order__deliver--admin { background: rgba(122,30,30,0.05); border-color: rgba(122,30,30,0.25); }
+.ws-order__deliver-title {
+  font-size: 0.78rem; font-weight: 600; color: var(--accent);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.ws-order__deliver-files { display: flex; flex-direction: column; gap: 0.4rem; }
+.ws-order__deliver-file {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  padding: 0.5rem 0.65rem; background: var(--white);
+  border: 1px solid var(--gray-300); border-radius: 4px;
+}
+.ws-order__deliver-name {
+  flex: 1; min-width: 140px; font-size: 0.85rem; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ws-order__deliver-meta { font-size: 0.72rem; color: var(--gray-500); }
+.ws-order__deliver-dl, .ws-order__deliver-del {
+  font-size: 0.75rem; padding: 0.25rem 0.65rem;
+  border: 1px solid var(--gray-400); border-radius: 3px;
+  background: var(--white); cursor: pointer; color: var(--ink, #222);
+}
+.ws-order__deliver-dl { background: var(--gold, #b8844a); color: #fff; border-color: var(--gold, #b8844a); }
+.ws-order__deliver-dl:hover { opacity: 0.88; }
+.ws-order__deliver-del { color: var(--accent); }
+.ws-order__deliver-del:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ws-order__deliver-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.ws-order__deliver-upload {
+  font-size: 0.78rem; padding: 0.35rem 0.75rem;
+  border: 1px dashed var(--gray-400); border-radius: 3px;
+  background: var(--white); cursor: pointer;
+}
+.ws-order__deliver-upload:hover { border-color: var(--gold); color: var(--gold); }
+.ws-order__deliver-key-input {
+  flex: 1; min-width: 180px;
+  font-size: 0.72rem; padding: 0.3rem 0.5rem;
+  border: 1px solid var(--gray-300); border-radius: 3px; font-family: monospace;
+}
+.ws-order__deliver-hint {
+  font-size: 0.7rem; color: var(--gray-500);
+  font-family: monospace; word-break: break-all;
+  background: rgba(0,0,0,0.03); padding: 0.35rem 0.5rem; border-radius: 3px;
+}
+[data-theme="dark"] .ws-order__deliver { background: rgba(184,132,74,0.1); border-color: rgba(184,132,74,0.35); }
+[data-theme="dark"] .ws-order__deliver--admin { background: rgba(122,30,30,0.1); border-color: rgba(122,30,30,0.35); }
+[data-theme="dark"] .ws-order__deliver-file { background: #1e1e1e; border-color: #333; }
+[data-theme="dark"] .ws-order__deliver-name { color: #ddd; }
+[data-theme="dark"] .ws-order__deliver-upload { background: #1e1e1e; color: #bbb; border-color: #444; }
+[data-theme="dark"] .ws-order__deliver-key-input { background: #2a2a2a; color: #ddd; border-color: #444; }
+[data-theme="dark"] .ws-order__deliver-hint { background: rgba(255,255,255,0.05); color: #999; }
 
 /* ── 订单卡里的参考图 ── */
 .ws-order__images {
@@ -7861,6 +7922,12 @@ function renderWorkshop() {
   renderOrderSection('wsCompleted', completed, false, true);
 }
 
+// ── 接单成品交付：admin 上传成品 → 客户付款后下载（前端壳，渲染逻辑后续补） ──
+function renderOrderDeliverables(o, admin) {
+  // TODO: 完整渲染待补；目前 worker 端已就绪，但客户/admin UI 还在编排
+  return '';
+}
+
 function renderOrderSection(prefix, orders, isQueue, isCompleted) {
   const section = document.getElementById(prefix + 'Section');
   const list = document.getElementById(prefix + 'List');
@@ -8038,6 +8105,7 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
             <button class="ws-order__audio-dl" type="button" data-dl-url="${escAttr(src)}" data-dl-name="${escAttr(dlName)}" onclick="downloadOrderFile(this)" title="下载到本地">⬇ 下载</button>
           </div>`;
         }).join('')}</div>` : ''}
+        ${renderOrderDeliverables(o, admin)}
         ${progressHtml}
         <div class="ws-order__foot">
           <span class="ws-order__date">${dateStr}</span>

@@ -585,6 +585,33 @@ function sanitizeOrderAudios(audios) {
   return out;
 }
 
+// Whitelist order deliverables: 接单成品交付文件白名单
+//   仅新格式：{ name, type, size, key, url, uploadedAt, lastDownloadAt }
+//   admin 上传后写入；客户付款后可下载；不限格式/不限次数，单文件 ≤ 200MB
+const MAX_ORDER_DELIVERABLES = 8;
+function sanitizeOrderDeliverables(arr) {
+  if (!Array.isArray(arr)) return [];
+  const out = [];
+  for (const a of arr) {
+    if (!a || typeof a !== 'object') continue;
+    const key = typeof a.key === 'string' ? a.key : '';
+    if (!key || key.length > 300 || !/^orders\/[a-zA-Z0-9_\-./]+$/.test(key)) continue;
+    const url = typeof a.url === 'string' && a.url.length <= 500 ? a.url : '';
+    const name = sanitizeStr(a.name, 200) || 'deliverable';
+    const type = sanitizeStr(a.type, 100) || 'application/octet-stream';
+    let size = Number(a.size);
+    if (!isFinite(size) || size < 0) size = 0;
+    if (size > 500 * 1024 * 1024) size = 500 * 1024 * 1024;
+    let uploadedAt = Number(a.uploadedAt);
+    if (!isFinite(uploadedAt) || uploadedAt <= 0) uploadedAt = Date.now();
+    let lastDownloadAt = Number(a.lastDownloadAt);
+    if (!isFinite(lastDownloadAt) || lastDownloadAt <= 0) lastDownloadAt = 0;
+    out.push({ name, type, size, key, url, uploadedAt, lastDownloadAt });
+    if (out.length >= MAX_ORDER_DELIVERABLES) break;
+  }
+  return out;
+}
+
 // data URL → bytes（Worker 端解 base64）
 function dataUrlToBytes(dataUrl) {
   const m = /^data:([^;,]+);base64,([\s\S]+)$/i.exec(dataUrl || '');
@@ -997,8 +1024,13 @@ async function handleRequest(request, env, ctx, cors) {
         mime = parsed.mime;
       }
 
-      if (kind !== 'image' && kind !== 'audio') return json({ error: 'Invalid kind' }, 400, cors);
+      if (kind !== 'image' && kind !== 'audio' && kind !== 'deliverable') return json({ error: 'Invalid kind' }, 400, cors);
       if (!visitorId) return json({ error: 'visitorId required' }, 400, cors);
+
+      // deliverable 必须 admin
+      if (kind === 'deliverable') {
+        if (!(await isAdminOrSub(request, env))) return json({ error: 'Unauthorized' }, 401, cors);
+      }
 
       // Rate limit: 单 visitor 每 60s 最多 12 次上传
       const rlKey = 'ratelimit/upload/' + visitorId;
@@ -1009,17 +1041,24 @@ async function handleRequest(request, env, ctx, cors) {
       if (kind === 'image') {
         if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(mime)) return json({ error: 'Invalid image type' }, 400, cors);
         if (bytes.length > 2 * 1024 * 1024) return json({ error: 'Image too large' }, 413, cors); // 2MB
-      } else {
+      } else if (kind === 'audio') {
         if (!/^audio\/[a-z0-9.+-]+$/i.test(mime)) return json({ error: 'Invalid audio type' }, 400, cors);
         if (bytes.length > 15 * 1024 * 1024) return json({ error: 'Audio too large' }, 413, cors); // 15MB
+      } else {
+        // deliverable: 不限 MIME（音频/zip/工程文件等），单文件 ≤ 80MB（给 Worker payload 100MB 留 20MB 缓冲）
+        if (bytes.length > 80 * 1024 * 1024) return json({ error: 'Deliverable too large (>80MB, please use wrangler)' }, 413, cors);
+        if (!mime) mime = 'application/octet-stream';
       }
 
       // Key: orders/{visitorHash8}/{ts}_{rand}.{ext}
+      // deliverable 走 orders/{visitorHash8}/deliver/{ts}_{rand}.{ext}，与参考音频分离
       const visHash = (await sha256Hex(visitorId)).slice(0, 8);
       const ext = mimeToExt(mime);
       const ts = Date.now();
       const rand = Math.random().toString(36).slice(2, 8);
-      const key = `orders/${visHash}/${ts}_${rand}.${ext}`;
+      const key = kind === 'deliverable'
+        ? `orders/${visHash}/deliver/${ts}_${rand}.${ext}`
+        : `orders/${visHash}/${ts}_${rand}.${ext}`;
 
       await env.R2.put(key, bytes, {
         httpMetadata: { contentType: mime },
@@ -1374,6 +1413,10 @@ async function handleRequest(request, env, ctx, cors) {
         if (body.description !== undefined) order.description = sanitizeStr(body.description, 1000);
         if (body.contact !== undefined) order.contact = sanitizeStr(body.contact, 200);
         if (body.showName !== undefined) order.showName = !!body.showName;
+        // Admin 可维护成品交付文件列表（接单做完后上传成品 → 客户付款后下载）
+        if (body.deliverables !== undefined) {
+          order.deliverables = sanitizeOrderDeliverables(body.deliverables);
+        }
         if (body.clientName !== undefined) {
           const name = sanitizeStr(body.clientName, 30);
           order.clientName = order.showName ? name : '';
@@ -3012,6 +3055,61 @@ async function handleRequest(request, env, ctx, cors) {
       const origin = new URL(request.url).origin;
       const url2 = `${origin}/files/${key}`;
       return json({ ok: true, url: url2, key, size: bytes.length, mime }, 200, cors);
+    }
+
+    // GET /api/orders/:orderId/download-deliverable?fileIdx=N&visitorId=xxx
+    //   接单订单成品交付下载：与「成品编曲售出即删」不同，此处是已付款的定制服务，客户重下合理诉求
+    //   验证：order 真实 + paid=true + deliverables[idx] 存在 + 身份匹配 (userId 优先 / visitorId 兜底)
+    //   通过后：返回文件流，记 lastDownloadAt，不删 R2，不限次数
+    //   admin 可跳过 paid + 身份校验直接下载（测试用）
+    const orderDlMatch = path.match(/^\/api\/orders\/([^/]+)\/download-deliverable$/);
+    if (orderDlMatch && method === 'GET') {
+      const orderId = orderDlMatch[1];
+      const fileIdx = Math.floor(Number(url.searchParams.get('fileIdx') || '0'));
+      const viewerVisitor = sanitizeStr(url.searchParams.get('visitorId'), 64);
+      const admin = await isAdminOrSub(request, env);
+
+      const ordersRaw = await env.BLOG.get('orders');
+      const orders = JSON.parse(ordersRaw || '[]');
+      const orderIdx = orders.findIndex(o => o.id === orderId);
+      if (orderIdx < 0) return new Response('Order not found', { status: 404 });
+      const order = orders[orderIdx];
+
+      const dvs = Array.isArray(order.deliverables) ? order.deliverables : [];
+      if (fileIdx < 0 || fileIdx >= dvs.length) return new Response('File not found', { status: 404 });
+      const dv = dvs[fileIdx];
+      if (!dv || !dv.key) return new Response('File key missing', { status: 404 });
+
+      // 非 admin 必须 paid + 身份匹配
+      if (!admin) {
+        if (!order.paid) return new Response('Order not paid', { status: 403 });
+        const viewerUser = await getCurrentUser(request, env);
+        const matchUser = !!viewerUser && !!order.userId && order.userId === viewerUser.userId;
+        const matchVisitor = !order.userId && !!viewerVisitor && order.visitorId === viewerVisitor;
+        if (!matchUser && !matchVisitor) return new Response('Forbidden', { status: 403 });
+      }
+
+      if (!env.R2) return new Response('R2 not configured', { status: 500 });
+      const obj = await env.R2.get(dv.key);
+      if (!obj) return new Response('File missing in R2', { status: 404 });
+
+      // 记 lastDownloadAt（仅客户下载时记，admin 测试下载不污染统计）
+      if (!admin) {
+        dv.lastDownloadAt = Date.now();
+        orders[orderIdx].deliverables[fileIdx] = dv;
+        await env.BLOG.put('orders', JSON.stringify(orders));
+      }
+
+      // RFC5987 文件名编码，确保中文名正常落盘
+      const rawName = (dv.name || 'deliverable').replace(/[\\/:*?"<>|\r\n]+/g, '_').slice(0, 200);
+      const headers = {
+        ...cors,
+        'Content-Type': dv.type || obj.httpMetadata?.contentType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(rawName)}"; filename*=UTF-8''${encodeURIComponent(rawName)}`,
+        'Cache-Control': 'no-store',
+      };
+      if (obj.size != null) headers['Content-Length'] = String(obj.size);
+      return new Response(obj.body, { status: 200, headers });
     }
 
     // GET /api/productions/:id/download?orderId=&visitorId= - 客户下载付费文件（独占售出 + 售出即删）
