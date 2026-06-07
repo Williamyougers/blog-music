@@ -2824,6 +2824,12 @@ aside.ws-sidebar > .ws-view-only--commission {
   margin-top: 0.3rem; font-size: 0.78rem; color: var(--gold);
   letter-spacing: 0.02em; font-style: italic;
 }
+.ws-order__claim-rejected {
+  display: inline-block; margin-right: 0.5rem; padding: 0.18rem 0.5rem;
+  font-size: 0.82rem; color: var(--accent); font-weight: 600;
+  background: rgba(194,59,34,0.08); border-left: 2px solid var(--accent); border-radius: 2px;
+}
+[data-theme="dark"] .ws-order__claim-rejected { background: rgba(194,59,34,0.18); color: #f4a08e; }
 [data-theme="dark"] .ws-order__pay--claim { background: rgba(184,132,74,0.12); border-top-color: rgba(184,132,74,0.45); }
 [data-theme="dark"] .ws-order__claim-label { color: #d4a55c; }
 [data-theme="dark"] .ws-order__claim-note { background: rgba(255,255,255,0.04); color: #bbb; }
@@ -6407,11 +6413,14 @@ async function claimPayConfirm() {
       _payClaimSubmitting = false;
       return;
     }
-    toast('✓ 已通知店主，店主核对到账后会确认你的订单');
+    toast('✓ 已通知店主，店主核对到账后约 5 秒内自动更新；如未自动刷新请按 Ctrl+F5 强制刷新', 12000);
     closePayModal();
     try {
       await Store.load();
       renderWorkshop();
+      // 立刻重渲对应商品详情页（让客户看到「⏳ 已声明已付款，等店主确认」状态）
+      try { if (typeof _currentArrDetailId !== 'undefined' && _currentArrDetailId) renderArrangementDetailBody(_currentArrDetailId); } catch (_) {}
+      try { if (typeof _currentProdDetailId !== 'undefined' && _currentProdDetailId) renderProductionDetailBody(_currentProdDetailId); } catch (_) {}
     } catch (_) {}
   } catch (e) {
     toast('网络异常：' + (e && e.message || e));
@@ -7471,6 +7480,10 @@ const CHANGELOG = [
       '🎨 成品编曲 UI 同步杂志感升级：详情页 HTML 命名从老 `.arr-detail__*` 全面迁到 `.arr-detail-view__*`，复用共享编曲那套升级版样式 — 标题大号衬线 + 已售出小标 + 金线收尾、价签暗红衬线、米白试听卡 + ▶ TRIAL 大写小字标签、立即购买 / 立即下载 / admin 测试下载三态分色（暗红 / 墨绿 / 金棕）、交易记录块改用 owned-hint data-tone="ok" 金线高亮；同步清掉废弃的 .prod-buyer-info / .prod-warn / .arr-detail__* 老 CSS 100+ 行，命名彻底归一',
       '🔁 商品订单「✓ 确认收款 / ✗ 驳回声明」按钮迁出排单页 — 共享编曲 / 成品类订单的客户付款声明，admin 不再在「排单」里看到按钮（改显示 ⏳ 客户声明已付款 ¥X + 「→ 前往 🎼 共享编曲 / 💎 成品」跳转按钮），改在对应商品详情页底部新增「⏳ 待确认收款 (N)」专区聚合展示 — 每条卡片显示金额 / 买家 / 时间 / 备注 + 「✓ 确认收款」「✗ 驳回声明」按钮，主管理员看着商品本身就能直接处理收款，省去「排单 ↔ 商品」来回切换；接单类（commission）订单仍保留原排单页按钮不动',
       '🔄 共享编曲到账推送改造为「无门槛轮询」— 原 `_checkArrangementOrderPayments` 要求 `UserStore.user` 必须存在才执行，访客客户（仅 visitorId 模式）刚完成付款回来仍要手动 F5 才看到下载按钮；本次去掉登录门槛 + 让 `openArrangementDetail` 进详情就立刻 Store.load + check 一次，配合已有的 15s 轮询，无论访客 / 登录用户付完款回来基本都能秒看到「⬇️ 下载付费文件」按钮自动出现',
+      '⏱ 商品订单到账轮询提速 15s → 5s，且改造为「全员开 polling」：admin / 登录用户 / 访客客户都启动（admin 顺便检测新出现的客户「我已付款」声明，弹 toast + 自动重渲对应商品详情页的「⏳ 待确认收款」专区；客户自己也跟踪订单 sig 变化，店主一确认 5s 内自动重渲详情页弹出下载按钮）',
+      '✅ 客户「我已付款」按钮：点完立即重渲商品详情页改显示「⏳ 已声明已付款 ¥X，等店主确认」金线提示块（不再让客户对着「💰 待付款 · 继续付款」按钮怀疑没生效），并 toast「店主核对到账后约 5 秒内自动更新，如未自动刷新请按 Ctrl+F5 强制刷新」明示兜底刷新方式',
+      '❌ 客户付款被店主驳回有明确反馈：worker 端 admin 驳回时写 `claimRejectedAt` 时间戳（客户再次声明时清零），客户端共享编曲 / 成品详情页和排单页订单卡片在驳回态下都显示「❌ 你上次的付款声明已被店主驳回，请重新付款」红条 + 「💳 重新付款 ¥X」按钮，付完款再点「✓ 我已付款」走完整流程',
+      '🐛 修复商品详情页 admin 按钮 `Uncaught SyntaxError: Unexpected end of input` — 全局排查发现 11 处 `onclick="xxx(${JSON.stringify(id)})"` 在 HTML 属性双引号内嵌 JSON.stringify 产生的双引号，导致 onclick 被提前闭合后续 JS 全废；统一改为 `onclick="xxx(\'${id}\')"` 单引号包字符串字面量（id 都是安全短串无注入风险），「✓ 确认收款」「✗ 驳回声明」「💰 立即购买」「💳 待付款」「⬇️ 立即下载」「🔄 跳转」等全部恢复',
     ],
   },
   {
@@ -8467,8 +8480,8 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
         const isArr = !!o.arrangementId;
         const targetLabel = isArr ? '🎼 共享编曲' : '💎 成品';
         const jumpFn = isArr
-          ? `setWsView('arrangements');setTimeout(function(){openArrangementDetail(${JSON.stringify(o.arrangementId)});}, 60);`
-          : `setWsView('productions');setTimeout(function(){openProductionDetail(${JSON.stringify(o.productionId)});}, 60);`;
+          ? `setWsView('arrangements');setTimeout(function(){openArrangementDetail('${o.arrangementId}');}, 60);`
+          : `setWsView('productions');setTimeout(function(){openProductionDetail('${o.productionId}');}, 60);`;
         payHtml = `<div class="ws-order__pay ws-order__pay--claim"><div class="ws-order__claim-info"><span class="ws-order__claim-label">⏳ 客户声明已付款 ¥${claimAmt}</span><span class="ws-order__claim-time">${claimTime ? ' · ' + claimTime : ''}</span>${noteHtml}<div class="ws-order__claim-hint">→ 请到「${targetLabel}」页对该商品确认收款</div></div><div class="ws-order__claim-actions"><button class="btn btn--ghost btn--sm" onclick="${jumpFn}">前往 ${targetLabel} →</button></div></div>`;
       } else {
         payHtml = `<div class="ws-order__pay ws-order__pay--claim"><div class="ws-order__claim-info"><span class="ws-order__claim-label">⏳ 客户声明已付款 ¥${claimAmt}</span><span class="ws-order__claim-time">${claimTime ? ' · ' + claimTime : ''}</span>${noteHtml}</div><div class="ws-order__claim-actions"><button class="btn btn--primary btn--sm" onclick="adminConfirmClaim('${o.id}')">✓ 确认收款 ¥${claimAmt}</button><button class="btn btn--ghost btn--sm" style="color:var(--accent);" onclick="adminRejectClaim('${o.id}')">✗ 驳回声明</button></div></div>`;
@@ -8481,9 +8494,16 @@ function renderOrderSection(prefix, orders, isQueue, isCompleted) {
       // 其它访客：只显示中性"待确认"
       payHtml = `<div class="ws-order__pay"><span style="color:var(--gray-500); font-size:0.83rem;">⏳ 待确认收款</span></div>`;
     } else if (canPayBtn) {
-      payHtml = `<div class="ws-order__pay"><button class="ws-order__pay-btn" onclick="openPayModal('${o.id}')">💰 立即支付 ¥${o.price}</button><span class="ws-order__pay-hint">扫码付款 · 安全到账</span></div>`;
+      const rejected = !!o.claimRejectedAt;
+      const rejectHint = rejected ? `<span class="ws-order__claim-rejected">❌ 你上次的付款声明已被店主驳回，请重新付款</span>` : '';
+      const btnLabel = rejected ? `💳 重新付款 ¥${o.price}` : `💰 立即支付 ¥${o.price}`;
+      const tipText = rejected ? '付款后请再次点击「✓ 我已付款」' : '扫码付款 · 安全到账';
+      payHtml = `<div class="ws-order__pay">${rejectHint}<button class="ws-order__pay-btn" onclick="openPayModal('${o.id}')">${btnLabel}</button><span class="ws-order__pay-hint">${tipText}</span></div>`;
     } else if (canPayCustom) {
-      payHtml = `<div class="ws-order__pay"><span class="ws-order__pay-custom-label">起步价 ¥${o.price}，自定金额：</span><span class="ws-order__pay-custom"><input type="number" class="ws-order__pay-custom-input" id="payAmount_${o.id}" min="${o.price}" max="50000" step="1" placeholder="≥${o.price}" value="${o.price}"><button class="ws-order__pay-btn" onclick="payCustomAmount('${o.id}', ${o.price})">💰 生成支付</button></span><span class="ws-order__pay-hint">扫码付款 · 金额可大于起步价</span></div>`;
+      const rejected = !!o.claimRejectedAt;
+      const rejectHint = rejected ? `<span class="ws-order__claim-rejected">❌ 你上次的付款声明已被店主驳回，请重新付款</span>` : '';
+      const btnLabel = rejected ? '💳 重新付款' : '💰 生成支付';
+      payHtml = `<div class="ws-order__pay">${rejectHint}<span class="ws-order__pay-custom-label">起步价 ¥${o.price}，自定金额：</span><span class="ws-order__pay-custom"><input type="number" class="ws-order__pay-custom-input" id="payAmount_${o.id}" min="${o.price}" max="50000" step="1" placeholder="≥${o.price}" value="${o.price}"><button class="ws-order__pay-btn" onclick="payCustomAmount('${o.id}', ${o.price})">${btnLabel}</button></span><span class="ws-order__pay-hint">${rejected ? '付款后请再次点「✓ 我已付款」' : '扫码付款 · 金额可大于起步价'}</span></div>`;
     } else if (adminMarkBtn) {
       payHtml = `<div class="ws-order__pay"><span style="color:var(--gray-500); font-size:0.83rem;">💳 未付款</span><button class="btn btn--ghost btn--sm" onclick="adminTogglePaid('${o.id}', true)" style="margin-left:auto;">✓ 标记已付（线下）</button></div>`;
     }
@@ -10042,12 +10062,20 @@ function _getMyArrangementOwnership(arrId) {
     }
   }
   if (bestPaid) {
-    return { owned: true, paid: true, downloaded: !!bestPaid.downloadedAt, orderId: bestPaid.id };
+    return { owned: true, paid: true, downloaded: !!bestPaid.downloadedAt, orderId: bestPaid.id, claimedAt: 0, claimedAmount: 0, claimRejectedAt: 0 };
   }
   if (bestUnpaid) {
-    return { owned: true, paid: false, downloaded: false, orderId: bestUnpaid.id };
+    return {
+      owned: true,
+      paid: false,
+      downloaded: false,
+      orderId: bestUnpaid.id,
+      claimedAt: bestUnpaid.claimedAt || 0,
+      claimedAmount: bestUnpaid.claimedAmount || 0,
+      claimRejectedAt: bestUnpaid.claimRejectedAt || 0,
+    };
   }
-  return { owned: false, paid: false, downloaded: false, orderId: null };
+  return { owned: false, paid: false, downloaded: false, orderId: null, claimedAt: 0, claimedAmount: 0, claimRejectedAt: 0 };
 }
 
 // 抽工具：在商品详情页底部渲染 admin 视角下"等待确认收款"的订单卡片
@@ -10075,8 +10103,8 @@ function _renderAdminPendingClaimsHTML(filterFn) {
       </div>
       ${note}
       <div class="arr-detail-view__claim-actions">
-        <button class="arr-detail-view__claim-confirm" onclick="adminConfirmClaim(${JSON.stringify(o.id)})">✓ 确认收款 ¥${amt}</button>
-        <button class="arr-detail-view__claim-reject" onclick="adminRejectClaim(${JSON.stringify(o.id)})">✗ 驳回声明</button>
+        <button class="arr-detail-view__claim-confirm" onclick="adminConfirmClaim('${o.id}')">✓ 确认收款 ¥${amt}</button>
+        <button class="arr-detail-view__claim-reject" onclick="adminRejectClaim('${o.id}')">✗ 驳回声明</button>
       </div>
     </div>`;
   }).join('');
@@ -10126,10 +10154,24 @@ function renderArrangementDetailBody(arrId) {
       <div class="arr-detail-view__owned-hint" data-tone="ok">✓ 已下载（每订单仅 1 次）</div>
     </div>`;
   } else if (ownership.owned && !ownership.paid) {
-    actionsHTML = `<div class="arr-detail-view__actions">
-      <button class="arr-detail-view__buy-btn" onclick="openPayModal('${escAttr(ownership.orderId)}')">💰 待付款 ¥${Number(a.price || 0)} · 继续付款</button>
-      <span class="arr-detail-view__owned-hint">付款后主管理员确认到账，下载按钮会自动出现</span>
-    </div>`;
+    if (ownership.claimedAt) {
+      // 客户已声明"我已付款"，等店主确认
+      const claimedAmt = ownership.claimedAmount || Number(a.price || 0);
+      actionsHTML = `<div class="arr-detail-view__actions">
+        <div class="arr-detail-view__owned-hint" data-tone="ok">⏳ 已声明已付款 ¥${claimedAmt}，等店主确认<br><span style="opacity:.75;font-size:.85em;">店主确认后约 5 秒内自动更新；如未自动刷新请按 <kbd>Ctrl</kbd>+<kbd>F5</kbd> 强制刷新</span></div>
+      </div>`;
+    } else if (ownership.claimRejectedAt) {
+      // 客户上次声明被店主驳回，需要重新付款
+      actionsHTML = `<div class="arr-detail-view__actions">
+        <div class="arr-detail-view__owned-hint" data-tone="warn">❌ 你上次的付款声明已被店主驳回，请重新付款后点「✓ 我已付款」</div>
+        <button class="arr-detail-view__buy-btn" onclick="openPayModal('${escAttr(ownership.orderId)}')">💳 重新付款 ¥${Number(a.price || 0)}</button>
+      </div>`;
+    } else {
+      actionsHTML = `<div class="arr-detail-view__actions">
+        <button class="arr-detail-view__buy-btn" onclick="openPayModal('${escAttr(ownership.orderId)}')">💰 待付款 ¥${Number(a.price || 0)} · 继续付款</button>
+        <span class="arr-detail-view__owned-hint">付款后主管理员确认到账，下载按钮会自动出现</span>
+      </div>`;
+    }
   } else if (hasPaid) {
     actionsHTML = `<div class="arr-detail-view__actions">
       <button class="arr-detail-view__buy-btn" onclick="buyArrangement('${escAttr(a.id)}')">💰 立即购买 ¥${Number(a.price || 0)}</button>
@@ -10413,12 +10455,81 @@ async function _checkArrangementOrderPayments() {
   if (newlyPaid.length > 0 && _currentArrDetailId) {
     renderArrangementDetailBody(_currentArrDetailId);
   }
+  // admin 视角：顺便检测新出现的"客户已声明付款"声明，弹 toast 提醒去确认
+  try { _checkAdminPendingClaims(); } catch (_) {}
+  // 客户视角：如果当前详情页的我方订单状态发生变化（claimedAt / claimRejectedAt），也要重渲
+  if (_currentArrDetailId) {
+    try {
+      const own = _getMyArrangementOwnership(_currentArrDetailId);
+      const sig = own.paid + '|' + (own.claimedAt || 0) + '|' + (own.claimRejectedAt || 0);
+      if (_arrLastOwnSig.get(String(_currentArrDetailId)) !== sig) {
+        _arrLastOwnSig.set(String(_currentArrDetailId), sig);
+        renderArrangementDetailBody(_currentArrDetailId);
+      }
+    } catch (_) {}
+  }
 }
+
+// admin 视角：检测新出现的「客户已声明已付款」商品类订单 → toast 提醒去确认 + 重渲商品详情页 + 排单页
+let _adminSeenClaimedOrderIds = null;
+function _checkAdminPendingClaims() {
+  if (typeof isAdmin !== 'function' || !isAdmin()) return;
+  const orders = Array.isArray(Store.orders) ? Store.orders : [];
+  if (_adminSeenClaimedOrderIds === null) {
+    // 首次种子：先把已存在的都标记 seen，避免开页就弹一堆历史 toast
+    _adminSeenClaimedOrderIds = new Set(
+      orders.filter(o => (o.arrangementId || o.productionId) && o.claimedAt && !o.paid).map(o => String(o.id))
+    );
+    return;
+  }
+  const newly = [];
+  orders.forEach(o => {
+    if (!(o.arrangementId || o.productionId)) return;
+    if (!o.claimedAt || o.paid) return;
+    if (_adminSeenClaimedOrderIds.has(String(o.id))) return;
+    _adminSeenClaimedOrderIds.add(String(o.id));
+    newly.push(o);
+  });
+  // 清理已 paid / 已驳回的，避免 set 无限增长
+  orders.forEach(o => {
+    if ((o.paid || !o.claimedAt) && _adminSeenClaimedOrderIds.has(String(o.id))) {
+      _adminSeenClaimedOrderIds.delete(String(o.id));
+    }
+  });
+  if (!newly.length) return;
+  newly.forEach(o => {
+    const amt = o.claimedAmount || o.price || 0;
+    const title = o.arrangementTitle || o.productionTitle || '商品';
+    const isArr = !!o.arrangementId;
+    toast(`⏳ 客户声明已付款 ¥${amt}《${title}》— 点此前往确认`, {
+      duration: 12000,
+      onClick: () => {
+        try {
+          if (isArr) {
+            setWsView('arrangements');
+            setTimeout(() => { try { openArrangementDetail(o.arrangementId); } catch (_) {} }, 60);
+          } else {
+            setWsView('productions');
+            setTimeout(() => { try { openProductionDetail(o.productionId); } catch (_) {} }, 60);
+          }
+        } catch (_) {}
+      },
+    });
+  });
+  // 主动刷新所有受影响视图
+  try { renderWorkshop(); } catch (_) {}
+  try { if (typeof _currentArrDetailId !== 'undefined' && _currentArrDetailId) renderArrangementDetailBody(_currentArrDetailId); } catch (_) {}
+  try { if (typeof _currentProdDetailId !== 'undefined' && _currentProdDetailId) renderProductionDetailBody(_currentProdDetailId); } catch (_) {}
+}
+
+// 客户视角：跟踪我方订单关键状态变化（用于详情页 claimedAt / claimRejectedAt 自动重渲）
+let _arrLastOwnSig = new Map();
+let _prodLastOwnSig = new Map();
 
 function startArrangementOrderPolling() {
   if (_arrPollTimer) return;
   _seedArrLastPaidOrderIds();
-  _arrPollTimer = setInterval(_checkArrangementOrderPayments, 15000);
+  _arrPollTimer = setInterval(_checkArrangementOrderPayments, 5000);
 }
 
 function stopArrangementOrderPolling() {
@@ -10471,7 +10582,7 @@ function renderProductions() {
     const sizeHtml = p.paidSize ? '<span class="arr-card__size">📦 ' + _fmtProdSize(p.paidSize) + '</span>' : '';
     const soldCls = p.sold ? (p.fileDeletedAt ? ' arr-card--sold arr-card--delivered' : ' arr-card--sold') : '';
     return `
-      <article class="arr-card${soldCls}" onclick="openProductionDetail(${JSON.stringify(p.id)})">
+      <article class="arr-card${soldCls}" onclick="openProductionDetail('${p.id}')">
         <div class="arr-card__head">
           <h3 class="arr-card__title">${escapeHTML(p.title || '未命名')}</h3>
           <div class="arr-card__price">¥${p.price || 0}</div>
@@ -10498,15 +10609,23 @@ function _getMyProductionOwnership(prodId) {
     return false;
   };
   const myOrders = orders.filter(o => o.productionId === prodId && isMine(o));
-  if (!myOrders.length) return { owned: false };
+  if (!myOrders.length) return { owned: false, paid: false, claimedAt: 0, claimedAmount: 0, claimRejectedAt: 0 };
   // 优先返回已付款的（应该只有 1 个）
   const paid = myOrders.find(o => o.paid);
   if (paid) {
-    return { owned: true, paid: true, downloaded: !!paid.downloadedAt, orderId: paid.id };
+    return { owned: true, paid: true, downloaded: !!paid.downloadedAt, orderId: paid.id, claimedAt: 0, claimedAmount: 0, claimRejectedAt: 0 };
   }
   // 否则返回最新一个未付款订单（让"待付款继续付"按钮指向最近订单）
   const unpaid = myOrders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
-  return { owned: true, paid: false, downloaded: false, orderId: unpaid.id };
+  return {
+    owned: true,
+    paid: false,
+    downloaded: false,
+    orderId: unpaid.id,
+    claimedAt: unpaid.claimedAt || 0,
+    claimedAmount: unpaid.claimedAmount || 0,
+    claimRejectedAt: unpaid.claimRejectedAt || 0,
+  };
 }
 
 function renderProductionDetailBody(prodId) {
@@ -10537,7 +10656,7 @@ function renderProductionDetailBody(prodId) {
           </div>`
         : '<div class="arr-detail-view__owned-hint">该成品已售出（无买家信息）</div>';
       const adminTestBtn = (p.hasPaidFile && !p.fileDeletedAt)
-        ? `<button class="arr-detail-view__download-btn arr-detail-view__download-btn--admin" onclick="downloadProduction(${JSON.stringify(p.id)}, '')">⬇️ admin 测试下载（不删文件）</button>`
+        ? `<button class="arr-detail-view__download-btn arr-detail-view__download-btn--admin" onclick="downloadProduction('${p.id}', '')">⬇️ admin 测试下载（不删文件）</button>`
         : '';
       actionsHtml = buyerLine + (adminTestBtn ? '<div class="arr-detail-view__actions">' + adminTestBtn + '</div>' : '');
     } else {
@@ -10547,29 +10666,41 @@ function renderProductionDetailBody(prodId) {
     actionsHtml = `
       <div class="arr-detail-view__owned-hint" data-tone="warn">⚠️ 成品文件仅可下载 1 次。请确保网络稳定后再点击下载，下载完成后文件将立即从云端删除。</div>
       <div class="arr-detail-view__actions">
-        <button class="arr-detail-view__download-btn" onclick="downloadProduction(${JSON.stringify(p.id)}, ${JSON.stringify(own.orderId)})">⬇️ 立即下载（仅一次机会）</button>
+        <button class="arr-detail-view__download-btn" onclick="downloadProduction('${p.id}', '${own.orderId}')">⬇️ 立即下载（仅一次机会）</button>
       </div>`;
   } else if (own.owned && own.paid && own.downloaded) {
     actionsHtml = '<div class="arr-detail-view__owned-hint" data-tone="ok">✓ 你已下载过该成品，文件已从云端删除。如有问题请联系 admin。</div>';
   } else if (own.owned && !own.paid) {
-    actionsHtml = `<div class="arr-detail-view__actions">
-      <button class="arr-detail-view__buy-btn" onclick="openPayModal(${JSON.stringify(own.orderId)})">💳 待付款 ¥${p.price || 0} · 继续付款</button>
-    </div>
-    <div class="arr-detail-view__owned-hint">付款后主管理员确认到账，下载按钮会自动出现</div>`;
-  } else {
-    if (!isLoggedIn) {
-      actionsHtml = `<div class="arr-detail-view__actions">
-        <button class="arr-detail-view__buy-btn" onclick="buyProduction(${JSON.stringify(p.id)})">🔒 登录后购买 · ¥${p.price || 0}</button>
+    if (own.claimedAt) {
+      // 客户已声明"我已付款"，等店主确认
+      const claimedAmt = own.claimedAmount || (p.price || 0);
+      actionsHtml = `<div class="arr-detail-view__owned-hint" data-tone="ok">⏳ 已声明已付款 ¥${claimedAmt}，等店主确认<br><span style="opacity:.75;font-size:.85em;">店主确认后约 5 秒内自动更新；如未自动刷新请按 <kbd>Ctrl</kbd>+<kbd>F5</kbd> 强制刷新</span></div>`;
+    } else if (own.claimRejectedAt) {
+      // 客户上次声明被店主驳回，需要重新付款
+      actionsHtml = `<div class="arr-detail-view__owned-hint" data-tone="warn">❌ 你上次的付款声明已被店主驳回，请重新付款后点「✓ 我已付款」</div>
+      <div class="arr-detail-view__actions">
+        <button class="arr-detail-view__buy-btn" onclick="openPayModal('${own.orderId}')">💳 重新付款 ¥${p.price || 0}</button>
       </div>`;
     } else {
       actionsHtml = `<div class="arr-detail-view__actions">
-        <button class="arr-detail-view__buy-btn" onclick="buyProduction(${JSON.stringify(p.id)})">💰 立即购买（独占售出） · ¥${p.price || 0}</button>
+        <button class="arr-detail-view__buy-btn" onclick="openPayModal('${own.orderId}')">💳 待付款 ¥${p.price || 0} · 继续付款</button>
+      </div>
+      <div class="arr-detail-view__owned-hint">付款后主管理员确认到账，下载按钮会自动出现</div>`;
+    }
+  } else {
+    if (!isLoggedIn) {
+      actionsHtml = `<div class="arr-detail-view__actions">
+        <button class="arr-detail-view__buy-btn" onclick="buyProduction('${p.id}')">🔒 登录后购买 · ¥${p.price || 0}</button>
+      </div>`;
+    } else {
+      actionsHtml = `<div class="arr-detail-view__actions">
+        <button class="arr-detail-view__buy-btn" onclick="buyProduction('${p.id}')">💰 立即购买（独占售出） · ¥${p.price || 0}</button>
       </div>`;
     }
     if (isSuper) {
       actionsHtml += `<div class="arr-detail-view__actions" style="margin-top:0.6rem;">
-        <button class="btn btn--ghost btn--sm" onclick="openProductionEditor(${JSON.stringify(p.id)})">✎ 编辑</button>
-        ${p.hasPaidFile ? `<button class="arr-detail-view__download-btn arr-detail-view__download-btn--admin" onclick="downloadProduction(${JSON.stringify(p.id)}, '')">⬇️ admin 测试下载（不删文件）</button>` : ''}
+        <button class="btn btn--ghost btn--sm" onclick="openProductionEditor('${p.id}')">✎ 编辑</button>
+        ${p.hasPaidFile ? `<button class="arr-detail-view__download-btn arr-detail-view__download-btn--admin" onclick="downloadProduction('${p.id}', '')">⬇️ admin 测试下载（不删文件）</button>` : ''}
       </div>`;
     }
   }
@@ -10829,12 +10960,25 @@ async function _checkProductionOrderPayments() {
         onClick: () => downloadProduction(o.productionId, o.id),
       });
     }
+    // admin 视角：顺便检测新出现的"客户已声明付款"声明（共享 _adminSeenClaimedOrderIds 去重）
+    try { _checkAdminPendingClaims(); } catch (_) {}
+    // 客户视角：当前 production 详情页的我方订单状态变化 → 自动重渲
+    if (_currentProdDetailId) {
+      try {
+        const own = _getMyProductionOwnership(_currentProdDetailId);
+        const sig = own.paid + '|' + (own.claimedAt || 0) + '|' + (own.claimRejectedAt || 0);
+        if (_prodLastOwnSig.get(String(_currentProdDetailId)) !== sig) {
+          _prodLastOwnSig.set(String(_currentProdDetailId), sig);
+          renderProductionDetailBody(_currentProdDetailId);
+        }
+      } catch (_) {}
+    }
   } catch (e) {}
 }
 function startProductionOrderPolling() {
   if (_prodPollTimer) return;
   _seedProdLastPaidOrderIds();
-  _prodPollTimer = setInterval(_checkProductionOrderPayments, 15000);
+  _prodPollTimer = setInterval(_checkProductionOrderPayments, 5000);
 }
 function stopProductionOrderPolling() {
   if (_prodPollTimer) { clearInterval(_prodPollTimer); _prodPollTimer = null; }
@@ -11168,15 +11312,13 @@ function applyRoleSideEffects() {
     try { if (typeof stopAdminHeartbeat === 'function') stopAdminHeartbeat(); } catch (_) {}
   }
 
-  // 🎼 共享编曲：登录后启动到账轮询；登出关闭
-  const loggedIn = (typeof UserStore !== 'undefined' && UserStore && !!UserStore.token);
-  if (loggedIn) {
-    try { if (typeof startArrangementOrderPolling === 'function') startArrangementOrderPolling(); } catch (_) {}
-    try { if (typeof startProductionOrderPolling === 'function') startProductionOrderPolling(); } catch (_) {}
-  } else {
-    try { if (typeof stopArrangementOrderPolling === 'function') stopArrangementOrderPolling(); } catch (_) {}
-    try { if (typeof stopProductionOrderPolling === 'function') stopProductionOrderPolling(); } catch (_) {}
-  }
+  // 🎼 共享编曲 + 💎 成品：到账轮询。
+  // - admin 必须启动（接收新付款声明 + 自动重渲商品详情页）
+  // - 登录用户必须启动（接收已付款 toast）
+  // - 访客客户也启动（按 visitorId 拉自己订单，付款被确认后 5s 内弹 toast）
+  // 关闭路径几乎不走（无角色变化时 polling 一直开着；管理员退出后通过 isAdmin 检测会自然停用 admin 部分逻辑）
+  try { if (typeof startArrangementOrderPolling === 'function') startArrangementOrderPolling(); } catch (_) {}
+  try { if (typeof startProductionOrderPolling === 'function') startProductionOrderPolling(); } catch (_) {}
 
   // 角色切换 → 重拉数据（admin 拿未脱敏 contact / 完整 orders；普通用户拿脱敏版）
   if (prevRole !== '__init__' && prevRole !== currentRole) {
@@ -12670,6 +12812,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   if (typeof UserStore !== 'undefined' && UserStore && UserStore.token) {
     if (typeof startProductionOrderPolling === 'function') startProductionOrderPolling();
+  }
+  // 访客客户（无 token，按 visitorId 关联订单）也需要轮询：付款确认后 5s 内能弹 toast
+  if (!(typeof UserStore !== 'undefined' && UserStore && UserStore.token)) {
+    try { if (typeof startArrangementOrderPolling === 'function') startArrangementOrderPolling(); } catch (_) {}
+    try { if (typeof startProductionOrderPolling === 'function') startProductionOrderPolling(); } catch (_) {}
   }
   // 启动后激活美化层
   setupUiEnhancements();

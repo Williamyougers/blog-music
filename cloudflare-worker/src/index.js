@@ -1335,6 +1335,7 @@ async function handleRequest(request, env, ctx, cors) {
         claimedAt: null,     // 客户声明"我已付款"的时间戳
         claimedAmount: 0,    // 客户声明的付款金额（元）
         claimNote: '',       // 客户备注（可选，如"已用花呗付，备注 #007"）
+        claimRejectedAt: 0,  // admin 驳回客户声明的时间戳（>0 时客户端显示"❌ 付款已被驳回，请重新付款"，客户再次声明时清零）
         // ── 共享编曲订单（2026-06-07 加） ──
         arrangementId,                 // 关联 arrangements.id（非共享编曲订单为空串）
         arrangementTitle,              // 下单瞬时快照标题（即使作品被删/改名也保留）
@@ -1444,6 +1445,7 @@ async function handleRequest(request, env, ctx, cors) {
             order.claimedAt = null;
             order.claimedAmount = 0;
             order.claimNote = '';
+            order.claimRejectedAt = 0;
             // ── 成品编曲：admin 确认收款时锁定 production（独占售出）──
             // 由于 PUT /api/orders 此处无法 await 二次 KV write（已在最外层 write orders），
             // 这里同步读 productions、改字段、写回 KV；如果 production 已被并发锁定则报错回滚 paid 状态
@@ -1499,11 +1501,12 @@ async function handleRequest(request, env, ctx, cors) {
             }
           }
         }
-        // Admin 可单独驳回客户的"已付款声明"（清除 claim 字段，不动 paid 状态）
+        // Admin 可单独驳回客户的"已付款声明"（清除 claim 字段，不动 paid 状态；标记 claimRejectedAt 让客户端看到"已被驳回"）
         if (body.rejectClaim === true && order.claimedAt) {
           order.claimedAt = null;
           order.claimedAmount = 0;
           order.claimNote = '';
+          order.claimRejectedAt = Date.now();
         }
       }
 
@@ -1610,6 +1613,7 @@ async function handleRequest(request, env, ctx, cors) {
       order.claimedAt = Date.now();
       order.claimedAmount = amount;
       order.claimNote = sanitizeStr(body && body.note, 100);
+      order.claimRejectedAt = 0; // 客户重新声明 → 清掉历史驳回标记
 
       await env.BLOG.put('orders', JSON.stringify(orders));
       if (typeof ctx !== 'undefined' && ctx.waitUntil) {
