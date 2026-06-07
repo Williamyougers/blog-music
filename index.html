@@ -6708,8 +6708,9 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-07',
-    title: '笔记加点赞 + 阅读量',
+    title: '笔记加点赞 + 阅读量（含列表实时同步）',
     items: [
+      '🔄 详情页点赞 / 阅读后回到列表，卡片上的「👁 ♥」数字会实时同步刷新；关闭详情时还会异步拉一次全列表 stats，捕获别人同时段的点赞 / 阅读',
       '♥ 每篇笔记加点赞功能：详情页标题下方加胶囊状「♥ 喜欢」按钮，可点击 toggle（已点变暗红填充 + 弹跳动画），同一访客 / 笔记仅算一次；点完列表卡片上的数字也会同步更新',
       '👁 每篇笔记加阅读量：列表卡片右下角显示「👁 N」，详情页标题下方显示「👁 N 阅读」；同一访客同一天进同一篇笔记仅计 1 次，避免刷量；按北京时区 0 点重置',
       '🛠 后端新增 3 个 API：`GET /api/notes/stats?ids=&visitorId=` 批量取 stats（一次性渲染列表，附带「我点过哪些」） / `POST /api/notes/:id/like` toggle 点赞 / `POST /api/notes/:id/view` 上报阅读；KV 用聚合 JSON 存 likes/views，单点的 KV key 存「我点过」标记 + TTL 86400 防重复阅读',
@@ -8934,6 +8935,8 @@ function openLogDetail(id) {
   Store.reportNoteView(log.id).then(() => {
     const row = document.getElementById('logDetailStatsRow');
     if (row) row.innerHTML = renderNoteStatsRow(log.id);
+    // 同步刷新列表卡片，回到列表时数字是新的
+    syncLogCardStats(log.id);
   });
 
   // 切换视图：隐藏列表 + 分组栏，显示详情；滚动到笔记页顶
@@ -8949,6 +8952,7 @@ function openLogDetail(id) {
 }
 
 function closeLogDetail() {
+  const closingId = _currentDetailLogId;
   _currentDetailLogId = null;
   const view = document.getElementById('logDetailView');
   const list = document.getElementById('logsList');
@@ -8956,9 +8960,28 @@ function closeLogDetail() {
   if (view) { view.style.display = 'none'; delete view.dataset.logId; }
   if (list) list.style.display = '';
   if (bar) bar.style.display = '';
+  // 兜底：回到列表前再同步一次刚才打开的笔记卡片 stats
+  if (closingId !== null && closingId !== undefined) syncLogCardStats(closingId);
+  // 异步刷新整个列表的 stats（捕获别人在同一时段的点赞/阅读）
+  if (Array.isArray(Store.logs) && Store.logs.length) {
+    Store.loadNoteStats(Store.logs.map(l => l.id)).then(() => {
+      Store.logs.forEach(l => syncLogCardStats(l.id));
+    });
+  }
 }
 
 // ── 笔记点赞 + 阅读量 UI ──
+// 同步刷新列表卡片上的 stats badge（详情页操作后回到列表能看到最新数字）
+function syncLogCardStats(logId) {
+  if (logId === undefined || logId === null) return;
+  const card = document.getElementById('log-' + logId);
+  if (!card) return;
+  const statsEl = card.querySelector('.log__stats');
+  if (!statsEl) return;
+  const st = Store.noteStats[String(logId)] || { likes: 0, views: 0 };
+  statsEl.innerHTML = `<span class="log__stat-item">👁 ${st.views || 0}</span><span class="log__stat-item">♥ ${st.likes || 0}</span>`;
+}
+
 function renderNoteStatsRow(logId) {
   const st = Store.noteStats[String(logId)] || { likes: 0, views: 0 };
   const liked = Store.myLikedNotes.has(String(logId));
@@ -8981,14 +9004,7 @@ async function toggleLikeFromDetail(logId) {
     const row = document.getElementById('logDetailStatsRow');
     if (row) row.innerHTML = renderNoteStatsRow(logId);
     // 同步刷新列表卡片上的 stats badge（如果在显示）
-    const card = document.getElementById('log-' + logId);
-    if (card) {
-      const statsEl = card.querySelector('.log__stats');
-      if (statsEl) {
-        const st = Store.noteStats[String(logId)] || { likes: 0, views: 0 };
-        statsEl.innerHTML = `<span class="log__stat-item">👁 ${st.views || 0}</span><span class="log__stat-item">♥ ${st.likes || 0}</span>`;
-      }
-    }
+    syncLogCardStats(logId);
   } catch (e) {
     toast('操作失败：' + (e.message || e));
     if (btn) btn.disabled = false;
