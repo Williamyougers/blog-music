@@ -2245,6 +2245,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   flex-direction: column;
   justify-content: center;
   gap: 0.3rem;
+  width: 100%;
   min-height: 5.4rem;
   box-sizing: border-box;
   color: var(--text);
@@ -2290,6 +2291,15 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   margin-top: 1.2rem;
   padding-top: 1rem;
   border-top: 1px solid var(--gray-200);
+}
+/* 用途菜单的外层 wrapper —— 跟 ws-sidebar 一样 flex column，
+   保证里面的 .ws-mode-btn 跟板块按钮一致地被 stretch 到同一宽度，
+   避免 button 在普通 block 流里按内容自撑导致比板块按钮宽 */
+.ws-view-only--commission.ws-sidebar > * ,
+aside.ws-sidebar > .ws-view-only--commission {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 .ws-view-btn .ws-mode-btn__hint {
   /* 已统一到 .ws-mode-btn__hint 的 line-height: 1.5；保留选择器留作未来板块按钮独有样式钩子 */
