@@ -785,6 +785,76 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 [data-theme="dark"] .note-like-btn.is-liked { color:#fff; }
 [data-theme="dark"] .note-like-btn.is-liked .note-like-btn__count { background:rgba(255,255,255,0.22); color:#fff; }
 
+/* ── 共享编曲（arrangements）── */
+.arr-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
+  gap:1.2rem; margin-top:1.4rem;
+}
+.arr-card {
+  background:#fff; border:1px solid var(--gray-300); border-radius:8px;
+  padding:1.2rem; cursor:pointer; transition:all 0.2s ease;
+  display:flex; flex-direction:column; gap:0.6rem;
+  position:relative; overflow:hidden;
+}
+.arr-card:hover { border-color:var(--accent); box-shadow:0 4px 16px rgba(0,0,0,0.08); transform:translateY(-2px); }
+.arr-card::before {
+  content:''; position:absolute; top:0; left:0; width:3px; height:100%;
+  background:linear-gradient(180deg, var(--accent), var(--gold, #c9a14b));
+  opacity:0; transition:opacity 0.2s;
+}
+.arr-card:hover::before { opacity:1; }
+.arr-card__title { font-family:var(--font-serif); font-size:1.15rem; font-weight:600; color:var(--ink); margin:0; line-height:1.4; }
+.arr-card__desc { font-size:0.85rem; color:var(--gray-700); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.arr-card__meta { display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:0.6rem; border-top:1px dashed var(--gray-300); }
+.arr-card__price { font-family:var(--font-serif); font-size:1.4rem; font-weight:700; color:var(--accent); }
+.arr-card__price small { font-size:0.7rem; color:var(--gray-600); font-weight:400; margin-left:0.2rem; }
+.arr-card__tags { display:flex; flex-wrap:wrap; gap:0.3rem; }
+.arr-card__tag { font-size:0.7rem; color:var(--gray-700); background:var(--gray-100); padding:0.15rem 0.5rem; border-radius:10px; }
+.arr-card__paidsize { font-size:0.72rem; color:var(--gray-600); }
+.arr-empty { padding:3rem 1rem; text-align:center; color:var(--gray-600); font-size:0.9rem; }
+
+.arr-detail-view { max-width:880px; margin:0 auto; padding:0 1rem 3rem; }
+.arr-detail__header { margin-top:1.2rem; padding-bottom:1.2rem; border-bottom:1px solid var(--gray-300); }
+.arr-detail__title { font-family:var(--font-serif); font-size:1.8rem; font-weight:700; color:var(--ink); margin:0 0 0.6rem; }
+.arr-detail__meta { display:flex; gap:1.2rem; flex-wrap:wrap; font-size:0.85rem; color:var(--gray-700); align-items:center; }
+.arr-detail__price { font-family:var(--font-serif); font-size:2rem; font-weight:700; color:var(--accent); }
+.arr-detail__desc { margin:1.4rem 0; line-height:1.7; color:var(--gray-800); white-space:pre-wrap; }
+.arr-detail__trial { margin:1.4rem 0; padding:1rem; background:var(--gray-100); border-radius:6px; }
+.arr-detail__trial-label { font-size:0.8rem; color:var(--gray-700); margin-bottom:0.4rem; font-weight:600; }
+.arr-detail__trial audio { width:100%; }
+.arr-detail__actions { display:flex; gap:0.8rem; margin-top:1.4rem; flex-wrap:wrap; }
+.arr-detail__buy-btn { background:var(--accent); color:#fff; border:none; padding:0.8rem 1.8rem; border-radius:6px; font-size:1rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+.arr-detail__buy-btn:hover { background:var(--accent-dark, #6b1818); transform:translateY(-1px); }
+.arr-detail__buy-btn:disabled { background:var(--gray-400); cursor:not-allowed; transform:none; }
+.arr-detail__owned-hint { padding:0.8rem 1rem; background:#fff8e1; border:1px solid #ffd54f; border-radius:6px; font-size:0.85rem; color:#8d6e00; margin-top:1rem; }
+.arr-detail__download-btn { background:#1b8c46; color:#fff; border:none; padding:0.8rem 1.8rem; border-radius:6px; font-size:1rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+.arr-detail__download-btn:hover { background:#146d36; transform:translateY(-1px); }
+
+[data-theme="dark"] .arr-card { background:#1e1e1e; border-color:#3a3a3a; }
+[data-theme="dark"] .arr-card__title { color:#eee; }
+[data-theme="dark"] .arr-card__desc { color:#aaa; }
+[data-theme="dark"] .arr-card__tag { background:#2a2a2a; color:#bbb; }
+[data-theme="dark"] .arr-detail__title { color:#eee; }
+[data-theme="dark"] .arr-detail__desc { color:#ccc; }
+[data-theme="dark"] .arr-detail__trial { background:#262626; }
+[data-theme="dark"] .arr-detail__owned-hint { background:#3d2f00; border-color:#8d6e00; color:#ffd54f; }
+
+/* 编辑器 modal（复用现有 modal 基础） */
+.arr-editor-form { display:flex; flex-direction:column; gap:0.8rem; }
+.arr-editor-form label { font-size:0.85rem; color:var(--gray-700); display:flex; flex-direction:column; gap:0.3rem; }
+.arr-editor-form input, .arr-editor-form textarea {
+  width:100%; padding:0.5rem 0.7rem; border:1px solid var(--gray-300); border-radius:4px;
+  font-family:inherit; font-size:0.9rem; box-sizing:border-box;
+}
+.arr-editor-form textarea { min-height:80px; resize:vertical; }
+.arr-editor-form__row { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
+.arr-editor-form__upload-state { font-size:0.8rem; color:var(--gray-600); margin-top:0.2rem; }
+.arr-editor-form__upload-state.is-ok { color:#1b8c46; }
+.arr-editor-form__upload-state.is-err { color:var(--accent); }
+.arr-editor-form__hint { font-size:0.75rem; color:var(--gray-600); margin-top:0.2rem; }
+.arr-editor-form__admin-only { padding:0.6rem 0.8rem; background:#fff8e1; border-left:3px solid #ffd54f; font-size:0.8rem; color:#8d6e00; border-radius:0 4px 4px 0; }
+[data-theme="dark"] .arr-editor-form__admin-only { background:#3d2f00; color:#ffd54f; }
+
 /* ── Log detail (就地展开视图，非 Modal) ── */
 .log-detail-view { max-width: 1200px; margin: 0 auto; padding: 0 1rem 3rem; }
 .log-detail-view__back {
@@ -3772,6 +3842,7 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
   <button data-page="works" class="active">作品</button>
   <button data-page="logs">笔记</button>
   <button data-page="workshop">工坊</button>
+  <button data-page="arrangements">共享编曲</button>
   <button data-page="about">关于</button>
   <button data-page="changelog">更新</button>
   <button data-page="usermgmt" id="navUserMgmt" style="display:none;">用户管理</button>
@@ -3818,6 +3889,27 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
       <article class="log-detail-layout__main" id="logDetailBody"><!-- 由 openLogDetail() 渲染正文 --></article>
       <aside class="log-detail-layout__aside" id="logDetailComments"><!-- 由 openLogDetail() 渲染评论区 --></aside>
     </div>
+  </div>
+</main>
+
+<!-- 共享编曲页 -->
+<main class="page" id="page-arrangements">
+  <div class="page-header">
+    <div class="page-header__left">
+      <div class="page-header__label">Arrangements</div>
+      <h2 class="page-header__title">共享编曲</h2>
+      <p class="page-header__desc">付费下载 · 试听免费 · 主管理员审核到账后自动解锁下载</p>
+    </div>
+    <button class="btn js-super-only" id="arrNewBtn" onclick="openArrangementEditor()" style="display:none;">+ 新建编曲</button>
+  </div>
+
+  <!-- 列表（卡片网格） -->
+  <div id="arrangementsList" class="arr-grid"></div>
+
+  <!-- 详情视图 -->
+  <div id="arrangementDetailView" class="arr-detail-view" style="display:none;">
+    <button class="btn btn--ghost btn--sm" onclick="closeArrangementDetail()">← 返回列表</button>
+    <div id="arrangementDetailBody"></div>
   </div>
 </main>
 
@@ -4344,6 +4436,65 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
     <div class="modal__actions">
       <button class="btn btn--ghost btn--sm" onclick="closeModal('reviewModal')">取消</button>
       <button class="btn btn--sm" onclick="saveReviewModal()">保存评价</button>
+    </div>
+  </div>
+</div>
+
+<!-- 共享编曲 编辑器 Modal（super admin only） -->
+<div class="modal" id="arrEditorModal">
+  <div class="modal__panel" style="max-width:640px;">
+    <button class="modal__close" onclick="closeModal('arrEditorModal')">×</button>
+    <h3 class="modal__title" id="arrEditorTitle">🎼 新建共享编曲</h3>
+    <div class="arr-editor-form__admin-only">⚠️ 此功能仅主管理员可见。价格由主管理员设置，客户下单时强制使用此价格。</div>
+    <div class="arr-editor-form">
+      <label>标题 *
+        <input type="text" id="arr-title" placeholder="如：《夜行车》编曲工程">
+      </label>
+      <label>描述
+        <textarea id="arr-desc" placeholder="作品说明、工程说明、版权声明..."></textarea>
+      </label>
+      <div class="arr-editor-form__row">
+        <label>价格（元） *
+          <input type="number" id="arr-price" min="0" max="99999" step="1" placeholder="如：99">
+        </label>
+        <label>标签（逗号分隔）
+          <input type="text" id="arr-tags" placeholder="如：流行,J-pop,FL Studio">
+        </label>
+      </div>
+
+      <label style="margin-top:0.6rem;">▶ 试听文件（≤20MB 音频）
+        <input type="file" id="arr-trial-input" accept="audio/*" onchange="uploadArrTrialFile(this)">
+        <div id="arr-trial-state" class="arr-editor-form__upload-state">未上传</div>
+        <audio id="arr-trial-preview" controls style="width:100%; margin-top:0.4rem; display:none;"></audio>
+      </label>
+
+      <div class="arr-editor-form__hint" style="border-top:1px dashed var(--gray-300); padding-top:0.8rem; margin-top:0.4rem;">
+        <strong>💾 付费下载文件（≤200MB）</strong><br>
+        浏览器单次上传 200MB 不稳定。请先用 wrangler 命令一句话传到 R2，再把 key 填进下方：<br>
+        <code style="background:var(--gray-100); padding:0.1rem 0.3rem; border-radius:3px; font-size:0.75rem;">wrangler r2 object put blog-music-files/arrangements/paid/我的文件.zip --file=./我的文件.zip --remote</code>
+      </div>
+      <div class="arr-editor-form__row">
+        <label>付费文件 R2 key
+          <input type="text" id="arr-paid-key" placeholder="arrangements/paid/我的文件.zip">
+        </label>
+        <label>扩展名（自动按文件名识别）
+          <input type="text" id="arr-paid-ext" placeholder="zip / wav / mp3 / midi" maxlength="6">
+        </label>
+      </div>
+      <div class="arr-editor-form__row">
+        <label>文件大小（字节，可选）
+          <input type="number" id="arr-paid-size" min="0" placeholder="如 12345678">
+        </label>
+        <label>MIME（可选）
+          <input type="text" id="arr-paid-mime" placeholder="如 application/zip">
+        </label>
+      </div>
+
+      <div class="modal__actions" style="margin-top:1.2rem;">
+        <button class="btn btn--danger btn--sm" id="arr-delete-btn" onclick="confirmDeleteArrFromEditor()" style="margin-right:auto; display:none;">删除</button>
+        <button class="btn btn--ghost btn--sm" onclick="closeModal('arrEditorModal')">取消</button>
+        <button class="btn btn--sm" onclick="saveArrangementFromEditor()">保存</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5373,6 +5524,90 @@ const Store = {
         this.noteStats[logId] = data.stats;
       }
     } catch (_) {}
+  },
+
+  // ── 共享编曲（arrangements） ──
+  arrangements: [],
+  async loadArrangements() {
+    if (typeof API_BASE !== 'string' || !API_BASE) return;
+    try {
+      const res = await fetch(API_BASE + '/api/arrangements', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok && Array.isArray(data.arrangements)) {
+        this.arrangements = data.arrangements;
+      }
+    } catch (_) { /* 静默失败 */ }
+  },
+  async createArrangement(payload) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const res = await fetch(API_BASE + '/api/arrangements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (data.arrangement) {
+      // 列表里只存公开字段
+      const pub = { ...data.arrangement };
+      delete pub.paidKey; delete pub.paidMime;
+      pub.hasPaidFile = !!data.arrangement.paidKey;
+      this.arrangements.unshift(pub);
+    }
+    return data.arrangement;
+  },
+  async updateArrangement(arrId, payload) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const res = await fetch(API_BASE + '/api/arrangements/' + encodeURIComponent(arrId), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (data.arrangement) {
+      const pub = { ...data.arrangement };
+      delete pub.paidKey; delete pub.paidMime;
+      pub.hasPaidFile = !!data.arrangement.paidKey;
+      const idx = this.arrangements.findIndex(a => a.id === arrId);
+      if (idx >= 0) this.arrangements[idx] = pub;
+    }
+    return data.arrangement;
+  },
+  async deleteArrangement(arrId) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const res = await fetch(API_BASE + '/api/arrangements/' + encodeURIComponent(arrId), {
+      method: 'DELETE',
+      headers: adminAuthHeaders(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    this.arrangements = this.arrangements.filter(a => a.id !== arrId);
+  },
+  async submitArrangementOrder(arrId) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const res = await fetch(API_BASE + '/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+      body: JSON.stringify({
+        arrangementId: arrId,
+        tier: 'arrangement',
+        tierLabel: '共享编曲',
+        description: '购买共享编曲',
+        showName: false,
+        visitorId: getVisitorId(),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 401) throw new Error('请先登录后下单');
+      throw new Error(data.error || ('HTTP ' + res.status));
+    }
+    if (data.order) {
+      this.orders.push(data.order);
+      try { localStorage.setItem('tn_orders', JSON.stringify(this.orders)); } catch (_) {}
+    }
+    return data.order;
   }
 };
 
@@ -6708,8 +6943,12 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 const CHANGELOG = [
   {
     date: '2026-06-07',
-    title: '笔记加点赞 + 阅读量（含列表实时同步）',
+    title: '新增「共享编曲」付费下载区 + 笔记加点赞 + 阅读量（含列表实时同步）',
     items: [
+      '🎼 新增「共享编曲」付费下载区：顶部导航多一个 tab，进去是卡片网格（每张卡有标题 / 简介 / 标签 / 价格 / 文件大小），点开看详情可在线试听 + 「立即购买」；主管理员可在右上角点「+ 新建编曲」上架作品（试听文件 ≤20MB 直接拖拽上传，付费文件 ≤200MB 推荐先用 `wrangler r2 object put` 命令一句话传 R2 再把 key 填进表单）',
+      '💰 共享编曲走「方案 B 收款码」流程：客户点购买 → 弹收款码 → 扫码付完点「我已付款」→ 主管理员后台点「✓ 确认收款」→ 客户页面 15s 内弹 toast「🎉 已到账！点此下载」可一键下载；下载按钮可点击 toast 直接触发，无需手动找菜单',
+      '🔒 共享编曲下载锁单次：每个订单同一身份仅能下载 1 次（首次下载时 worker 写 `downloadedAt` 时间戳，再次请求返回 410）；下载凭证 4 重校验（订单 + 已付款 + 身份匹配 userId 优先回退 visitorId + 未下载过），文件名走 RFC5987 UTF-8 编码确保中文标题正常落盘',
+      '🛠 worker 新增 6 API：`GET/POST/PUT/DELETE /api/arrangements` 增删改查 + `POST /api/arrangements/upload-trial` 试听上传 + `GET /api/arrangements/:id/download` 客户下载；价格 / 创建 / 改价 / 删除均仅主管理员可操作（副管理员看不到「+ 新建」按钮），客户下单时 worker 端强制 `finalPrice = arrangement.price` 覆盖前端任何 price 改动，杜绝改单子篡价',
       '🔄 详情页点赞 / 阅读后回到列表，卡片上的「👁 ♥」数字会实时同步刷新；关闭详情时还会异步拉一次全列表 stats，捕获别人同时段的点赞 / 阅读',
       '♥ 每篇笔记加点赞功能：详情页标题下方加胶囊状「♥ 喜欢」按钮，可点击 toggle（已点变暗红填充 + 弹跳动画），同一访客 / 笔记仅算一次；点完列表卡片上的数字也会同步更新',
       '👁 每篇笔记加阅读量：列表卡片右下角显示「👁 N」，详情页标题下方显示「👁 N 阅读」；同一访客同一天进同一篇笔记仅计 1 次，避免刷量；按北京时区 0 点重置',
@@ -9011,6 +9250,414 @@ async function toggleLikeFromDetail(logId) {
   }
 }
 
+// ═══════════════════════════════════════
+// 🎼 共享编曲（arrangements）
+// ═══════════════════════════════════════
+let _editingArrId = null;
+let _currentArrDetailId = null;
+let _arrPollTimer = null;
+let _arrLastPaidOrderIds = new Set();
+
+function _fmtArrSize(bytes) {
+  const n = Number(bytes) || 0;
+  if (n <= 0) return '';
+  if (n < 1024) return n + 'B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + 'KB';
+  return (n / 1024 / 1024).toFixed(1) + 'MB';
+}
+
+function renderArrangements() {
+  const box = document.getElementById('arrangementsList');
+  if (!box) return;
+  const arr = Array.isArray(Store.arrangements) ? Store.arrangements : [];
+  if (arr.length === 0) {
+    box.innerHTML = '<div class="arr-empty">暂无共享编曲，等待 admin 上架</div>';
+    return;
+  }
+  box.innerHTML = arr.map(a => {
+    const tags = String(a.tags || '').split(',').map(s => s.trim()).filter(Boolean);
+    const tagsHTML = tags.length
+      ? `<div class="arr-card__tags">${tags.map(t => `<span class="arr-card__tag">${escapeHTML(t)}</span>`).join('')}</div>`
+      : '';
+    const desc = String(a.desc || '').slice(0, 80);
+    const paidSizeStr = a.paidSize ? `<span class="arr-card__paidsize">📦 ${_fmtArrSize(a.paidSize)}${a.paidExt ? '·.' + escapeHTML(a.paidExt) : ''}</span>` : '';
+    return `<article class="arr-card" onclick="openArrangementDetail('${escAttr(a.id)}')">
+      <div class="arr-card__title">${escapeHTML(a.title || '未命名')}</div>
+      ${desc ? `<div class="arr-card__desc">${escapeHTML(desc)}${(a.desc || '').length > 80 ? '…' : ''}</div>` : ''}
+      ${tagsHTML}
+      <div class="arr-card__meta">
+        <span class="arr-card__price">¥${Number(a.price || 0)}</span>
+        ${paidSizeStr}
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function _getMyArrangementOwnership(arrId) {
+  // 在 Store.orders 找属于当前身份 + 当前 arr 的订单
+  const orders = Array.isArray(Store.orders) ? Store.orders : [];
+  const myUserId = (typeof UserStore !== 'undefined' && UserStore && UserStore.user) ? UserStore.user.userId : null;
+  const myVid = getVisitorId();
+  // 优先 paid 的；其次未付的（已下单未付）
+  let bestPaid = null;
+  let bestUnpaid = null;
+  for (const o of orders) {
+    if (String(o.arrangementId || '') !== String(arrId)) continue;
+    const belongs = myUserId
+      ? (String(o.userId || '') === String(myUserId))
+      : (!o.userId && String(o.visitorId || '') === String(myVid));
+    if (!belongs) continue;
+    if (o.paid) {
+      if (!bestPaid || (o.createdAt || 0) > (bestPaid.createdAt || 0)) bestPaid = o;
+    } else {
+      if (!bestUnpaid || (o.createdAt || 0) > (bestUnpaid.createdAt || 0)) bestUnpaid = o;
+    }
+  }
+  if (bestPaid) {
+    return { owned: true, paid: true, downloaded: !!bestPaid.downloadedAt, orderId: bestPaid.id };
+  }
+  if (bestUnpaid) {
+    return { owned: true, paid: false, downloaded: false, orderId: bestUnpaid.id };
+  }
+  return { owned: false, paid: false, downloaded: false, orderId: null };
+}
+
+function renderArrangementDetailBody(arrId) {
+  const body = document.getElementById('arrangementDetailBody');
+  if (!body) return;
+  const a = (Store.arrangements || []).find(x => String(x.id) === String(arrId));
+  if (!a) {
+    body.innerHTML = '<p class="arr-empty">编曲不存在或已删除</p>';
+    return;
+  }
+  const tags = String(a.tags || '').split(',').map(s => s.trim()).filter(Boolean);
+  const tagsHTML = tags.length
+    ? `<div class="arr-detail-view__tags">${tags.map(t => `<span class="arr-card__tag">${escapeHTML(t)}</span>`).join('')}</div>`
+    : '';
+  const trialHTML = a.trialUrl
+    ? `<div class="arr-detail-view__trial">
+        <div class="arr-detail-view__trial-label">▶ 试听</div>
+        <audio src="${escAttr(a.trialUrl)}" controls preload="metadata" style="width:100%;"></audio>
+      </div>`
+    : `<div class="arr-detail-view__trial"><div class="arr-empty" style="padding:1rem;">（暂无试听）</div></div>`;
+  const ownership = _getMyArrangementOwnership(a.id);
+  let actionsHTML = '';
+  if (isAdmin()) {
+    // admin 自己也可以无限下载（用作内部测试）
+    const adminDlBtn = a.paidKey
+      ? `<button class="arr-detail-view__download-btn" onclick="downloadArrangement('${escAttr(a.id)}')">⬇️ admin 测试下载</button>`
+      : `<div class="arr-detail-view__owned-hint">⚠️ 未配置付费文件</div>`;
+    const editBtn = isSuperAdmin()
+      ? `<button class="btn btn--ghost btn--sm" onclick="openArrangementEditor('${escAttr(a.id)}')">✎ 编辑</button>`
+      : '';
+    actionsHTML = `<div class="arr-detail-view__actions">${adminDlBtn}${editBtn}</div>`;
+  } else if (ownership.paid && !ownership.downloaded && a.paidKey) {
+    actionsHTML = `<div class="arr-detail-view__actions">
+      <button class="arr-detail-view__download-btn" onclick="downloadArrangement('${escAttr(a.id)}','${escAttr(ownership.orderId)}')">⬇️ 下载付费文件（仅限 1 次）</button>
+    </div>`;
+  } else if (ownership.paid && ownership.downloaded) {
+    actionsHTML = `<div class="arr-detail-view__actions">
+      <div class="arr-detail-view__owned-hint">✓ 已下载（每订单仅 1 次）</div>
+    </div>`;
+  } else if (ownership.owned && !ownership.paid) {
+    actionsHTML = `<div class="arr-detail-view__actions">
+      <button class="arr-detail-view__buy-btn" onclick="openPayModal('${escAttr(ownership.orderId)}')">💰 待付款 ¥${Number(a.price || 0)} · 继续付款</button>
+      <span class="arr-detail-view__owned-hint">付款后主管理员确认到账，下载按钮会自动出现</span>
+    </div>`;
+  } else if (a.paidKey) {
+    actionsHTML = `<div class="arr-detail-view__actions">
+      <button class="arr-detail-view__buy-btn" onclick="buyArrangement('${escAttr(a.id)}')">💰 立即购买 ¥${Number(a.price || 0)}</button>
+    </div>`;
+  } else {
+    actionsHTML = `<div class="arr-detail-view__owned-hint">⚠️ 暂未上传付费文件</div>`;
+  }
+  body.innerHTML = `
+    <div class="arr-detail-view__header">
+      <h3 class="arr-detail-view__title">${escapeHTML(a.title || '未命名')}</h3>
+      <div class="arr-detail-view__meta">
+        <span class="arr-detail-view__price">¥${Number(a.price || 0)}</span>
+        ${a.paidSize ? `<span>📦 ${_fmtArrSize(a.paidSize)}${a.paidExt ? '·.' + escapeHTML(a.paidExt) : ''}</span>` : ''}
+      </div>
+      ${tagsHTML}
+    </div>
+    ${a.desc ? `<div class="arr-detail-view__desc">${escapeHTML(a.desc)}</div>` : ''}
+    ${trialHTML}
+    ${actionsHTML}
+  `;
+}
+
+function openArrangementDetail(arrId) {
+  _currentArrDetailId = String(arrId);
+  const list = document.getElementById('arrangementsList');
+  const detail = document.getElementById('arrangementDetailView');
+  if (list) list.style.display = 'none';
+  if (detail) detail.style.display = '';
+  renderArrangementDetailBody(arrId);
+  // 进详情时刷新一次列表 stats（拉最新订单状态以正确显示按钮）
+  if (typeof UserStore !== 'undefined' && UserStore && UserStore.user) {
+    Store.load().then(() => renderArrangementDetailBody(arrId)).catch(() => {});
+  }
+}
+
+function closeArrangementDetail() {
+  _currentArrDetailId = null;
+  const list = document.getElementById('arrangementsList');
+  const detail = document.getElementById('arrangementDetailView');
+  if (detail) detail.style.display = 'none';
+  if (list) list.style.display = '';
+}
+
+function openArrangementEditor(arrId) {
+  if (!isSuperAdmin()) { toast('仅主管理员可管理编曲'); return; }
+  _editingArrId = arrId || null;
+  const $ = id => document.getElementById(id);
+  $('arrEditorTitle').textContent = arrId ? '✎ 编辑共享编曲' : '🎼 新建共享编曲';
+  $('arr-delete-btn').style.display = arrId ? '' : 'none';
+  if (arrId) {
+    const a = (Store.arrangements || []).find(x => String(x.id) === String(arrId));
+    if (!a) { toast('编曲不存在'); return; }
+    $('arr-title').value = a.title || '';
+    $('arr-desc').value = a.desc || '';
+    $('arr-price').value = Number(a.price || 0);
+    $('arr-tags').value = a.tags || '';
+    $('arr-trial-input').value = '';
+    $('arr-trial-input').dataset.url = a.trialUrl || '';
+    $('arr-trial-input').dataset.key = a.trialKey || '';
+    $('arr-trial-input').dataset.size = String(a.trialSize || '');
+    $('arr-trial-input').dataset.mime = a.trialMime || '';
+    const st = $('arr-trial-state');
+    st.textContent = a.trialUrl ? `已有试听（${_fmtArrSize(a.trialSize)}）` : '未上传';
+    const preview = $('arr-trial-preview');
+    if (a.trialUrl) { preview.src = a.trialUrl; preview.style.display = ''; }
+    else { preview.removeAttribute('src'); preview.style.display = 'none'; }
+    $('arr-paid-key').value = a.paidKey || '';
+    $('arr-paid-ext').value = a.paidExt || '';
+    $('arr-paid-size').value = a.paidSize || '';
+    $('arr-paid-mime').value = a.paidMime || '';
+  } else {
+    ['arr-title','arr-desc','arr-price','arr-tags','arr-paid-key','arr-paid-ext','arr-paid-size','arr-paid-mime'].forEach(id => { $(id).value = ''; });
+    $('arr-trial-input').value = '';
+    delete $('arr-trial-input').dataset.url;
+    delete $('arr-trial-input').dataset.key;
+    delete $('arr-trial-input').dataset.size;
+    delete $('arr-trial-input').dataset.mime;
+    $('arr-trial-state').textContent = '未上传';
+    const preview = $('arr-trial-preview');
+    preview.removeAttribute('src');
+    preview.style.display = 'none';
+  }
+  document.getElementById('arrEditorModal').classList.add('open');
+}
+
+async function uploadArrTrialFile(input) {
+  if (!input || !input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 20 * 1024 * 1024) {
+    toast('试听文件不能超过 20MB');
+    input.value = '';
+    return;
+  }
+  if (!/^audio\//.test(file.type)) {
+    toast('试听必须是音频文件');
+    input.value = '';
+    return;
+  }
+  const state = document.getElementById('arr-trial-state');
+  state.textContent = `上传中… ${_fmtArrSize(file.size)}`;
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(API_BASE + '/api/arrangements/upload-trial', {
+      method: 'POST',
+      headers: adminAuthHeaders(), // 注意不传 Content-Type，浏览器自动加 multipart boundary
+      body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    input.dataset.url = data.url || '';
+    input.dataset.key = data.key || '';
+    input.dataset.size = String(data.size || file.size);
+    input.dataset.mime = data.mime || file.type;
+    state.textContent = `✓ 上传成功（${_fmtArrSize(data.size || file.size)}）`;
+    const preview = document.getElementById('arr-trial-preview');
+    preview.src = data.url;
+    preview.style.display = '';
+    toast('试听文件已上传');
+  } catch (e) {
+    state.textContent = '上传失败：' + (e.message || e);
+    toast('上传失败：' + (e.message || e));
+  }
+}
+
+async function saveArrangementFromEditor() {
+  const $ = id => document.getElementById(id);
+  const title = $('arr-title').value.trim();
+  if (!title) { toast('请填写标题'); return; }
+  const price = Number($('arr-price').value);
+  if (!Number.isFinite(price) || price < 0) { toast('价格不合法'); return; }
+  const trialInput = $('arr-trial-input');
+  const payload = {
+    title,
+    desc: $('arr-desc').value.trim(),
+    price,
+    tags: $('arr-tags').value.trim(),
+    trialUrl: trialInput.dataset.url || '',
+    trialKey: trialInput.dataset.key || '',
+    trialSize: Number(trialInput.dataset.size || 0),
+    trialMime: trialInput.dataset.mime || '',
+    paidKey: $('arr-paid-key').value.trim(),
+    paidExt: ($('arr-paid-ext').value.trim() || '').toLowerCase().replace(/^\./, ''),
+    paidSize: Number($('arr-paid-size').value || 0),
+    paidMime: $('arr-paid-mime').value.trim(),
+  };
+  // 自动从 paidKey 推扩展名（如果未填）
+  if (!payload.paidExt && payload.paidKey) {
+    const m = payload.paidKey.match(/\.([a-zA-Z0-9]+)$/);
+    if (m) payload.paidExt = m[1].toLowerCase();
+  }
+  try {
+    if (_editingArrId) {
+      await Store.updateArrangement(_editingArrId, payload);
+      toast('已保存');
+    } else {
+      await Store.createArrangement(payload);
+      toast('已创建');
+    }
+    closeModal('arrEditorModal');
+    renderArrangements();
+    if (_currentArrDetailId) renderArrangementDetailBody(_currentArrDetailId);
+  } catch (e) {
+    toast('保存失败：' + (e.message || e));
+  }
+}
+
+async function confirmDeleteArrFromEditor() {
+  if (!_editingArrId) return;
+  if (!confirm('确认删除这条编曲？\n（注意：R2 上的付费/试听文件不会自动删除，需要时手动删 R2 对象）')) return;
+  try {
+    await Store.deleteArrangement(_editingArrId);
+    toast('已删除');
+    closeModal('arrEditorModal');
+    if (String(_currentArrDetailId) === String(_editingArrId)) closeArrangementDetail();
+    _editingArrId = null;
+    renderArrangements();
+  } catch (e) {
+    toast('删除失败：' + (e.message || e));
+  }
+}
+
+async function buyArrangement(arrId) {
+  if (typeof UserStore === 'undefined' || !UserStore || !UserStore.user) {
+    toast('请先登录后下单');
+    try { openUserPanel(); } catch (_) {}
+    return;
+  }
+  const a = (Store.arrangements || []).find(x => String(x.id) === String(arrId));
+  if (!a) { toast('编曲不存在'); return; }
+  if (!a.paidKey) { toast('未配置付费文件，暂不可购买'); return; }
+  try {
+    const order = await Store.submitArrangementOrder(arrId);
+    if (order && order.id) {
+      toast('订单已创建，请扫码付款');
+      openPayModal(order.id);
+      // 立即刷新详情按钮区
+      if (_currentArrDetailId) renderArrangementDetailBody(_currentArrDetailId);
+    }
+  } catch (e) {
+    toast('下单失败：' + (e.message || e));
+  }
+}
+
+async function downloadArrangement(arrId, orderId) {
+  try {
+    const vid = getVisitorId();
+    const qs = new URLSearchParams();
+    if (orderId) qs.set('orderId', orderId);
+    qs.set('visitorId', vid);
+    const url = API_BASE + '/api/arrangements/' + encodeURIComponent(arrId) + '/download?' + qs.toString();
+    const headers = adminAuthHeaders(); // X-Admin-Token + X-User-Token（若登录）
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      let msg = 'HTTP ' + res.status;
+      try { const j = await res.json(); if (j && j.error) msg = j.error; } catch (_) {}
+      throw new Error(msg);
+    }
+    // 解析文件名
+    let filename = '';
+    const cd = res.headers.get('Content-Disposition') || '';
+    let m = cd.match(/filename\*=UTF-8''([^;]+)/i);
+    if (m) { try { filename = decodeURIComponent(m[1]); } catch (_) { filename = m[1]; } }
+    if (!filename) { m = cd.match(/filename="?([^";]+)"?/i); if (m) filename = m[1]; }
+    if (!filename) {
+      const a = (Store.arrangements || []).find(x => String(x.id) === String(arrId));
+      filename = (a && a.title || 'arrangement') + (a && a.paidExt ? '.' + a.paidExt : '');
+    }
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    toast('开始下载：' + filename);
+    // 标记 downloadedAt（本地）；后端已写入
+    if (orderId) {
+      const o = (Store.orders || []).find(x => x.id === orderId);
+      if (o && !o.downloadedAt) o.downloadedAt = Date.now();
+      try { localStorage.setItem('tn_orders', JSON.stringify(Store.orders)); } catch (_) {}
+    }
+    if (_currentArrDetailId) renderArrangementDetailBody(_currentArrDetailId);
+  } catch (e) {
+    const msg = String(e.message || e);
+    if (/410|已下载|downloaded/i.test(msg)) toast('该订单已下载过，每订单仅限 1 次');
+    else if (/403|paid|未付|不匹配/i.test(msg)) toast('下载失败：' + msg);
+    else toast('下载失败：' + msg);
+  }
+}
+
+// ─── 共享编曲到账轮询（仅登录后）───
+function _seedArrLastPaidOrderIds() {
+  _arrLastPaidOrderIds = new Set(
+    (Store.orders || []).filter(o => o.arrangementId && o.paid).map(o => String(o.id))
+  );
+}
+
+async function _checkArrangementOrderPayments() {
+  if (typeof UserStore === 'undefined' || !UserStore || !UserStore.user) return;
+  try {
+    await Store.load();
+  } catch (_) { return; }
+  const newlyPaid = [];
+  (Store.orders || []).forEach(o => {
+    if (!o.arrangementId || !o.paid) return;
+    if (_arrLastPaidOrderIds.has(String(o.id))) return;
+    _arrLastPaidOrderIds.add(String(o.id));
+    newlyPaid.push(o);
+  });
+  newlyPaid.forEach(o => {
+    const title = o.arrangementTitle || '共享编曲';
+    toast(`🎉 已到账！点此下载《${title}》`, {
+      onClick: () => downloadArrangement(o.arrangementId, o.id),
+      duration: 10000,
+    });
+  });
+  if (newlyPaid.length > 0 && _currentArrDetailId) {
+    renderArrangementDetailBody(_currentArrDetailId);
+  }
+}
+
+function startArrangementOrderPolling() {
+  if (_arrPollTimer) return;
+  _seedArrLastPaidOrderIds();
+  _arrPollTimer = setInterval(_checkArrangementOrderPayments, 15000);
+}
+
+function stopArrangementOrderPolling() {
+  if (_arrPollTimer) { clearInterval(_arrPollTimer); _arrPollTimer = null; }
+}
+
 // ── Lightbox ──
 function openLightbox(url) {
   const box = document.getElementById('lightbox');
@@ -9077,12 +9724,32 @@ document.querySelectorAll('#worksCategoryNav button').forEach(btn => {
 
 // ── Toast ──
 let toastTimer;
-function toast(msg) {
+function toast(msg, opts) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
+  // 兼容老用法：第二参数可以是函数或 {onClick, duration}
+  const onClick = (typeof opts === 'function') ? opts : (opts && opts.onClick);
+  const duration = (opts && opts.duration) ? opts.duration : (onClick ? 6000 : 2200);
+  // 清掉上一次绑定
+  if (t._lxClick) { t.removeEventListener('click', t._lxClick); t._lxClick = null; }
+  t.style.cursor = '';
+  if (onClick) {
+    t._lxClick = function() {
+      try { onClick(); } catch (_) {}
+      t.classList.remove('show');
+      if (t._lxClick) { t.removeEventListener('click', t._lxClick); t._lxClick = null; }
+      t.style.cursor = '';
+    };
+    t.addEventListener('click', t._lxClick);
+    t.style.cursor = 'pointer';
+  }
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => {
+    t.classList.remove('show');
+    if (t._lxClick) { t.removeEventListener('click', t._lxClick); t._lxClick = null; }
+    t.style.cursor = '';
+  }, duration);
 }
 
 // ── 点击 modal 背景关闭 ──
@@ -9308,6 +9975,14 @@ function applyRoleSideEffects() {
     try { if (typeof startAdminHeartbeat === 'function') startAdminHeartbeat(); } catch (_) {}
   } else {
     try { if (typeof stopAdminHeartbeat === 'function') stopAdminHeartbeat(); } catch (_) {}
+  }
+
+  // 🎼 共享编曲：登录后启动到账轮询；登出关闭
+  const loggedIn = (typeof UserStore !== 'undefined' && UserStore && !!UserStore.token);
+  if (loggedIn) {
+    try { if (typeof startArrangementOrderPolling === 'function') startArrangementOrderPolling(); } catch (_) {}
+  } else {
+    try { if (typeof stopArrangementOrderPolling === 'function') stopArrangementOrderPolling(); } catch (_) {}
   }
 
   // 角色切换 → 重拉数据（admin 拿未脱敏 contact / 完整 orders；普通用户拿脱敏版）
@@ -10784,6 +11459,15 @@ document.addEventListener('DOMContentLoaded', function() {
     Store.loadNoteStats(Store.logs.map(l => l.id)).then(() => {
       if (typeof renderLogs === 'function') renderLogs();
     });
+  }
+  // 🎼 共享编曲：拉公开列表 + 渲染；登录后启动到账轮询
+  if (typeof Store.loadArrangements === 'function') {
+    Store.loadArrangements().then(() => {
+      if (typeof renderArrangements === 'function') renderArrangements();
+    });
+  }
+  if (typeof UserStore !== 'undefined' && UserStore && UserStore.token) {
+    if (typeof startArrangementOrderPolling === 'function') startArrangementOrderPolling();
   }
   // 启动后激活美化层
   setupUiEnhancements();

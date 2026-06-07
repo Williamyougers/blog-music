@@ -1216,6 +1216,25 @@ async function handleRequest(request, env, ctx, cors) {
       // Reference audios (data URLs, max 2, each <=~4MB binary)
       const audios = sanitizeOrderAudios(body && body.audios);
 
+      // ── 共享编曲订单：客户从「共享编曲」详情页发起的订单会带 arrangementId
+      //    校验：arrangementId 必须真实存在；价格强制从后端 arrangement.price 取（防前端篡价）
+      const rawArrangementId = sanitizeStr(body && body.arrangementId, 32);
+      let arrangementId = '';
+      let arrangementPrice = null;
+      let arrangementTitle = '';
+      if (rawArrangementId) {
+        const arrsRaw = await env.BLOG.get('arrangements');
+        const arrs = JSON.parse(arrsRaw || '[]');
+        const arr = arrs.find(a => a.id === rawArrangementId);
+        if (!arr) return json({ error: 'arrangement not found' }, 404, cors);
+        arrangementId = arr.id;
+        arrangementPrice = Number(arr.price) || 0;
+        arrangementTitle = arr.title || '';
+        // 强制：共享编曲订单价格只能由主管理员设定的 arrangement.price 决定
+        // 不接受前端任何 price / tier / tierLabel / priceMode 改动
+        finalPrice = arrangementPrice;
+      }
+
       const order = {
         id: 'ord_' + now + '_' + Math.random().toString(36).slice(2, 8),
         seq: seqNum,
@@ -1257,6 +1276,10 @@ async function handleRequest(request, env, ctx, cors) {
         claimedAt: null,     // 客户声明"我已付款"的时间戳
         claimedAmount: 0,    // 客户声明的付款金额（元）
         claimNote: '',       // 客户备注（可选，如"已用花呗付，备注 #007"）
+        // ── 共享编曲订单（2026-06-07 加） ──
+        arrangementId,                 // 关联 arrangements.id（非共享编曲订单为空串）
+        arrangementTitle,              // 下单瞬时快照标题（即使作品被删/改名也保留）
+        downloadedAt: null,            // 客户首次下载付费文件的时间戳（单次下载锁）
       };
 
       orders.push(order);
@@ -2497,6 +2520,230 @@ async function handleRequest(request, env, ctx, cors) {
         await env.BLOG.put('note/stats', JSON.stringify(allStats));
       }
       return json({ ok: true, stats: cur, counted: !alreadyViewed }, 200, cors);
+    }
+
+    // ── 共享编曲（arrangements）— 2026-06-07 加 ──
+    // KV 'arrangements' = JSON array of:
+    //   { id, title, desc, price, tags, trialUrl, trialKey, trialSize, trialMime,
+    //     paidKey, paidSize, paidMime, paidExt, createdAt, updatedAt }
+    // 客户公开字段（剥离 paidKey/paidSize/paidMime，仅暴露 hasPaidFile 布尔）
+    function publicArrangement(a) {
+      return {
+        id: a.id,
+        title: a.title,
+        desc: a.desc,
+        price: a.price,
+        tags: a.tags || '',
+        trialUrl: a.trialUrl || '',
+        trialSize: a.trialSize || 0,
+        trialMime: a.trialMime || '',
+        paidExt: a.paidExt || '',
+        paidSize: a.paidSize || 0,         // 让客户看到文件大小（决策用）
+        hasPaidFile: !!a.paidKey,
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt,
+      };
+    }
+
+    // GET /api/arrangements - 公开列表（按 createdAt 倒序）
+    if (path === '/api/arrangements' && method === 'GET') {
+      const arrsRaw = await env.BLOG.get('arrangements');
+      const arrs = JSON.parse(arrsRaw || '[]');
+      arrs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      return json({ ok: true, arrangements: arrs.map(publicArrangement) }, 200, cors);
+    }
+
+    // POST /api/arrangements - 创建（super admin only）
+    if (path === '/api/arrangements' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+
+      const title = sanitizeStr(body && body.title, 100);
+      const desc = sanitizeStr(body && body.desc, 1000);
+      const price = Math.max(0, Math.floor(Number(body && body.price) || 0));
+      const tags = sanitizeStr(body && body.tags, 100);
+      const trialUrl = sanitizeStr(body && body.trialUrl, 500);
+      const trialKey = sanitizeStr(body && body.trialKey, 200);
+      const trialSize = Math.max(0, Math.floor(Number(body && body.trialSize) || 0));
+      const trialMime = sanitizeStr(body && body.trialMime, 100);
+      const paidKey = sanitizeStr(body && body.paidKey, 200);
+      const paidSize = Math.max(0, Math.floor(Number(body && body.paidSize) || 0));
+      const paidMime = sanitizeStr(body && body.paidMime, 100);
+      const paidExt = sanitizeStr(body && body.paidExt, 16);
+
+      if (!title) return json({ error: 'title required' }, 400, cors);
+      if (price > 99999) return json({ error: 'price too large' }, 400, cors);
+      // 大小硬上限：试听 20MB / 付费 200MB（meta 校验，实际上传走 /api/upload + R2）
+      if (trialSize > 20 * 1024 * 1024) return json({ error: 'trial too large (>20MB)' }, 400, cors);
+      if (paidSize > 200 * 1024 * 1024) return json({ error: 'paid too large (>200MB)' }, 400, cors);
+      // 付费文件扩展名白名单
+      if (paidExt && !/^(zip|wav|mp3|midi|mid)$/i.test(paidExt)) {
+        return json({ error: 'paidExt must be zip/wav/mp3/midi' }, 400, cors);
+      }
+
+      const arrsRaw = await env.BLOG.get('arrangements');
+      const arrs = JSON.parse(arrsRaw || '[]');
+      const now = Date.now();
+      const item = {
+        id: 'arr_' + now + '_' + Math.random().toString(36).slice(2, 8),
+        title, desc, price, tags,
+        trialUrl, trialKey, trialSize, trialMime,
+        paidKey, paidSize, paidMime, paidExt,
+        createdAt: now, updatedAt: now,
+      };
+      arrs.push(item);
+      await env.BLOG.put('arrangements', JSON.stringify(arrs));
+      return json({ ok: true, arrangement: item }, 200, cors);  // 创建者是 super admin，可返回完整对象
+    }
+
+    // PUT /api/arrangements/:id - 修改（super admin only）
+    const arrPutMatch = path.match(/^\/api\/arrangements\/([^/]+)$/);
+    if (arrPutMatch && method === 'PUT') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      const arrId = arrPutMatch[1];
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+
+      const arrsRaw = await env.BLOG.get('arrangements');
+      const arrs = JSON.parse(arrsRaw || '[]');
+      const idx = arrs.findIndex(a => a.id === arrId);
+      if (idx < 0) return json({ error: 'Not found' }, 404, cors);
+      const item = arrs[idx];
+
+      if (body.title !== undefined) item.title = sanitizeStr(body.title, 100);
+      if (body.desc !== undefined) item.desc = sanitizeStr(body.desc, 1000);
+      if (body.price !== undefined) {
+        const p = Math.max(0, Math.floor(Number(body.price) || 0));
+        if (p > 99999) return json({ error: 'price too large' }, 400, cors);
+        item.price = p;
+      }
+      if (body.tags !== undefined) item.tags = sanitizeStr(body.tags, 100);
+      if (body.trialUrl !== undefined) item.trialUrl = sanitizeStr(body.trialUrl, 500);
+      if (body.trialKey !== undefined) item.trialKey = sanitizeStr(body.trialKey, 200);
+      if (body.trialSize !== undefined) {
+        const s = Math.max(0, Math.floor(Number(body.trialSize) || 0));
+        if (s > 20 * 1024 * 1024) return json({ error: 'trial too large (>20MB)' }, 400, cors);
+        item.trialSize = s;
+      }
+      if (body.trialMime !== undefined) item.trialMime = sanitizeStr(body.trialMime, 100);
+      if (body.paidKey !== undefined) item.paidKey = sanitizeStr(body.paidKey, 200);
+      if (body.paidSize !== undefined) {
+        const s = Math.max(0, Math.floor(Number(body.paidSize) || 0));
+        if (s > 200 * 1024 * 1024) return json({ error: 'paid too large (>200MB)' }, 400, cors);
+        item.paidSize = s;
+      }
+      if (body.paidMime !== undefined) item.paidMime = sanitizeStr(body.paidMime, 100);
+      if (body.paidExt !== undefined) {
+        const e = sanitizeStr(body.paidExt, 16);
+        if (e && !/^(zip|wav|mp3|midi|mid)$/i.test(e)) {
+          return json({ error: 'paidExt must be zip/wav/mp3/midi' }, 400, cors);
+        }
+        item.paidExt = e;
+      }
+      item.updatedAt = Date.now();
+      arrs[idx] = item;
+      await env.BLOG.put('arrangements', JSON.stringify(arrs));
+      return json({ ok: true, arrangement: item }, 200, cors);
+    }
+
+    // DELETE /api/arrangements/:id - 删除（super admin only，仅删元数据，R2 文件不动手）
+    if (arrPutMatch && method === 'DELETE') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      const arrId = arrPutMatch[1];
+      const arrsRaw = await env.BLOG.get('arrangements');
+      const arrs = JSON.parse(arrsRaw || '[]');
+      const next = arrs.filter(a => a.id !== arrId);
+      if (next.length === arrs.length) return json({ error: 'Not found' }, 404, cors);
+      await env.BLOG.put('arrangements', JSON.stringify(next));
+      return json({ ok: true }, 200, cors);
+    }
+
+    // POST /api/arrangements/upload-trial - 上传试听文件（super admin only，≤20MB）
+    //   form-data: file
+    //   返回: { ok, url, key, size, mime }
+    if (path === '/api/arrangements/upload-trial' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
+      let form;
+      try { form = await request.formData(); }
+      catch { return json({ error: 'Invalid form data' }, 400, cors); }
+      const file = form.get('file');
+      if (!file || typeof file === 'string') return json({ error: 'file required' }, 400, cors);
+      const mime = (file.type || '').toLowerCase();
+      if (!/^audio\/[a-z0-9.+-]+$/i.test(mime)) return json({ error: 'Invalid audio type' }, 400, cors);
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      if (bytes.length > 20 * 1024 * 1024) return json({ error: 'Trial too large (>20MB)' }, 413, cors);
+
+      const ext = mimeToExt(mime);
+      const ts = Date.now();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const key = `arrangements/trial/${ts}_${rand}.${ext}`;
+      await env.R2.put(key, bytes, { httpMetadata: { contentType: mime } });
+      const origin = new URL(request.url).origin;
+      const url2 = `${origin}/files/${key}`;
+      return json({ ok: true, url: url2, key, size: bytes.length, mime }, 200, cors);
+    }
+
+    // GET /api/arrangements/:id/download?orderId=&visitorId= - 客户下载付费文件
+    //   验证：order 真实 + paid=true + arrangementId 匹配 + 属于该 visitor/user + 未下载过
+    //   通过后标记 downloadedAt=now（单次下载锁），R2 stream 返回文件
+    const arrDlMatch = path.match(/^\/api\/arrangements\/([^/]+)\/download$/);
+    if (arrDlMatch && method === 'GET') {
+      const arrId = arrDlMatch[1];
+      const orderId = sanitizeStr(url.searchParams.get('orderId'), 64);
+      const viewerVisitor = sanitizeStr(url.searchParams.get('visitorId'), 64);
+      if (!orderId) return new Response('orderId required', { status: 400 });
+
+      const ordersRaw = await env.BLOG.get('orders');
+      const orders = JSON.parse(ordersRaw || '[]');
+      const orderIdx = orders.findIndex(o => o.id === orderId);
+      if (orderIdx < 0) return new Response('Order not found', { status: 404 });
+      const order = orders[orderIdx];
+
+      // 验证 1：订单是这个 arrangement 的
+      if (order.arrangementId !== arrId) return new Response('Order mismatch', { status: 403 });
+      // 验证 2：订单已付款
+      if (!order.paid) return new Response('Order not paid', { status: 403 });
+      // 验证 3：身份匹配（优先 userId，回退 visitorId）
+      const viewerUser = await getCurrentUser(request, env);
+      const matchUser = !!viewerUser && !!order.userId && order.userId === viewerUser.userId;
+      const matchVisitor = !order.userId && !!viewerVisitor && order.visitorId === viewerVisitor;
+      const admin = await isAdminOrSub(request, env);
+      if (!admin && !matchUser && !matchVisitor) return new Response('Forbidden', { status: 403 });
+      // 验证 4：未下载过（admin 不受此限）
+      if (!admin && order.downloadedAt) return new Response('Already downloaded once. Contact admin to reset.', { status: 410 });
+
+      // 找 arrangement 拿 paidKey
+      const arrsRaw = await env.BLOG.get('arrangements');
+      const arrs = JSON.parse(arrsRaw || '[]');
+      const arr = arrs.find(a => a.id === arrId);
+      if (!arr || !arr.paidKey) return new Response('Paid file not configured', { status: 404 });
+      if (!env.R2) return new Response('R2 not configured', { status: 500 });
+      const obj = await env.R2.get(arr.paidKey);
+      if (!obj) return new Response('Paid file missing in R2', { status: 404 });
+
+      // 标记单次下载锁（admin 跳过）
+      if (!admin) {
+        order.downloadedAt = Date.now();
+        orders[orderIdx] = order;
+        await env.BLOG.put('orders', JSON.stringify(orders));
+      }
+
+      // 拼下载文件名
+      const safeTitle = (arr.title || 'arrangement').replace(/[^\w\u4e00-\u9fa5._-]+/g, '_').slice(0, 60);
+      const filename = `${safeTitle}.${arr.paidExt || mimeToExt(arr.paidMime || '') || 'bin'}`;
+      const headers = {
+        ...cors,
+        'Content-Type': arr.paidMime || obj.httpMetadata?.contentType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        'Cache-Control': 'no-store',
+      };
+      if (obj.size != null) headers['Content-Length'] = String(obj.size);
+      return new Response(obj.body, { status: 200, headers });
     }
 
     // ── 星座运势（天行 API 代理 + KV 24h 缓存） ──
