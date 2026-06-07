@@ -2409,6 +2409,96 @@ async function handleRequest(request, env, ctx, cors) {
       return json({ ok: true }, 200, cors);
     }
 
+    // ── 笔记点赞 + 阅读量 ──
+    // GET /api/notes/stats?ids=id1,id2,...&visitorId=xxx
+    // 批量取多笔记 stats（likes/views）；可选 visitorId 同时返回我点过哪些
+    if (path === '/api/notes/stats' && method === 'GET') {
+      const idsParam = url.searchParams.get('ids') || '';
+      const visitorId = sanitizeStr(url.searchParams.get('visitorId'), 64);
+      const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, 200);
+      const statsRaw = await env.BLOG.get('note/stats');
+      const allStats = JSON.parse(statsRaw || '{}');
+      const stats = {};
+      ids.forEach(id => {
+        stats[id] = allStats[id] || { likes: 0, views: 0 };
+      });
+      let liked = [];
+      if (visitorId && ids.length > 0) {
+        const checks = await Promise.all(ids.map(id =>
+          env.BLOG.get(`note/liked/${id}/${visitorId}`)
+        ));
+        liked = ids.filter((id, i) => checks[i] != null);
+      }
+      return json({ ok: true, stats, liked }, 200, cors);
+    }
+
+    // POST /api/notes/:id/like  body: { visitorId } —— toggle 点赞
+    const likeMatch = path.match(/^\/api\/notes\/([^/]+)\/like$/);
+    if (likeMatch && method === 'POST') {
+      const logId = likeMatch[1];
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const visitorId = sanitizeStr(body && body.visitorId, 64);
+      if (!visitorId || visitorId.length < 8) {
+        return json({ error: 'visitorId required' }, 400, cors);
+      }
+      // 校验 logId 真实存在
+      const logsRaw = await env.BLOG.get('logs');
+      const logs = JSON.parse(logsRaw || '[]');
+      if (!logs.some(l => String(l.id) === String(logId))) {
+        return json({ error: 'Log not found' }, 404, cors);
+      }
+      const likedKey = `note/liked/${logId}/${visitorId}`;
+      const wasLiked = (await env.BLOG.get(likedKey)) != null;
+      const statsRaw = await env.BLOG.get('note/stats');
+      const allStats = JSON.parse(statsRaw || '{}');
+      const cur = allStats[logId] || { likes: 0, views: 0 };
+      if (wasLiked) {
+        await env.BLOG.delete(likedKey);
+        cur.likes = Math.max(0, (cur.likes || 0) - 1);
+      } else {
+        await env.BLOG.put(likedKey, '1');
+        cur.likes = (cur.likes || 0) + 1;
+      }
+      allStats[logId] = cur;
+      await env.BLOG.put('note/stats', JSON.stringify(allStats));
+      return json({ ok: true, liked: !wasLiked, stats: cur }, 200, cors);
+    }
+
+    // POST /api/notes/:id/view  body: { visitorId } —— 阅读量 +1（同访客同日仅计一次）
+    const viewMatch = path.match(/^\/api\/notes\/([^/]+)\/view$/);
+    if (viewMatch && method === 'POST') {
+      const logId = viewMatch[1];
+      let body;
+      try { body = await request.json(); }
+      catch { body = {}; }
+      const visitorId = sanitizeStr(body && body.visitorId, 64);
+      if (!visitorId || visitorId.length < 8) {
+        return json({ error: 'visitorId required' }, 400, cors);
+      }
+      const logsRaw = await env.BLOG.get('logs');
+      const logs = JSON.parse(logsRaw || '[]');
+      if (!logs.some(l => String(l.id) === String(logId))) {
+        return json({ error: 'Log not found' }, 404, cors);
+      }
+      // 同访客同日仅计一次（北京时区按天）
+      const beijing = new Date(Date.now() + 8 * 3600 * 1000);
+      const dateStr = beijing.toISOString().slice(0, 10);
+      const viewedKey = `note/viewed/${logId}/${visitorId}/${dateStr}`;
+      const alreadyViewed = (await env.BLOG.get(viewedKey)) != null;
+      const statsRaw = await env.BLOG.get('note/stats');
+      const allStats = JSON.parse(statsRaw || '{}');
+      const cur = allStats[logId] || { likes: 0, views: 0 };
+      if (!alreadyViewed) {
+        await env.BLOG.put(viewedKey, '1', { expirationTtl: 86400 });
+        cur.views = (cur.views || 0) + 1;
+        allStats[logId] = cur;
+        await env.BLOG.put('note/stats', JSON.stringify(allStats));
+      }
+      return json({ ok: true, stats: cur, counted: !alreadyViewed }, 200, cors);
+    }
+
     // ── 星座运势（天行 API 代理 + KV 24h 缓存） ──
     if (path === '/api/horoscope' && method === 'GET') {
       const SIGNS = {

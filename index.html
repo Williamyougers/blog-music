@@ -720,6 +720,71 @@ body.viewer-mode .work[draggable], body.viewer-mode .featured[draggable] { point
 }
 [data-theme="dark"] .log__group-badge { background:#8a6534; color:#f0e6d8; }
 
+/* ── 笔记卡片上的 stats（阅读/喜欢只读） ── */
+.log__stats {
+  display:inline-flex; gap:0.7rem; align-items:center;
+  margin-top:0.4rem; font-size:0.7rem; color:var(--gray-500);
+  font-family:var(--sans); letter-spacing:0.04em;
+}
+.log__stat-item { display:inline-flex; align-items:center; gap:0.2rem; }
+[data-theme="dark"] .log__stats { color:#888; }
+
+/* ── 笔记详情页的 stats 行 + 点赞按钮 ── */
+.log-detail__meta-row {
+  display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+  margin: 0.4rem 0 1.2rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--gray-200);
+}
+.note-stat--views {
+  font-size:0.8rem; color:var(--gray-500); letter-spacing:0.04em;
+  display:inline-flex; align-items:center; gap:0.3rem;
+}
+.note-stat--views strong { color:var(--gray-700); font-weight:600; }
+.note-like-btn {
+  display:inline-flex; align-items:center; gap:0.35rem;
+  padding:0.35rem 0.85rem;
+  background:transparent; border:1.5px solid var(--gray-300);
+  border-radius:999px; cursor:pointer;
+  font-family:var(--sans); font-size:0.78rem; color:var(--gray-600);
+  letter-spacing:0.04em;
+  transition: all 0.2s;
+}
+.note-like-btn:hover {
+  border-color:var(--accent); color:var(--accent);
+  transform:translateY(-1px);
+}
+.note-like-btn__icon { font-size:0.95rem; line-height:1; }
+.note-like-btn__count {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:1.4em; padding:0 0.35em; height:1.4em;
+  background:var(--gray-100); border-radius:999px;
+  font-size:0.7rem; font-weight:600; color:var(--gray-600);
+  margin-left:0.15rem;
+}
+.note-like-btn.is-liked {
+  background:var(--accent); border-color:var(--accent); color:#fff;
+  box-shadow: 0 2px 8px rgba(194, 59, 34, 0.25);
+}
+.note-like-btn.is-liked .note-like-btn__icon { animation: heartPop 0.4s ease; }
+.note-like-btn.is-liked .note-like-btn__count {
+  background:rgba(255,255,255,0.22); color:#fff;
+}
+.note-like-btn:disabled { opacity:0.6; cursor:wait; }
+@keyframes heartPop {
+  0%   { transform:scale(1); }
+  50%  { transform:scale(1.35); }
+  100% { transform:scale(1); }
+}
+[data-theme="dark"] .log-detail__meta-row { border-bottom-color:#333; }
+[data-theme="dark"] .note-stat--views { color:#999; }
+[data-theme="dark"] .note-stat--views strong { color:#ddd; }
+[data-theme="dark"] .note-like-btn { border-color:#444; color:#bbb; }
+[data-theme="dark"] .note-like-btn:hover { border-color:var(--accent); color:#fff; background:var(--accent); }
+[data-theme="dark"] .note-like-btn__count { background:#2a2a2a; color:#aaa; }
+[data-theme="dark"] .note-like-btn.is-liked { color:#fff; }
+[data-theme="dark"] .note-like-btn.is-liked .note-like-btn__count { background:rgba(255,255,255,0.22); color:#fff; }
+
 /* ── Log detail (就地展开视图，非 Modal) ── */
 .log-detail-view { max-width: 1200px; margin: 0 auto; padding: 0 1rem 3rem; }
 .log-detail-view__back {
@@ -4912,6 +4977,8 @@ const Store = {
   about: { ...DEFAULT_ABOUT },
   comments: {}, // { [logId]: [{id, visitorId, nickname, content, createdAt}] }
   orders: [],   // [{id, seq, type, tier, tierLabel, price, description, clientName, showName, visitorId, contact, step, createdAt, acceptedAt, completedAt, review}]
+  noteStats: {},     // { [logId]: { likes, views } } —— 内存缓存
+  myLikedNotes: new Set(), // 我点过赞的笔记 id（按 visitorId 维度）
   _syncTimer: null,
   _online: false,
   async load() {
@@ -5260,6 +5327,52 @@ const Store = {
     this.orders = this.orders.filter(o => o.id !== orderId);
     try { localStorage.setItem('tn_orders', JSON.stringify(this.orders)); } catch (_) {}
     return true;
+  },
+  // ── 笔记点赞 + 阅读量 ──
+  async loadNoteStats(ids) {
+    if (typeof API_BASE !== 'string' || !API_BASE) return;
+    if (!Array.isArray(ids) || ids.length === 0) return;
+    try {
+      const idsStr = ids.map(String).join(',');
+      const vid = getVisitorId();
+      const res = await fetch(API_BASE + '/api/notes/stats?ids=' + encodeURIComponent(idsStr) + '&visitorId=' + encodeURIComponent(vid), { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) return;
+      Object.keys(data.stats || {}).forEach(id => {
+        this.noteStats[id] = data.stats[id];
+      });
+      if (Array.isArray(data.liked)) {
+        this.myLikedNotes = new Set(data.liked.map(String));
+      }
+    } catch (_) { /* 静默失败，stats 不严肃 */ }
+  },
+  async toggleNoteLike(logId) {
+    if (typeof API_BASE !== 'string' || !API_BASE) throw new Error('未联云');
+    const res = await fetch(API_BASE + '/api/notes/' + encodeURIComponent(logId) + '/like', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visitorId: getVisitorId() })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    this.noteStats[logId] = data.stats;
+    if (data.liked) this.myLikedNotes.add(String(logId));
+    else this.myLikedNotes.delete(String(logId));
+    return data;
+  },
+  async reportNoteView(logId) {
+    if (typeof API_BASE !== 'string' || !API_BASE) return;
+    try {
+      const res = await fetch(API_BASE + '/api/notes/' + encodeURIComponent(logId) + '/view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitorId: getVisitorId() })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok && data.stats) {
+        this.noteStats[logId] = data.stats;
+      }
+    } catch (_) {}
   }
 };
 
@@ -6352,6 +6465,8 @@ function renderLogs() {
     const idStr = JSON.stringify(l.id);
     const gName = l.groupId ? groupNameOf(l.groupId) : '';
     const gBadge = gName ? `<span class="log__group-badge">${escapeHTML(gName)}</span>` : '';
+    const st = Store.noteStats[String(l.id)] || { likes: 0, views: 0 };
+    const statsBadge = `<div class="log__stats" title="阅读 / 喜欢"><span class="log__stat-item">👁 ${st.views || 0}</span><span class="log__stat-item">♥ ${st.likes || 0}</span></div>`;
     return `
     <article class="log log--clickable" id="log-${l.id}" onclick='openLogDetail(${idStr})'>
       <div class="log__marker"></div>
@@ -6362,6 +6477,7 @@ function renderLogs() {
             <span class="log__date">${dateStr}</span>
           </div>
           ${gBadge}
+          ${statsBadge}
           <div class="log__preview">${escapeHTML(previewText)}${previewText.length >= 160 ? '…' : ''}</div>
           ${tags ? `<div class="log__tags">${tags}</div>` : ''}
         </div>
@@ -6590,6 +6706,15 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 
 // ── 更新公告数据（最新在最前；日期升序在最后追加新条目） ──
 const CHANGELOG = [
+  {
+    date: '2026-06-07',
+    title: '笔记加点赞 + 阅读量',
+    items: [
+      '♥ 每篇笔记加点赞功能：详情页标题下方加胶囊状「♥ 喜欢」按钮，可点击 toggle（已点变暗红填充 + 弹跳动画），同一访客 / 笔记仅算一次；点完列表卡片上的数字也会同步更新',
+      '👁 每篇笔记加阅读量：列表卡片右下角显示「👁 N」，详情页标题下方显示「👁 N 阅读」；同一访客同一天进同一篇笔记仅计 1 次，避免刷量；按北京时区 0 点重置',
+      '🛠 后端新增 3 个 API：`GET /api/notes/stats?ids=&visitorId=` 批量取 stats（一次性渲染列表，附带「我点过哪些」） / `POST /api/notes/:id/like` toggle 点赞 / `POST /api/notes/:id/view` 上报阅读；KV 用聚合 JSON 存 likes/views，单点的 KV key 存「我点过」标记 + TTL 86400 防重复阅读',
+    ],
+  },
   {
     date: '2026-06-06',
     title: '星座运势接入 banner（含移动端 grid 修复） + 昵称违禁词审核 + 日志改名「笔记 · 碎碎念」 + 登录用户评论锁定昵称 + 注册入口 + 密码登录 + 订单权限隔离',
@@ -8797,12 +8922,19 @@ function openLogDetail(id) {
   body.innerHTML = `
     <div class="log-detail__date">${dateStr}${gBadge}</div>
     <h2 class="log-detail__title">${escapeHTML(log.title)}</h2>
+    <div class="log-detail__meta-row" id="logDetailStatsRow">${renderNoteStatsRow(log.id)}</div>
     <div class="log-detail__content">${contentHTML}</div>
     ${legacyImgsHTML}
     ${tagsHTML}
     ${adminBar}
   `;
   aside.innerHTML = renderCommentSection(log.id);
+
+  // 异步上报阅读量（同访客同日仅计一次） + 拉最新 stats 回填 UI
+  Store.reportNoteView(log.id).then(() => {
+    const row = document.getElementById('logDetailStatsRow');
+    if (row) row.innerHTML = renderNoteStatsRow(log.id);
+  });
 
   // 切换视图：隐藏列表 + 分组栏，显示详情；滚动到笔记页顶
   if (list) list.style.display = 'none';
@@ -8824,6 +8956,43 @@ function closeLogDetail() {
   if (view) { view.style.display = 'none'; delete view.dataset.logId; }
   if (list) list.style.display = '';
   if (bar) bar.style.display = '';
+}
+
+// ── 笔记点赞 + 阅读量 UI ──
+function renderNoteStatsRow(logId) {
+  const st = Store.noteStats[String(logId)] || { likes: 0, views: 0 };
+  const liked = Store.myLikedNotes.has(String(logId));
+  const idStr = JSON.stringify(String(logId));
+  return `
+    <span class="note-stat note-stat--views" title="阅读量">👁 <strong>${st.views || 0}</strong> 阅读</span>
+    <button class="note-like-btn ${liked ? 'is-liked' : ''}" type="button" id="noteLikeBtn-${escAttr(String(logId))}"
+            onclick='toggleLikeFromDetail(${idStr})' title="${liked ? '取消喜欢' : '喜欢'}">
+      <span class="note-like-btn__icon">♥</span>
+      <span class="note-like-btn__label">${liked ? '已喜欢' : '喜欢'}</span>
+      <span class="note-like-btn__count">${st.likes || 0}</span>
+    </button>`;
+}
+
+async function toggleLikeFromDetail(logId) {
+  const btn = document.getElementById('noteLikeBtn-' + logId);
+  if (btn) btn.disabled = true;
+  try {
+    await Store.toggleNoteLike(logId);
+    const row = document.getElementById('logDetailStatsRow');
+    if (row) row.innerHTML = renderNoteStatsRow(logId);
+    // 同步刷新列表卡片上的 stats badge（如果在显示）
+    const card = document.getElementById('log-' + logId);
+    if (card) {
+      const statsEl = card.querySelector('.log__stats');
+      if (statsEl) {
+        const st = Store.noteStats[String(logId)] || { likes: 0, views: 0 };
+        statsEl.innerHTML = `<span class="log__stat-item">👁 ${st.views || 0}</span><span class="log__stat-item">♥ ${st.likes || 0}</span>`;
+      }
+    }
+  } catch (e) {
+    toast('操作失败：' + (e.message || e));
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ── Lightbox ──
@@ -10594,6 +10763,12 @@ document.addEventListener('DOMContentLoaded', function() {
   initThemeBtn();
   initWsMode();
   initWsView();
+  // 异步拉笔记 stats（点赞/阅读量）并回填 UI；不阻塞主渲染
+  if (Store.logs && Store.logs.length > 0) {
+    Store.loadNoteStats(Store.logs.map(l => l.id)).then(() => {
+      if (typeof renderLogs === 'function') renderLogs();
+    });
+  }
   // 启动后激活美化层
   setupUiEnhancements();
   // 用户登录态 + 私信
