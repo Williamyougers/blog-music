@@ -3156,6 +3156,136 @@ async function handleRequest(request, env, ctx, cors) {
       return json({ ok: true, key, size: bytes.length, mime: mime || 'application/octet-stream', ext }, 200, cors);
     }
 
+    // ─── R2 Multipart Upload 三件套（分片并发上传，绕开单 TCP 流国际链路限速）─────────────
+    // 适用：任何 kind ∈ {arr-trial, arr-paid, prod-trial, prod-paid}
+    // 流程：客户端切 5MB 一片 → init 拿 uploadId+key → 6 路并发 PUT part → complete 合并
+
+    // POST /api/upload/multipart/init
+    //   body JSON: { kind, filename, mime }
+    //   → { ok, uploadId, key }
+    if (path === '/api/upload/multipart/init' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const kind = String(body.kind || '');
+      const filename = String(body.filename || '').toLowerCase();
+      const mime = String(body.mime || '').toLowerCase();
+      let prefix;
+      if (kind === 'arr-trial') prefix = 'arrangements/trial/';
+      else if (kind === 'arr-paid') prefix = 'arrangements/paid/';
+      else if (kind === 'prod-trial') prefix = 'productions/trial/';
+      else if (kind === 'prod-paid') prefix = 'productions/paid/';
+      else return json({ error: 'Invalid kind' }, 400, cors);
+      // trial 类 MIME 必须 audio/
+      if ((kind === 'arr-trial' || kind === 'prod-trial') && !/^audio\/[a-z0-9.+-]+$/i.test(mime)) {
+        return json({ error: 'Trial file must be audio/*' }, 400, cors);
+      }
+      // ext 优先文件名后缀，兜底 mimeToExt
+      const nameExt = (filename.match(/\.([a-z0-9]{1,8})$/) || [])[1];
+      const ext = nameExt || mimeToExt(mime) || 'bin';
+      const ts = Date.now();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const key = `${prefix}${ts}_${rand}.${ext}`;
+      try {
+        const multipart = await env.R2.createMultipartUpload(key, {
+          httpMetadata: { contentType: mime || 'application/octet-stream' }
+        });
+        return json({ ok: true, uploadId: multipart.uploadId, key }, 200, cors);
+      } catch (e) {
+        return json({ error: 'createMultipartUpload failed: ' + (e.message || String(e)) }, 500, cors);
+      }
+    }
+
+    // PUT /api/upload/multipart/part?key=&uploadId=&partNumber=
+    //   body: raw bytes (chunk，除最后一片外必须 ≥5MB)
+    //   → { ok, partNumber, etag }
+    if (path === '/api/upload/multipart/part' && method === 'PUT') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
+      const key = url.searchParams.get('key');
+      const uploadId = url.searchParams.get('uploadId');
+      const partNumber = parseInt(url.searchParams.get('partNumber') || '0', 10);
+      if (!key || !uploadId || !partNumber || partNumber < 1 || partNumber > 10000) {
+        return json({ error: 'key/uploadId/partNumber required (1-10000)' }, 400, cors);
+      }
+      try {
+        const multipart = env.R2.resumeMultipartUpload(key, uploadId);
+        const buf = await request.arrayBuffer();
+        if (buf.byteLength === 0) return json({ error: 'Empty chunk' }, 400, cors);
+        if (buf.byteLength > 10 * 1024 * 1024) return json({ error: 'Chunk too large (>10MB)' }, 413, cors);
+        const part = await multipart.uploadPart(partNumber, buf);
+        return json({ ok: true, partNumber: part.partNumber, etag: part.etag }, 200, cors);
+      } catch (e) {
+        return json({ error: 'uploadPart failed: ' + (e.message || String(e)) }, 500, cors);
+      }
+    }
+
+    // POST /api/upload/multipart/complete
+    //   body JSON: { key, uploadId, parts: [{partNumber, etag}], mime, size }
+    //   → { ok, key, size, mime, ext, url? }  (url 仅 trial 类返回)
+    if (path === '/api/upload/multipart/complete' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const key = String(body.key || '');
+      const uploadId = String(body.uploadId || '');
+      const parts = Array.isArray(body.parts) ? body.parts : [];
+      const mime = String(body.mime || 'application/octet-stream').toLowerCase();
+      const size = Number(body.size) || 0;
+      if (!key || !uploadId || parts.length === 0) {
+        return json({ error: 'key/uploadId/parts required' }, 400, cors);
+      }
+      // 校验总大小（trial 20MB / paid 80MB）
+      let maxSize = 80 * 1024 * 1024;
+      if (key.startsWith('arrangements/trial/') || key.startsWith('productions/trial/')) maxSize = 20 * 1024 * 1024;
+      if (size > maxSize) {
+        try { const m = env.R2.resumeMultipartUpload(key, uploadId); await m.abort(); } catch (_) {}
+        return json({ error: 'File too large' }, 413, cors);
+      }
+      try {
+        const multipart = env.R2.resumeMultipartUpload(key, uploadId);
+        const sortedParts = parts.slice()
+          .map(p => ({ partNumber: Number(p.partNumber), etag: String(p.etag || '') }))
+          .sort((a, b) => a.partNumber - b.partNumber);
+        await multipart.complete(sortedParts);
+        const nameExt = (key.match(/\.([a-z0-9]{1,8})$/) || [])[1];
+        const ext = nameExt || mimeToExt(mime) || 'bin';
+        const ret = { ok: true, key, size, mime, ext };
+        // trial 类需要返回公开 URL（与 upload-trial 行为对齐）
+        if (key.startsWith('arrangements/trial/') || key.startsWith('productions/trial/')) {
+          ret.url = `${new URL(request.url).origin}/files/${key}`;
+        }
+        return json(ret, 200, cors);
+      } catch (e) {
+        return json({ error: 'complete failed: ' + (e.message || String(e)) }, 500, cors);
+      }
+    }
+
+    // POST /api/upload/multipart/abort
+    //   body JSON: { key, uploadId }
+    //   → { ok }
+    if (path === '/api/upload/multipart/abort' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
+      let body;
+      try { body = await request.json(); }
+      catch { return json({ error: 'Invalid JSON' }, 400, cors); }
+      const key = String(body.key || '');
+      const uploadId = String(body.uploadId || '');
+      if (!key || !uploadId) return json({ error: 'key/uploadId required' }, 400, cors);
+      try {
+        const multipart = env.R2.resumeMultipartUpload(key, uploadId);
+        await multipart.abort();
+        return json({ ok: true }, 200, cors);
+      } catch (e) {
+        return json({ error: 'abort failed: ' + (e.message || String(e)) }, 500, cors);
+      }
+    }
+
     // GET /api/orders/:orderId/download-deliverable?fileIdx=N&visitorId=xxx
     //   接单订单成品交付下载：与「成品编曲售出即删」不同，此处是已付款的定制服务，客户重下合理诉求
     //   验证：order 真实 + paid=true + deliverables[idx] 存在 + 身份匹配 (userId 优先 / visitorId 兜底)
