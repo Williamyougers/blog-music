@@ -4827,10 +4827,17 @@ aside.ws-sidebar > .ws-view-only--commission {
       </label>
 
       <div class="arr-editor-form__hint" style="border-top:1px dashed var(--gray-300); padding-top:0.8rem; margin-top:0.4rem;">
-        <strong>💾 付费下载文件（≤200MB）</strong><br>
-        浏览器单次上传 200MB 不稳定。请先用 wrangler 命令一句话传到 R2，再把 key 填进下方：<br>
-        <code style="background:var(--gray-100); padding:0.1rem 0.3rem; border-radius:3px; font-size:0.75rem;">wrangler r2 object put blog-music-files/arrangements/paid/我的文件.zip --file=./我的文件.zip --remote</code>
+        <strong>💾 付费下载文件</strong><br>
+        <span style="color:var(--gray-600); font-size:0.78rem;">≤80MB 直接拖文件上传；&gt;80MB 才需要 wrangler 命令推 R2 再手填 key</span>
       </div>
+      <label style="margin-top:0.4rem;">▶ 上传付费文件（≤80MB，wav/zip/midi 等均可）
+        <input type="file" id="arr-paid-input" onchange="uploadArrPaidFile(this)">
+        <div id="arr-paid-state" class="arr-editor-form__upload-state">未上传</div>
+      </label>
+      <details style="margin-top:0.4rem; font-size:0.78rem; color:var(--gray-600);">
+        <summary style="cursor:pointer;">大于 80MB？点这里看 wrangler 命令</summary>
+        <code style="display:block; background:var(--gray-100); padding:0.3rem 0.5rem; border-radius:3px; margin-top:0.3rem; font-size:0.72rem; word-break:break-all;">wrangler r2 object put blog-music-files/arrangements/paid/我的文件.zip --file=./我的文件.zip --remote</code>
+      </details>
       <div class="arr-editor-form__row">
         <label>付费文件 R2 key
           <input type="text" id="arr-paid-key" placeholder="arrangements/paid/我的文件.zip">
@@ -4886,10 +4893,17 @@ aside.ws-sidebar > .ws-view-only--commission {
       </label>
 
       <div class="arr-editor-form__hint" style="border-top:1px dashed var(--gray-300); padding-top:0.8rem; margin-top:0.4rem;">
-        <strong>💾 付费下载文件（≤200MB）</strong><br>
-        浏览器单次上传 200MB 不稳定。请先用 wrangler 命令一句话传到 R2，再把 key 填进下方：<br>
-        <code style="background:var(--gray-100); padding:0.1rem 0.3rem; border-radius:3px; font-size:0.75rem;">wrangler r2 object put blog-music-files/productions/paid/我的文件.zip --file=./我的文件.zip --remote</code>
+        <strong>💾 付费下载文件</strong><br>
+        <span style="color:var(--gray-600); font-size:0.78rem;">≤80MB 直接拖文件上传；&gt;80MB 才需要 wrangler 命令推 R2 再手填 key</span>
       </div>
+      <label style="margin-top:0.4rem;">▶ 上传付费文件（≤80MB，wav/zip/midi 等均可）
+        <input type="file" id="prod-paid-input" onchange="uploadProdPaidFile(this)">
+        <div id="prod-paid-state" class="arr-editor-form__upload-state">未上传</div>
+      </label>
+      <details style="margin-top:0.4rem; font-size:0.78rem; color:var(--gray-600);">
+        <summary style="cursor:pointer;">大于 80MB？点这里看 wrangler 命令</summary>
+        <code style="display:block; background:var(--gray-100); padding:0.3rem 0.5rem; border-radius:3px; margin-top:0.3rem; font-size:0.72rem; word-break:break-all;">wrangler r2 object put blog-music-files/productions/paid/我的文件.zip --file=./我的文件.zip --remote</code>
+      </details>
       <div class="arr-editor-form__row">
         <label>付费文件 R2 key
           <input type="text" id="prod-paid-key" placeholder="productions/paid/我的文件.zip">
@@ -7455,6 +7469,14 @@ function renderAll() { renderWorks(); renderLogs(); renderLogGroupsBar(); render
 
 // ── 更新公告数据（最新在最前；日期升序在最后追加新条目） ──
 const CHANGELOG = [
+  {
+    date: '2026-06-08',
+    title: '付费文件一键上传 + 管理员再也不碰 wrangler',
+    items: [
+      '🛠 worker 新增 2 个付费文件上传端点：`POST /api/arrangements/upload-paid` + `POST /api/productions/upload-paid`（super admin only，≤80MB，自动生成 R2 key + 回填 ext/size/mime），共享编曲和成品编曲管理员编辑器里现在可以直接拖文件上传付费源',
+      '✨ 管理员编辑器 UI 升级：付费文件区新增「▶ 上传付费文件」拖拽入口，上传成功自动回填 R2 key / 扩展名 / 大小 / MIME 四个字段，不用手填；wrangler 命令收进 `<details>` 折叠区（>80MB 才需要）',
+    ],
+  },
   {
     date: '2026-06-07',
     title: '工坊大改版：共享编曲挪入工坊「板块」三选一 + 新增「成品编曲」独占售出区 + 笔记加点赞 + 阅读量（含列表实时同步）',
@@ -10247,6 +10269,8 @@ function openArrangementEditor(arrId) {
     $('arr-paid-ext').value = a.paidExt || '';
     $('arr-paid-size').value = a.paidSize || '';
     $('arr-paid-mime').value = a.paidMime || '';
+    $('arr-paid-input').value = '';
+    $('arr-paid-state').textContent = a.paidKey ? `已有付费文件（${_fmtArrSize(a.paidSize)}）— key: ${a.paidKey}` : '未上传';
   } else {
     ['arr-title','arr-desc','arr-price','arr-tags','arr-paid-key','arr-paid-ext','arr-paid-size','arr-paid-mime'].forEach(id => { $(id).value = ''; });
     $('arr-trial-input').value = '';
@@ -10258,6 +10282,8 @@ function openArrangementEditor(arrId) {
     const preview = $('arr-trial-preview');
     preview.removeAttribute('src');
     preview.style.display = 'none';
+    $('arr-paid-input').value = '';
+    $('arr-paid-state').textContent = '未上传';
   }
   document.getElementById('arrEditorModal').classList.add('open');
 }
@@ -10296,6 +10322,39 @@ async function uploadArrTrialFile(input) {
     preview.src = data.url;
     preview.style.display = '';
     toast('试听文件已上传');
+  } catch (e) {
+    state.textContent = '上传失败：' + (e.message || e);
+    toast('上传失败：' + (e.message || e));
+  }
+}
+
+async function uploadArrPaidFile(input) {
+  if (!input || !input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 80 * 1024 * 1024) {
+    toast('付费文件不能超过 80MB，请用 wrangler 命令上传后手填 key');
+    input.value = '';
+    return;
+  }
+  const state = document.getElementById('arr-paid-state');
+  state.textContent = `上传中… ${_fmtArrSize(file.size)}`;
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(API_BASE + '/api/arrangements/upload-paid', {
+      method: 'POST',
+      headers: adminAuthHeaders(),
+      body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    // 自动回填 4 个字段
+    document.getElementById('arr-paid-key').value = data.key || '';
+    document.getElementById('arr-paid-ext').value = data.ext || '';
+    document.getElementById('arr-paid-size').value = String(data.size || file.size);
+    document.getElementById('arr-paid-mime').value = data.mime || file.type || '';
+    state.textContent = `✓ 上传成功（${_fmtArrSize(data.size || file.size)}）— key: ${data.key}`;
+    toast('付费文件已上传到 R2');
   } catch (e) {
     state.textContent = '上传失败：' + (e.message || e);
     toast('上传失败：' + (e.message || e));
@@ -10783,6 +10842,8 @@ function openProductionEditor(prodId) {
     $('prod-paid-ext').value = p.paidExt || '';
     $('prod-paid-size').value = p.paidSize || '';
     $('prod-paid-mime').value = p.paidMime || '';
+    $('prod-paid-input').value = '';
+    $('prod-paid-state').textContent = p.paidKey ? `已有付费文件（${_fmtProdSize(p.paidSize)}）— key: ${p.paidKey}` : '未上传';
     if (p.trialUrl) {
       $('prod-trial-state').textContent = '已上传：' + _fmtProdSize(p.trialSize);
       $('prod-trial-preview').src = p.trialUrl;
@@ -10796,6 +10857,8 @@ function openProductionEditor(prodId) {
     ['prod-title','prod-desc','prod-price','prod-tags','prod-paid-key','prod-paid-ext','prod-paid-size','prod-paid-mime'].forEach(id => { $(id).value = ''; });
     $('prod-trial-state').textContent = '未上传';
     $('prod-trial-preview').style.display = 'none';
+    $('prod-paid-input').value = '';
+    $('prod-paid-state').textContent = '未上传';
   }
   const inp = $('prod-trial-input');
   if (inp) inp.value = '';
@@ -10828,6 +10891,38 @@ async function uploadProdTrialFile(input) {
   } catch (e) {
     stateEl.textContent = '❌ 失败：' + e.message;
     toast('上传失败：' + e.message);
+  }
+}
+
+async function uploadProdPaidFile(input) {
+  if (!input || !input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 80 * 1024 * 1024) {
+    toast('付费文件不能超过 80MB，请用 wrangler 命令上传后手填 key');
+    input.value = '';
+    return;
+  }
+  const state = document.getElementById('prod-paid-state');
+  state.textContent = `上传中… ${_fmtArrSize(file.size)}`;
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(API_BASE + '/api/productions/upload-paid', {
+      method: 'POST',
+      headers: adminAuthHeaders(),
+      body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    document.getElementById('prod-paid-key').value = data.key || '';
+    document.getElementById('prod-paid-ext').value = data.ext || '';
+    document.getElementById('prod-paid-size').value = String(data.size || file.size);
+    document.getElementById('prod-paid-mime').value = data.mime || file.type || '';
+    state.textContent = `✓ 上传成功（${_fmtArrSize(data.size || file.size)}）— key: ${data.key}`;
+    toast('付费文件已上传到 R2');
+  } catch (e) {
+    state.textContent = '上传失败：' + (e.message || e);
+    toast('上传失败：' + (e.message || e));
   }
 }
 

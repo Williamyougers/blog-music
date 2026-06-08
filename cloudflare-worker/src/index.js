@@ -2821,6 +2821,33 @@ async function handleRequest(request, env, ctx, cors) {
       return json({ ok: true, url: url2, key, size: bytes.length, mime }, 200, cors);
     }
 
+    // POST /api/arrangements/upload-paid - 上传付费文件（super admin only，≤80MB）
+    //   form-data: file
+    //   返回: { ok, key, size, mime, ext }
+    if (path === '/api/arrangements/upload-paid' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
+      let form;
+      try { form = await request.formData(); }
+      catch { return json({ error: 'Invalid form data' }, 400, cors); }
+      const file = form.get('file');
+      if (!file || typeof file === 'string') return json({ error: 'file required' }, 400, cors);
+      const mime = (file.type || '').toLowerCase();
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      if (bytes.length > 80 * 1024 * 1024) return json({ error: 'Paid file too large (>80MB, please use wrangler)' }, 413, cors);
+
+      // ext 优先取原文件名（wav/zip/midi 这类 mime 容易拿不准），兜底走 mimeToExt
+      const origName = (file.name || '').toLowerCase();
+      const nameExt = (origName.match(/\.([a-z0-9]{1,8})$/) || [])[1];
+      const ext = nameExt || mimeToExt(mime) || 'bin';
+      const ts = Date.now();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const key = `arrangements/paid/${ts}_${rand}.${ext}`;
+      await env.R2.put(key, bytes, { httpMetadata: { contentType: mime || 'application/octet-stream' } });
+      return json({ ok: true, key, size: bytes.length, mime: mime || 'application/octet-stream', ext }, 200, cors);
+    }
+
     // GET /api/arrangements/:id/download?orderId=&visitorId= - 客户下载付费文件
     //   客户：order 真实 + paid=true + arrangementId 匹配 + 属于该 visitor/user + 未下载过
     //         通过后标记 downloadedAt=now（单次下载锁），R2 stream 返回文件
@@ -3101,6 +3128,32 @@ async function handleRequest(request, env, ctx, cors) {
       const origin = new URL(request.url).origin;
       const url2 = `${origin}/files/${key}`;
       return json({ ok: true, url: url2, key, size: bytes.length, mime }, 200, cors);
+    }
+
+    // POST /api/productions/upload-paid - 上传付费文件（super admin only，≤80MB）
+    //   form-data: file
+    //   返回: { ok, key, size, mime, ext }
+    if (path === '/api/productions/upload-paid' && method === 'POST') {
+      if (!(await isSuperRole(request, env))) return json({ error: 'Super admin only' }, 401, cors);
+      if (!env.R2) return json({ error: 'R2 not configured' }, 500, cors);
+      let form;
+      try { form = await request.formData(); }
+      catch { return json({ error: 'Invalid form data' }, 400, cors); }
+      const file = form.get('file');
+      if (!file || typeof file === 'string') return json({ error: 'file required' }, 400, cors);
+      const mime = (file.type || '').toLowerCase();
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      if (bytes.length > 80 * 1024 * 1024) return json({ error: 'Paid file too large (>80MB, please use wrangler)' }, 413, cors);
+
+      const origName = (file.name || '').toLowerCase();
+      const nameExt = (origName.match(/\.([a-z0-9]{1,8})$/) || [])[1];
+      const ext = nameExt || mimeToExt(mime) || 'bin';
+      const ts = Date.now();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const key = `productions/paid/${ts}_${rand}.${ext}`;
+      await env.R2.put(key, bytes, { httpMetadata: { contentType: mime || 'application/octet-stream' } });
+      return json({ ok: true, key, size: bytes.length, mime: mime || 'application/octet-stream', ext }, 200, cors);
     }
 
     // GET /api/orders/:orderId/download-deliverable?fileIdx=N&visitorId=xxx
