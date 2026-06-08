@@ -7475,6 +7475,7 @@ const CHANGELOG = [
     items: [
       '🛠 worker 新增 2 个付费文件上传端点：`POST /api/arrangements/upload-paid` + `POST /api/productions/upload-paid`（super admin only，≤80MB，自动生成 R2 key + 回填 ext/size/mime），共享编曲和成品编曲管理员编辑器里现在可以直接拖文件上传付费源',
       '✨ 管理员编辑器 UI 升级：付费文件区新增「▶ 上传付费文件」拖拽入口，上传成功自动回填 R2 key / 扩展名 / 大小 / MIME 四个字段，不用手填；wrangler 命令收进 `<details>` 折叠区（>80MB 才需要）',
+      '⏱ 上传进度可视化：试听 / 付费 / 成品三处上传按钮，等待文案现在带「百分比 + 已传/总大小 + 实时速度 + 剩余秒数」，再也不用对着「上传中…」原地干等不知道死活',
     ],
   },
   {
@@ -10040,6 +10041,61 @@ function _fmtArrSize(bytes) {
   return (n / 1024 / 1024).toFixed(1) + 'MB';
 }
 
+// 通用：带进度的 multipart 文件上传，返回 Promise<{data}>；onProgress({pct, loaded, total, speed, remain})
+function _uploadFileWithProgress(url, file, fieldName, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const fd = new FormData();
+    fd.append(fieldName || 'file', file, file.name || 'file');
+    xhr.open('POST', url);
+    try {
+      const ah = adminAuthHeaders();
+      Object.keys(ah).forEach(k => xhr.setRequestHeader(k, ah[k]));
+    } catch (_) {}
+    const t0 = Date.now();
+    if (xhr.upload && typeof onProgress === 'function') {
+      xhr.upload.onprogress = e => {
+        if (!e.lengthComputable) return;
+        const pct = Math.min(99, Math.round(e.loaded * 100 / e.total));
+        const dt = (Date.now() - t0) / 1000;
+        const speed = dt > 0.1 ? (e.loaded / dt) : 0;
+        const remain = speed > 0 ? Math.max(0, Math.round((e.total - e.loaded) / speed)) : 0;
+        try { onProgress({ pct, loaded: e.loaded, total: e.total, speed, remain }); } catch (_) {}
+      };
+    }
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText || '{}'); } catch (_) {}
+      if (xhr.status >= 200 && xhr.status < 300) {
+        if (typeof onProgress === 'function') {
+          try { onProgress({ pct: 100, loaded: file.size, total: file.size, speed: 0, remain: 0 }); } catch (_) {}
+        }
+        resolve({ data });
+      } else {
+        if (xhr.status === 413) reject(new Error('文件过大（HTTP 413）'));
+        else if (xhr.status === 429) reject(new Error('上传太频繁，请稍等'));
+        else reject(new Error(data.error || ('HTTP ' + xhr.status)));
+      }
+    };
+    xhr.onerror = () => reject(new Error('网络异常'));
+    xhr.onabort = () => reject(new Error('上传已取消'));
+    xhr.send(fd);
+  });
+}
+
+function _fmtUploadSpeed(bps) {
+  if (!bps || bps < 1) return '';
+  if (bps >= 1024 * 1024) return (bps / 1024 / 1024).toFixed(2) + ' MB/s';
+  if (bps >= 1024) return (bps / 1024).toFixed(1) + ' KB/s';
+  return Math.round(bps) + ' B/s';
+}
+
+function _fmtUploadProgress(file, p) {
+  const sp = _fmtUploadSpeed(p.speed);
+  const r = p.remain > 0 ? ` · 剩 ${p.remain}s` : '';
+  return `上传中… ${p.pct}% (${_fmtArrSize(p.loaded)}/${_fmtArrSize(p.total)})${sp ? ' · ' + sp : ''}${r}`;
+}
+
 function renderArrangements() {
   const box = document.getElementById('arrangementsList');
   if (!box) return;
@@ -10302,17 +10358,15 @@ async function uploadArrTrialFile(input) {
     return;
   }
   const state = document.getElementById('arr-trial-state');
-  state.textContent = `上传中… ${_fmtArrSize(file.size)}`;
+  state.textContent = `上传中… 0% / ${_fmtArrSize(file.size)}`;
   try {
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch(API_BASE + '/api/arrangements/upload-trial', {
-      method: 'POST',
-      headers: adminAuthHeaders(), // 注意不传 Content-Type，浏览器自动加 multipart boundary
-      body: fd,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    const { data } = await _uploadFileWithProgress(
+      API_BASE + '/api/arrangements/upload-trial',
+      file,
+      'file',
+      p => { state.textContent = _fmtUploadProgress(file, p); }
+    );
+    if (!data.ok) throw new Error(data.error || '上传失败');
     input.dataset.url = data.url || '';
     input.dataset.key = data.key || '';
     input.dataset.size = String(data.size || file.size);
@@ -10337,17 +10391,15 @@ async function uploadArrPaidFile(input) {
     return;
   }
   const state = document.getElementById('arr-paid-state');
-  state.textContent = `上传中… ${_fmtArrSize(file.size)}`;
+  state.textContent = `上传中… 0% / ${_fmtArrSize(file.size)}`;
   try {
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch(API_BASE + '/api/arrangements/upload-paid', {
-      method: 'POST',
-      headers: adminAuthHeaders(),
-      body: fd,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    const { data } = await _uploadFileWithProgress(
+      API_BASE + '/api/arrangements/upload-paid',
+      file,
+      'file',
+      p => { state.textContent = _fmtUploadProgress(file, p); }
+    );
+    if (!data.ok) throw new Error(data.error || '上传失败');
     // 自动回填 4 个字段
     document.getElementById('arr-paid-key').value = data.key || '';
     document.getElementById('arr-paid-ext').value = data.ext || '';
@@ -10903,17 +10955,15 @@ async function uploadProdPaidFile(input) {
     return;
   }
   const state = document.getElementById('prod-paid-state');
-  state.textContent = `上传中… ${_fmtArrSize(file.size)}`;
+  state.textContent = `上传中… 0% / ${_fmtArrSize(file.size)}`;
   try {
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch(API_BASE + '/api/productions/upload-paid', {
-      method: 'POST',
-      headers: adminAuthHeaders(),
-      body: fd,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    const { data } = await _uploadFileWithProgress(
+      API_BASE + '/api/productions/upload-paid',
+      file,
+      'file',
+      p => { state.textContent = _fmtUploadProgress(file, p); }
+    );
+    if (!data.ok) throw new Error(data.error || '上传失败');
     document.getElementById('prod-paid-key').value = data.key || '';
     document.getElementById('prod-paid-ext').value = data.ext || '';
     document.getElementById('prod-paid-size').value = String(data.size || file.size);
