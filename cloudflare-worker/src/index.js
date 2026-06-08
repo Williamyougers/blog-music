@@ -2718,6 +2718,9 @@ async function handleRequest(request, env, ctx, cors) {
 
       const arrsRaw = await env.BLOG.get('arrangements');
       const arrs = JSON.parse(arrsRaw || '[]');
+      // 幂等去重：同 title 已存在则直接返回已存在记录（避免重试/孤儿进程造成重复）
+      const dup = arrs.find(a => a && a.title === title);
+      if (dup) return json({ ok: true, arrangement: dup, duplicated: true }, 200, cors);
       const now = Date.now();
       const item = {
         id: 'arr_' + now + '_' + Math.random().toString(36).slice(2, 8),
@@ -3021,6 +3024,9 @@ async function handleRequest(request, env, ctx, cors) {
 
       const prodsRaw = await env.BLOG.get('productions');
       const prods = JSON.parse(prodsRaw || '[]');
+      // 幂等去重：同 title 已存在则直接返回已存在记录（避免重试/孤儿进程造成重复）
+      const dup = prods.find(p => p && p.title === title);
+      if (dup) return json({ ok: true, production: adminProduction(dup), duplicated: true }, 200, cors);
       const now = Date.now();
       const item = {
         id: 'prod_' + now + '_' + Math.random().toString(36).slice(2, 8),
